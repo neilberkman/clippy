@@ -1,6 +1,15 @@
 # Clippy 📎
 
-A unified clipboard tool for macOS that intelligently handles both text and files.
+A superset of macOS's `pbcopy` that intelligently handles both text and files - the clipboard tool that just works.
+
+## Key Features
+
+- **Drop-in pbcopy replacement**: All your existing scripts work unchanged
+- **Smart file handling**: Automatically detects whether to copy content or file references
+- **Multiple file support**: `clippy *.pdf` copies all PDFs as file references
+- **Natural language**: `clippy "my file.txt"` works with spaces, wildcards, and shell expansion
+- **Binary streaming**: Pipe images, PDFs, etc. and paste them directly into apps
+- **Automatic cleanup**: Temporary files are cleaned up intelligently in the background
 
 ## The Problem
 
@@ -83,16 +92,16 @@ verbose = true
 - **Binary files** (images, PDFs, zips) → copies as file reference
 - Works with both file arguments and piped input
 
-### Automatic Cleanup
-- Scans for old temp files on startup
-- Checks if temp files are still in clipboard
-- Removes temp files that are no longer needed
-- Runs in background while main operation proceeds
-
 ### Silent by Default
 - No output unless `--verbose` flag is used
 - Perfect for scripts and automation
 - Errors still shown on stderr
+
+### Automatic Cleanup
+- Temporary files created for piped binary data are managed automatically
+- Background process scans for orphaned temp files on each run
+- Checks if temp files are still referenced in clipboard before removal
+- Non-blocking - cleanup happens while main operation proceeds
 
 ## How It Works
 
