@@ -8,7 +8,7 @@ before:
 
 builds:
   - id: clippy
-    main: ./clippy.go
+    main: .
     binary: clippy
     env:
       - CGO_ENABLED=0
