@@ -90,7 +90,7 @@ brews:
   - repository:
       owner: neilberkman
       name: homebrew-clippy
-    folder: Formula
+    directory: Formula
     homepage: "https://github.com/neilberkman/clippy"
     description: "Unified clipboard tool for macOS - a superset of pbcopy"
     license: "MIT"
