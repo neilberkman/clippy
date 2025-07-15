@@ -1,0 +1,101 @@
+version: 2
+
+project_name: clippy
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: clippy
+    main: .
+    binary: clippy
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+
+archives:
+  - id: clippy
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format: tar.gz
+    files:
+      - README.md
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+
+release:
+  github:
+    owner: "{{ .Env.GITHUB_REPOSITORY_OWNER }}"
+    name: clippy
+  draft: false
+  prerelease: auto
+  make_latest: true
+  mode: replace
+  header: |
+    ## Clippy {{.Tag}} - Unified Clipboard Tool for macOS
+
+    A smart clipboard utility that intelligently handles both text and file copying based on content type.
+
+    ### 🎯 Features
+    - Automatic content type detection
+    - Smart file path expansion
+    - Multiple file support
+    - Natural language file copying (e.g., "copy *.txt")
+    - Integration with system clipboard
+
+    ### 📦 Installation
+    
+    #### Homebrew (Recommended)
+    ```bash
+    brew tap neilberkman/clippy
+    brew install clippy
+    ```
+    
+    #### Direct Download
+    ```bash
+    # For Apple Silicon (M1/M2):
+    curl -L https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/clippy/releases/download/{{.Tag}}/clippy_{{.Tag}}_darwin_arm64.tar.gz | tar xz
+
+    # For Intel Macs:
+    curl -L https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/clippy/releases/download/{{.Tag}}/clippy_{{.Tag}}_darwin_amd64.tar.gz | tar xz
+    
+    # Move to your PATH
+    sudo mv clippy /usr/local/bin/
+    ```
+
+  footer: |
+    **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/clippy/compare/{{.PreviousTag}}...{{.Tag}}
+    
+    ---
+    🐛 **Found a bug?** Please [open an issue](https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/clippy/issues/new)
+
+brews:
+  - repository:
+      owner: neilberkman
+      name: homebrew-clippy
+    directory: Formula
+    homepage: "https://github.com/neilberkman/clippy"
+    description: "Unified clipboard tool for macOS - a superset of pbcopy"
+    license: "MIT"
+    test: |
+      system "#{bin}/clippy", "--version"
+    install: |
+      bin.install "clippy"
