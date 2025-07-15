@@ -23,7 +23,6 @@ builds:
 archives:
   - id: clippy
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    format: tar.gz
     files:
       - README.md
 
@@ -91,7 +90,7 @@ brews:
   - repository:
       owner: neilberkman
       name: homebrew-clippy
-    directory: Formula
+    folder: Formula
     homepage: "https://github.com/neilberkman/clippy"
     description: "Unified clipboard tool for macOS - a superset of pbcopy"
     license: "MIT"
