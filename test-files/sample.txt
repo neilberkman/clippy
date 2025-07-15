@@ -1,0 +1,5 @@
+This is a sample text file.
+It contains multiple lines of text.
+Testing clippy with plain text content.
+
+The tool should copy this as text, not as a file reference.
