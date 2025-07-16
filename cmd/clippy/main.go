@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/gabriel-vasile/mimetype"
-	"github.com/neilberkman/clippy/pkg/clipboard"
 	"github.com/neilberkman/clippy/internal/log"
+	"github.com/neilberkman/clippy/pkg/clipboard"
 )
 
 var (

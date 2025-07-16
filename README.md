@@ -35,6 +35,7 @@ Stay in your terminal. Copy anything. Paste anywhere.
 - **Text handling**: Text files are copied as content, just like pbcopy
 - **Automatic cleanup**: Temporary files from piped data are cleaned up intelligently
 - **Library support**: Use clippy as a Go library in your own applications
+- **Companion tool**: Includes `pasty` for intelligent pasting from clipboard
 
 ## Installation
 
@@ -155,6 +156,44 @@ clippy data.txt && echo "Copied!"
 
 # Verbose mode to see what happened
 clippy -v recording.mp4
+```
+
+## Pasty - Intelligent Clipboard Pasting
+
+Pasty is clippy's companion tool for intelligent pasting from the clipboard:
+
+```bash
+# Paste clipboard content to stdout
+pasty
+
+# Paste to a specific file
+pasty output.txt
+
+# Paste with verbose output
+pasty -v
+
+# Copy files from clipboard to directory
+pasty /path/to/destination/
+```
+
+How it works:
+- **Text content**: Pastes directly to stdout or file
+- **File references**: Lists file paths or copies files to destination
+- **Smart detection**: Automatically handles text vs file clipboard content
+
+Examples:
+```bash
+# Copy some text and paste it
+echo "Hello World" | clippy
+pasty  # Outputs: Hello World
+
+# Copy a file and paste to directory
+clippy document.pdf
+pasty ~/Desktop/  # Copies document.pdf to ~/Desktop/
+
+# Copy a file and list its path
+clippy image.png
+pasty  # Outputs: /path/to/image.png
 ```
 
 ## Testing
