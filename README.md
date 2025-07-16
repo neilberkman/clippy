@@ -132,8 +132,10 @@ temp_dir = /path/to/custom/temp
    - Text data → copies as text
    - Binary data → saves to temp file, copies reference
 
-3. **MIME Type Detection**:
-   - Uses content-based detection, not file extensions
+3. **Smart Type Detection**:
+   - Uses hybrid detection: UTI → MIME → content analysis
+   - UTI detection leverages macOS's native type system for maximum reliability
+   - MIME type detection uses content-based analysis, not file extensions
    - Anything with MIME type `text/*` is treated as text
    - This means `.log`, `.conf`, `.json`, etc. are correctly identified as text
    - Binary files are identified by their actual content (e.g., PNG magic bytes)

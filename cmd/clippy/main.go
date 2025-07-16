@@ -2,18 +2,14 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
-	"github.com/gabriel-vasile/mimetype"
+	"github.com/neilberkman/clippy"
 	"github.com/neilberkman/clippy/internal/log"
-	"github.com/neilberkman/clippy/pkg/clipboard"
 )
 
 var (
@@ -167,49 +163,33 @@ func getAbsPath(path string) string {
 
 // Logic for when a filename is provided as an argument
 func handleFileMode(filePath string) {
-	absPath := getAbsPath(filePath)
-
-	// Detect MIME type to check if it's text
-	mtype, err := mimetype.DetectFile(absPath)
+	// Use the library function for smart copying with result info
+	result, err := clippy.CopyWithResult(filePath)
 	if err != nil {
-		logger.Error("Could not read file %s", absPath)
+		logger.Error("Could not copy file %s: %v", filePath, err)
 	}
 
-	// Special case for text files: copy content, not file reference
-	if strings.HasPrefix(mtype.String(), "text/") {
-		content, err := os.ReadFile(absPath)
-		if err != nil {
-			logger.Error("Could not read file content %s", absPath)
-		}
-		clipboard.CopyText(string(content))
-		logger.Verbose("✅ Copied text content from '%s'", filepath.Base(absPath))
+	// Show verbose output with detection method
+	if result.AsText {
+		logger.Verbose("✅ Copied text content from '%s' (%s: %s)",
+			filepath.Base(filePath), result.Method, result.Type)
 	} else {
-		// For all other file types, copy as a file reference
-		clipboard.CopyFile(absPath)
-		logger.Verbose("✅ Copied file reference for '%s'", filepath.Base(absPath))
+		logger.Verbose("✅ Copied file reference for '%s' (%s: %s)",
+			filepath.Base(filePath), result.Method, result.Type)
 	}
 }
 
 // Handle multiple files at once
 func handleMultipleFiles(paths []string) {
-	// Check if all files exist and collect absolute paths
-	absPaths := make([]string, 0, len(paths))
-	for _, path := range paths {
-		absPath := getAbsPath(path)
-
-		if _, err := os.Stat(absPath); os.IsNotExist(err) {
-			logger.Error("Could not read file %s", absPath)
-		}
-
-		absPaths = append(absPaths, absPath)
+	// Use the library function for multiple file copying
+	err := clippy.CopyMultiple(paths)
+	if err != nil {
+		logger.Error("Could not copy files: %v", err)
 	}
 
-	// Copy all files at once
-	clipboard.CopyFiles(absPaths)
-
-	logger.Verbose("✅ Copied %d file references", len(absPaths))
+	logger.Verbose("✅ Copied %d file references", len(paths))
 	if verbose {
-		for _, path := range absPaths {
+		for _, path := range paths {
 			fmt.Printf("  - %s\n", filepath.Base(path))
 		}
 	}
@@ -217,86 +197,17 @@ func handleMultipleFiles(paths []string) {
 
 // Logic for when data is piped via stdin
 func handleStreamMode() {
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, os.Stdin); err != nil {
-		logger.Error("reading from stdin")
-	}
-	data := buf.Bytes()
-	if len(data) == 0 {
-		logger.PrintErr("Warning: Input stream was empty.")
-		return
+	// Use the library function for stream copying
+	err := clippy.CopyDataWithTempDir(os.Stdin, tempDir)
+	if err != nil {
+		logger.Error("Could not copy from stdin: %v", err)
 	}
 
-	mtype := mimetype.Detect(data)
-
-	// Special case for text streams: copy content
-	if strings.HasPrefix(mtype.String(), "text/") {
-		clipboard.CopyText(string(data))
-		logger.Verbose("✅ Copied text content from stream")
-	} else {
-		// For binary streams, save to a temp file, then copy the reference
-		tmpFile, err := os.CreateTemp(tempDir, "clippy-*"+mtype.Extension())
-		if err != nil {
-			logger.Error("Could not create temporary file")
-		}
-		defer func() {
-			if err := tmpFile.Close(); err != nil {
-				logger.Warning("failed to close temp file: %v", err)
-			}
-		}()
-
-		if _, err := tmpFile.Write(data); err != nil {
-			logger.Error("Could not write to temporary file")
-		}
-
-		clipboard.CopyFile(tmpFile.Name())
-		logger.Verbose("✅ Copied stream as temporary file: %s", tmpFile.Name())
-	}
+	logger.Verbose("✅ Copied content from stream using smart detection")
 }
 
 // Clean up old temp files that are no longer in clipboard
 func cleanupOldTempFiles() {
-	// No need to wait - called after main operation completes
-
-	// Get current clipboard files
-	files := clipboard.GetFiles()
-
-	// Build a map of clipboard files for quick lookup
-	clipboardMap := make(map[string]bool)
-	for _, file := range files {
-		clipboardMap[file] = true
-	}
-
-	// Find only clippy temp files using glob
-	tempDir := os.TempDir()
-	pattern := filepath.Join(tempDir, "clippy-*")
-	matches, err := filepath.Glob(pattern)
-	if err != nil {
-		return
-	}
-
-	for _, fullPath := range matches {
-		info, err := os.Stat(fullPath)
-		if err != nil {
-			continue
-		}
-
-		age := time.Since(info.ModTime())
-
-		// Check if this file is in the clipboard
-		if !clipboardMap[fullPath] {
-			// Only delete files older than 5 minutes to avoid race conditions
-			// with parallel clippy/pasty operations
-			if age >= 5*time.Minute {
-				if verbose {
-					name := filepath.Base(fullPath)
-					fmt.Fprintf(os.Stderr, "Cleaning up old temp file: %s (created %v ago)\n",
-						name, age.Round(time.Minute))
-				}
-				if err := os.Remove(fullPath); err != nil {
-					logger.Warning("Failed to remove temp file %s: %v", filepath.Base(fullPath), err)
-				}
-			}
-		}
-	}
+	// Use the library function for cleanup
+	clippy.CleanupTempFiles(tempDir, verbose)
 }
