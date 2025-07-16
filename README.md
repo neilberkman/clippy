@@ -164,7 +164,7 @@ clippy -v recording.mp4
 
 ## Pasty - Intelligent Clipboard Pasting
 
-Pasty is clippy's companion tool for intelligent pasting from the clipboard:
+Pasty is [clippy's](#clippy-) companion tool for intelligent pasting from the clipboard:
 
 ```bash
 # Paste clipboard content to stdout
