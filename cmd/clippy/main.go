@@ -36,6 +36,7 @@ Usage:
 
 Options:
   -v, --verbose    Enable verbose output
+  --cleanup        Enable automatic temp file cleanup (default: true)
   --version        Show version information
   -h, --help       Show this help message
 
@@ -65,6 +66,7 @@ Configuration:
 	// Parse flags
 	flag.BoolVar(&verbose, "verbose", false, "Enable verbose output")
 	flag.BoolVar(&verbose, "v", false, "Enable verbose output (shorthand)")
+	flag.BoolVar(&cleanup, "cleanup", true, "Enable automatic temp file cleanup")
 
 	showVersion := flag.Bool("version", false, "Show version information")
 	showHelp := flag.Bool("help", false, "Show help message")
@@ -274,19 +276,26 @@ func cleanupOldTempFiles() {
 	}
 
 	for _, fullPath := range matches {
+		info, err := os.Stat(fullPath)
+		if err != nil {
+			continue
+		}
+
+		age := time.Since(info.ModTime())
+		
 		// Check if this file is in the clipboard
 		if !clipboardMap[fullPath] {
-			// Not in clipboard, safe to delete
-			if verbose {
-				info, err := os.Stat(fullPath)
-				if err == nil {
+			// Only delete files older than 5 minutes to avoid race conditions
+			// with parallel clippy/pasty operations
+			if age >= 5*time.Minute {
+				if verbose {
 					name := filepath.Base(fullPath)
 					fmt.Fprintf(os.Stderr, "Cleaning up old temp file: %s (created %v ago)\n",
-						name, time.Since(info.ModTime()).Round(time.Minute))
+						name, age.Round(time.Minute))
 				}
-			}
-			if err := os.Remove(fullPath); err != nil {
-				logger.Warning("Failed to remove temp file %s: %v", filepath.Base(fullPath), err)
+				if err := os.Remove(fullPath); err != nil {
+					logger.Warning("Failed to remove temp file %s: %v", filepath.Base(fullPath), err)
+				}
 			}
 		}
 	}
