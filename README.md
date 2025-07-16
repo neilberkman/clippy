@@ -188,9 +188,9 @@ How it works:
 
 ## Real-World Examples
 
-### 📸 Screenshots & In-Memory Content
+### Screenshots & In-Memory Content
 
-The killer app: Handle clipboard content that has no file path.
+Handle clipboard content that has no file path.
 
 ```bash
 # Take a screenshot (Cmd+Ctrl+Shift+4), then process it:
@@ -203,9 +203,9 @@ pasty | aws s3 cp - s3://my-bucket/screenshot-$(date +%s).png
 pasty | tesseract - - | pbcopy
 ```
 
-### 🔄 Scripting with Multiple Files
+### Scripting with Multiple Files
 
-Copy files in Finder, then process them with clean, scriptable output.
+Copy files in Finder, then process them.
 
 ```bash
 # Copy 10 files in Finder, then process each one:
@@ -224,9 +224,9 @@ pasty | xargs tar -czf backup-$(date +%Y%m%d).tar.gz
 pasty | xargs -I {} find "{}" -size +10M -type f
 ```
 
-### 🚀 Automation & Workflows
+### Automation & Workflows
 
-Bridge GUI → CLI workflows that are impossible otherwise.
+Bridge GUI → CLI workflows.
 
 ```bash
 # Copy log files in Finder, then analyze
