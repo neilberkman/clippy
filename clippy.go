@@ -324,35 +324,28 @@ func cleanupOldTempFiles() {
 		}
 	}
 
-	// Scan temp directory for clippy files
+	// Find only clippy temp files using glob
 	tempDir := os.TempDir()
-	entries, err := os.ReadDir(tempDir)
+	pattern := filepath.Join(tempDir, "clippy-*")
+	matches, err := filepath.Glob(pattern)
 	if err != nil {
 		return
 	}
 
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		name := entry.Name()
-		if strings.HasPrefix(name, "clippy-") {
-			fullPath := filepath.Join(tempDir, name)
-
-			// Check if this file is in the clipboard
-			if !clipboardMap[fullPath] {
-				// Not in clipboard, safe to delete
-				if verbose {
-					info, _ := entry.Info()
-					if info != nil {
-						fmt.Fprintf(os.Stderr, "Cleaning up old temp file: %s (created %v ago)\n",
-							name, time.Since(info.ModTime()).Round(time.Minute))
-					}
+	for _, fullPath := range matches {
+		// Check if this file is in the clipboard
+		if !clipboardMap[fullPath] {
+			// Not in clipboard, safe to delete
+			if verbose {
+				info, err := os.Stat(fullPath)
+				if err == nil {
+					name := filepath.Base(fullPath)
+					fmt.Fprintf(os.Stderr, "Cleaning up old temp file: %s (created %v ago)\n",
+						name, time.Since(info.ModTime()).Round(time.Minute))
 				}
-				if err := os.Remove(fullPath); err != nil && verbose {
-					fmt.Fprintf(os.Stderr, "Warning: Failed to remove temp file %s: %v\n", name, err)
-				}
+			}
+			if err := os.Remove(fullPath); err != nil && verbose {
+				fmt.Fprintf(os.Stderr, "Warning: Failed to remove temp file %s: %v\n", filepath.Base(fullPath), err)
 			}
 		}
 	}
