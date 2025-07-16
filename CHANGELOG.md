@@ -72,7 +72,7 @@ Notable changes to clippy.
 
 ### Fixed
 - README examples now accurately describe pbcopy behavior (only accepts piped input)
-- Updated curl example to use real image service (picsum.photos)
+- Updated curl example to use real image service (picsum.photos) with -L flag for redirects
 
 ## [0.3.0] - 2025-07-15
 

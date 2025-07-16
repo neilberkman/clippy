@@ -18,7 +18,7 @@ clippy report.pdf         # ⌘V into any app - uploads the file
 clippy *.jpg             # Multiple files at once
 
 # Copy piped/streamed data as files
-curl -s https://picsum.photos/300 | clippy       # Download → clipboard as file
+curl -sL https://picsum.photos/300 | clippy      # Download → clipboard as file
 cat archive.tar.gz | clippy                      # Pipe → paste as file
 
 # Smart detection for text files
@@ -153,7 +153,7 @@ clippy report.pdf
 ls -la | clippy
 
 # Copy image from curl
-curl -s https://picsum.photos/300 | clippy
+curl -sL https://picsum.photos/300 | clippy
 
 # Silent operation for scripts
 clippy data.txt && echo "Copied!"
