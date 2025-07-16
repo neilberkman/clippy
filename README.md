@@ -4,6 +4,8 @@ Copy files from your terminal that actually paste into GUI apps. No more switchi
 
 **macOS only** - built specifically for the Mac clipboard system.
 
+**Includes [pasty](#pasty---intelligent-clipboard-pasting)** - the companion paste tool for intelligent clipboard reading and automation workflows.
+
 ## Why Clippy?
 
 `pbcopy` copies file _contents_, but GUI apps need file _references_. When you `pbcopy < image.png`, you can't paste it into Slack or email - those apps expect files, not raw bytes. Your only option is to leave the terminal and drag files from Finder.
@@ -35,7 +37,7 @@ Stay in your terminal. Copy anything. Paste anywhere.
 - **Text handling**: Text files are copied as content, just like pbcopy
 - **Automatic cleanup**: Temporary files from piped data are cleaned up intelligently
 - **Library support**: Use clippy as a Go library in your own applications
-- **Companion tool**: Includes `pasty` for intelligent pasting from clipboard
+- **Companion tool**: Includes [`pasty`](#pasty---intelligent-clipboard-pasting) for intelligent pasting and automation workflows
 
 ## Installation
 
