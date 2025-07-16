@@ -182,20 +182,60 @@ How it works:
 - **File references**: Lists file paths or copies files to destination
 - **Smart detection**: Automatically handles text vs file clipboard content
 
-Examples:
+## Real-World Examples
+
+### 📸 Screenshots & In-Memory Content
+
+The killer app: Handle clipboard content that has no file path.
 
 ```bash
-# Copy some text and paste it
-echo "Hello World" | clippy
-pasty  # Outputs: Hello World
+# Take a screenshot (Cmd+Ctrl+Shift+4), then process it:
+pasty | convert - -resize 50% screenshot-small.png
 
-# Copy a file and paste to directory
-clippy document.pdf
-pasty ~/Desktop/  # Copies document.pdf to ~/Desktop/
+# Screenshot directly to S3
+pasty | aws s3 cp - s3://my-bucket/screenshot-$(date +%s).png
 
-# Copy a file and list its path
-clippy image.png
-pasty  # Outputs: /path/to/image.png
+# Extract text from screenshot using OCR
+pasty | tesseract - - | pbcopy
+```
+
+### 🔄 Scripting with Multiple Files
+
+Copy files in Finder, then process them with clean, scriptable output.
+
+```bash
+# Copy 10 files in Finder, then process each one:
+for file in $(pasty); do
+  echo "Processing: $(basename "$file")"
+  # your processing here
+done
+
+# Parallel processing with xargs
+pasty | xargs -I {} stat -f "%z bytes: %N" "{}"
+
+# Archive all copied files
+pasty | xargs tar -czf backup-$(date +%Y%m%d).tar.gz
+
+# Find large files from copied selection
+pasty | xargs -I {} find "{}" -size +10M -type f
+```
+
+### 🚀 Automation & Workflows
+
+Bridge GUI → CLI workflows that are impossible otherwise.
+
+```bash
+# Copy log files in Finder, then analyze
+pasty | xargs grep -l "ERROR" | head -5
+
+# Batch convert images copied from Finder
+pasty | xargs -I {} convert "{}" -quality 85 "{%.jpg}"
+
+# Upload copied files to server
+pasty | xargs -I {} scp "{}" user@server:/backup/
+
+# Process copied code files
+pasty | xargs -I {} prettier --write "{}"
 ```
 
 ## Testing

@@ -282,7 +282,7 @@ func cleanupOldTempFiles() {
 		}
 
 		age := time.Since(info.ModTime())
-		
+
 		// Check if this file is in the clipboard
 		if !clipboardMap[fullPath] {
 			// Only delete files older than 5 minutes to avoid race conditions
