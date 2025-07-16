@@ -2,6 +2,24 @@
 
 Notable changes to clippy.
 
+## [0.6.0] - 2025-07-16
+
+### Added
+- **UTI detection**: Hybrid detection system using macOS UTI → MIME → mimetype fallback for maximum reliability
+- **Enhanced verbose output**: Shows which detection method was used (UTI, MIME, or content analysis)
+- **CI for pull requests**: GitHub Actions workflow runs tests, linting, and builds on all PRs
+- **Pasty library architecture**: Refactored to use `clippy.PasteToStdout()` and `clippy.PasteToFile()` functions
+
+### Changed
+- More accurate type detection using macOS's native UTI system instead of relying solely on MIME types
+- Pasty now uses library functions for DRY architecture (thin CLI over rich library functionality)
+- Updated all tests to match new verbose output format
+- Improved error handling and code quality
+
+### Fixed
+- Removed unused code and resolved linting issues
+- Better temporary file cleanup with proper error handling
+
 ## [0.5.1] - 2025-07-16
 
 ### Changed
