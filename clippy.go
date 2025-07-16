@@ -166,7 +166,11 @@ func CopyDataWithTempDir(reader io.Reader, tempDir string) error {
 	if err != nil {
 		return fmt.Errorf("could not create temporary file: %w", err)
 	}
-	defer tmpFile.Close()
+	defer func() {
+		if err := tmpFile.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to close temporary file: %v\n", err)
+		}
+	}()
 
 	if _, err := tmpFile.Write(data); err != nil {
 		return fmt.Errorf("could not write to temporary file: %w", err)
@@ -266,4 +270,127 @@ func CleanupTempFiles(tempDir string, verbose bool) {
 			}
 		}
 	}
+}
+
+// PasteResult contains information about what was pasted
+type PasteResult struct {
+	Type      string   // "text" or "files"
+	Content   string   // Text content if Type is "text"
+	Files     []string // File paths if Type is "files"
+	FilesRead int      // Number of files successfully read/copied
+}
+
+// PasteToStdout pastes clipboard content to stdout
+func PasteToStdout() (*PasteResult, error) {
+	// Try to get text content first
+	if text, ok := GetText(); ok {
+		fmt.Print(text)
+		return &PasteResult{
+			Type:    "text",
+			Content: text,
+		}, nil
+	}
+
+	// Try to get file references
+	files := GetFiles()
+	if len(files) > 0 {
+		for _, file := range files {
+			fmt.Println(file)
+		}
+		return &PasteResult{
+			Type:  "files",
+			Files: files,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("no text or file content found on clipboard")
+}
+
+// PasteToFile pastes clipboard content to a file or directory
+func PasteToFile(destination string) (*PasteResult, error) {
+	// Try to get text content first
+	if text, ok := GetText(); ok {
+		if err := os.WriteFile(destination, []byte(text), 0644); err != nil {
+			return nil, fmt.Errorf("could not write to file %s: %w", destination, err)
+		}
+		return &PasteResult{
+			Type:    "text",
+			Content: text,
+		}, nil
+	}
+
+	// Try to get file references
+	files := GetFiles()
+	if len(files) > 0 {
+		filesRead, err := copyFilesToDestination(files, destination)
+		if err != nil {
+			return nil, err
+		}
+		return &PasteResult{
+			Type:      "files",
+			Files:     files,
+			FilesRead: filesRead,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("no text or file content found on clipboard")
+}
+
+// copyFilesToDestination copies files from clipboard to destination
+func copyFilesToDestination(files []string, destination string) (int, error) {
+	if len(files) == 0 {
+		return 0, fmt.Errorf("no files to copy")
+	}
+
+	// Determine if destination should be a directory
+	destIsDir := false
+	if len(files) > 1 {
+		destIsDir = true
+	} else if strings.HasSuffix(destination, "/") {
+		destIsDir = true
+	} else if stat, err := os.Stat(destination); err == nil && stat.IsDir() {
+		destIsDir = true
+	}
+
+	if destIsDir {
+		// Ensure destination directory exists
+		if err := os.MkdirAll(destination, 0755); err != nil {
+			return 0, fmt.Errorf("could not create directory %s: %w", destination, err)
+		}
+	}
+
+	// Copy each file
+	filesRead := 0
+	for _, srcFile := range files {
+		var destFile string
+		if destIsDir {
+			destFile = filepath.Join(destination, filepath.Base(srcFile))
+		} else {
+			destFile = destination
+		}
+
+		if err := copyFile(srcFile, destFile); err != nil {
+			return filesRead, fmt.Errorf("could not copy %s to %s: %w", srcFile, destFile, err)
+		}
+
+		filesRead++
+	}
+
+	return filesRead, nil
+}
+
+// copyFile copies a file from src to dst
+func copyFile(src, dst string) error {
+	// Read source file
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return fmt.Errorf("could not read source file: %w", err)
+	}
+
+	// Write to destination
+	if err := os.WriteFile(dst, data, 0644); err != nil {
+		return fmt.Errorf("could not write destination file: %w", err)
+	}
+
+	return nil
 }

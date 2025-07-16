@@ -73,7 +73,7 @@ func TestPastyWithTextClipboard(t *testing.T) {
 	}
 
 	// Verify clippy copied text content
-	if !strings.Contains(string(clippyOutput), "Copied text content from stream") {
+	if !strings.Contains(string(clippyOutput), "Copied content from stream using smart detection") {
 		t.Fatalf("Clippy should have copied text content, got: %s", clippyOutput)
 	}
 
@@ -103,7 +103,7 @@ func TestPastyToFile(t *testing.T) {
 	}
 
 	// Verify clippy copied text content
-	if !strings.Contains(string(clippyOutput), "Copied text content from stream") {
+	if !strings.Contains(string(clippyOutput), "Copied content from stream using smart detection") {
 		t.Fatalf("Clippy should have copied text content, got: %s", clippyOutput)
 	}
 
@@ -218,7 +218,7 @@ func TestPastyCopyFileToDirectory(t *testing.T) {
 
 	// Check verbose output
 	outputStr := string(output)
-	if !strings.Contains(outputStr, "✅ Copied 'test.pdf' to") {
+	if !strings.Contains(outputStr, "✅ Copied 1 files to") {
 		t.Error("Should show verbose message about copying file")
 	}
 }

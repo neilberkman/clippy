@@ -152,14 +152,6 @@ func loadConfig() {
 	}
 }
 
-// getAbsPath returns the absolute path or exits with error
-func getAbsPath(path string) string {
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		logger.Error("Invalid path %s", path)
-	}
-	return absPath
-}
 
 // Logic for when a filename is provided as an argument
 func handleFileMode(filePath string) {
