@@ -2,6 +2,18 @@
 
 Notable changes to clippy.
 
+## [0.5.1] - 2025-07-16
+
+### Changed
+- Updated README with compelling real-world examples for pasty
+- Screenshots & in-memory content processing workflows
+- Multi-file scripting and automation examples
+- GUI → CLI bridge use cases
+
+### Fixed
+- Code formatting improvements
+- Removed redundant test cleanup flags
+
 ## [0.5.0] - 2025-07-16
 
 ### Added
