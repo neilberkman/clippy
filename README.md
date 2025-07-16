@@ -16,12 +16,12 @@ clippy report.pdf         # ⌘V into any app - uploads the file
 clippy *.jpg             # Multiple files at once
 
 # Copy piped/streamed data as files
-curl -s https://example.com/image.png | clippy   # Download → clipboard as file
+curl -s https://picsum.photos/300 | clippy       # Download → clipboard as file
 cat archive.tar.gz | clippy                      # Pipe → paste as file
 
 # Smart detection for text files
-clippy notes.txt          # Copies text content (like pbcopy would)
-echo "Hello" | clippy     # Plain text stays plain text
+clippy notes.txt          # Copies text content
+echo "Hello" | clippy     # Works like pbcopy for piped text
 ```
 
 Stay in your terminal. Copy anything. Paste anywhere.
@@ -133,7 +133,7 @@ clippy report.pdf
 ls -la | clippy
 
 # Copy image from curl
-curl -s https://example.com/image.png | clippy
+curl -s https://picsum.photos/300 | clippy
 
 # Silent operation for scripts
 clippy data.txt && echo "Copied!"
