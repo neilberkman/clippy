@@ -49,11 +49,11 @@ brew install neilberkman/clippy/clippy
 # Clone and build
 git clone https://github.com/neilberkman/clippy.git
 cd clippy
-go build -o clippy .
+go build -o clippy ./cmd/clippy
 sudo mv clippy /usr/local/bin/
 
 # Or use go install
-go install github.com/neilberkman/clippy@latest
+go install github.com/neilberkman/clippy/cmd/clippy@latest
 ```
 
 ## Usage
@@ -75,6 +75,9 @@ cat image.png | clippy
 ```bash
 clippy --verbose file.txt   # Show success messages
 clippy -v file.txt          # Short version
+clippy --help               # Show usage and examples
+clippy -h                   # Short version
+clippy --version            # Show version information
 ```
 
 ### Configuration
@@ -85,6 +88,11 @@ Create `~/.clippy.conf` for persistent settings:
 # Enable verbose output by default
 verbose = true
 
+# Disable automatic cleanup of temporary files
+cleanup = false
+
+# Use custom directory for temporary files
+temp_dir = /path/to/custom/temp
 ```
 
 ## Features
@@ -111,7 +119,7 @@ verbose = true
 ## How It Works
 
 1. **File Mode** (when you pass a filename):
-   - Detects MIME type
+   - Detects MIME type using content analysis (not just file extension)
    - Text files → reads content, copies as text
    - Other files → copies file path reference
 
@@ -119,6 +127,12 @@ verbose = true
    - Detects MIME type from content
    - Text data → copies as text
    - Binary data → saves to temp file, copies reference
+
+3. **MIME Type Detection**:
+   - Uses content-based detection, not file extensions
+   - Anything with MIME type `text/*` is treated as text
+   - This means `.log`, `.conf`, `.json`, etc. are correctly identified as text
+   - Binary files are identified by their actual content (e.g., PNG magic bytes)
 
 ## Examples
 
@@ -146,10 +160,7 @@ clippy -v recording.mp4
 
 ```bash
 # Run tests
-go test -v
-
-# Run with race detector
-go test -race
+go test -v ./...
 ```
 
 ## Alternatives

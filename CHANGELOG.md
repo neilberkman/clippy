@@ -1,9 +1,21 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+Notable changes to clippy.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.4.0] - 2025-07-16
+
+### Added
+- Help flag (-h, --help) with comprehensive usage examples
+- Config file options: `cleanup` and `temp_dir`
+- Project restructured to support multiple binaries (preparing for pasty companion tool)
+
+### Changed
+- Code refactored to reduce duplication (DRY improvements)
+- Shared clipboard functionality extracted to internal/clipboard package
+- Updated README with new build instructions and config options
+
+### Fixed
+- Removed outdated race detector references
 
 ## [0.3.1] - 2025-07-15
 

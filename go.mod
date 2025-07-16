@@ -1,4 +1,4 @@
-module clippy
+module github.com/neilberkman/clippy
 
 go 1.24.4
 

@@ -31,10 +31,10 @@ func TestFileMode(t *testing.T) {
 		file     string
 		wantText bool
 	}{
-		{"text file", "test-files/sample.txt", true},
-		{"elixir code", "test-files/code.elixir", true},
-		{"pdf file", "test-files/test.pdf", false},
-		{"png file", "test-files/minimal.png", false},
+		{"text file", "../../test-files/sample.txt", true},
+		{"elixir code", "../../test-files/code.elixir", true},
+		{"pdf file", "../../test-files/test.pdf", false},
+		{"png file", "../../test-files/minimal.png", false},
 	}
 
 	for _, tt := range tests {
@@ -67,8 +67,8 @@ func TestStreamMode(t *testing.T) {
 		inputFile string // optional: pipe file content
 	}{
 		{"text stream", "Hello, World!", true, ""},
-		{"text file piped", "", true, "test-files/sample.txt"},
-		{"binary file piped", "", false, "test-files/test.pdf"},
+		{"text file piped", "", true, "../../test-files/sample.txt"},
+		{"binary file piped", "", false, "../../test-files/test.pdf"},
 	}
 
 	for _, tt := range tests {
@@ -108,7 +108,7 @@ func TestStreamMode(t *testing.T) {
 
 func TestMultipleFiles(t *testing.T) {
 	t.Run("copy multiple files", func(t *testing.T) {
-		cmd := exec.Command("./clippy_test", "--verbose", "test-files/minimal.png", "test-files/sample.txt")
+		cmd := exec.Command("./clippy_test", "--verbose", "../../test-files/minimal.png", "../../test-files/sample.txt")
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("clippy failed: %v\nOutput: %s", err, output)
@@ -127,7 +127,33 @@ func TestMultipleFiles(t *testing.T) {
 
 func TestFlags(t *testing.T) {
 	t.Run("silent by default", func(t *testing.T) {
-		cmd := exec.Command("./clippy_test", "test-files/sample.txt")
+		// Create a temporary config file that sets verbose=false
+		homeDir, _ := os.UserHomeDir()
+		configPath := filepath.Join(homeDir, ".clippy.conf")
+
+		// Backup existing config if it exists
+		var backupData []byte
+		hasBackup := false
+		if data, err := os.ReadFile(configPath); err == nil {
+			backupData = data
+			hasBackup = true
+		}
+
+		// Write temporary config
+		configContent := `verbose = false`
+		if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+			t.Fatalf("Failed to write test config: %v", err)
+		}
+
+		defer func() {
+			if hasBackup {
+				_ = os.WriteFile(configPath, backupData, 0644)
+			} else {
+				_ = os.Remove(configPath)
+			}
+		}()
+
+		cmd := exec.Command("./clippy_test", "../../test-files/sample.txt")
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("clippy failed: %v", err)
@@ -139,7 +165,7 @@ func TestFlags(t *testing.T) {
 	})
 
 	t.Run("verbose flag", func(t *testing.T) {
-		cmd := exec.Command("./clippy_test", "--verbose", "test-files/sample.txt")
+		cmd := exec.Command("./clippy_test", "--verbose", "../../test-files/sample.txt")
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("clippy failed: %v", err)
@@ -166,22 +192,22 @@ func TestPipelines(t *testing.T) {
 		},
 		{
 			name:       "cat text file to clippy",
-			pipeline:   `cat test-files/sample.txt | ./clippy_test -v`,
+			pipeline:   `cat ../../test-files/sample.txt | ./clippy_test -v`,
 			wantOutput: "Copied text content from stream",
 		},
 		{
 			name:       "cat binary file to clippy",
-			pipeline:   `cat test-files/test.pdf | ./clippy_test -v`,
+			pipeline:   `cat ../../test-files/test.pdf | ./clippy_test -v`,
 			wantOutput: "Copied stream as temporary file",
 		},
 		{
 			name:       "find and xargs single file",
-			pipeline:   `find test-files -name "sample.txt" | xargs ./clippy_test -v`,
+			pipeline:   `find ../../test-files -name "sample.txt" | xargs ./clippy_test -v`,
 			wantOutput: "Copied text content",
 		},
 		{
 			name:       "find and xargs multiple files",
-			pipeline:   `find test-files -name "*.png" -o -name "*.pdf" | xargs ./clippy_test -v`,
+			pipeline:   `find ../../test-files -name "*.png" -o -name "*.pdf" | xargs ./clippy_test -v`,
 			wantOutput: "Copied 2 file references",
 		},
 		{
@@ -201,12 +227,12 @@ func TestPipelines(t *testing.T) {
 		},
 		{
 			name:       "command output pipe",
-			pipeline:   `ls -la test-files | head -3 | ./clippy_test -v`,
+			pipeline:   `ls -la ../../test-files | head -3 | ./clippy_test -v`,
 			wantOutput: "Copied text content from stream",
 		},
 		{
 			name:       "base64 encoded binary",
-			pipeline:   `base64 -i test-files/minimal.png | ./clippy_test -v`,
+			pipeline:   `base64 -i ../../test-files/minimal.png | ./clippy_test -v`,
 			wantOutput: "Copied text content from stream",
 		},
 		{
@@ -257,7 +283,7 @@ verbose = true
 		t.Fatalf("Failed to write test config: %v", err)
 	}
 
-	cmd := exec.Command("./clippy_test", "test-files/sample.txt")
+	cmd := exec.Command("./clippy_test", "../../test-files/sample.txt")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("clippy failed with config: %v", err)
