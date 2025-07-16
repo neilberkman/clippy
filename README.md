@@ -177,11 +177,13 @@ pasty /path/to/destination/
 ```
 
 How it works:
+
 - **Text content**: Pastes directly to stdout or file
 - **File references**: Lists file paths or copies files to destination
 - **Smart detection**: Automatically handles text vs file clipboard content
 
 Examples:
+
 ```bash
 # Copy some text and paste it
 echo "Hello World" | clippy

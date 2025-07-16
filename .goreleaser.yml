@@ -76,7 +76,7 @@ release:
     #### Homebrew (Recommended)
     ```bash
     brew tap neilberkman/clippy
-    brew install clippy
+    brew install clippy  # Installs both clippy and pasty
     ```
     
     #### Direct Download
@@ -97,12 +97,16 @@ release:
     ---
     🐛 **Found a bug?** Please [open an issue](https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/clippy/issues/new)
 
-homebrew_casks:
-  - name: clippy
-    repository:
+brews:
+  - repository:
       owner: neilberkman
       name: homebrew-clippy
-    directory: Casks
+    directory: Formula
     homepage: "https://github.com/neilberkman/clippy"
     description: "Unified clipboard tool for macOS - a superset of pbcopy"
     license: "MIT"
+    test: |
+      system "#{bin}/clippy", "--version"
+    install: |
+      bin.install "clippy"
+      bin.install "pasty"

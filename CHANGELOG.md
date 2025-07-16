@@ -10,11 +10,14 @@ Notable changes to clippy.
 - Low-level clipboard API (`pkg/clipboard` package)
 - Examples directory with working code samples
 - Support for stdin in library API (`clippy.CopyData(os.Stdin)`)
+- **Pasty tool**: Companion paste tool for intelligent clipboard reading
+- GoReleaser config now builds both clippy and pasty binaries
 
 ### Changed
 - Moved clipboard package to `pkg/clipboard` for public library use
 - Simplified clipboard package (removed low-level functions like `GetImage`, `GetTypes`)
-- Updated README with library usage documentation
+- Updated README with library usage documentation and pasty tool section
+- Fixed GoReleaser to use `brews` instead of `homebrew_casks` for CLI tools
 
 ## [0.4.0] - 2025-07-16
 
