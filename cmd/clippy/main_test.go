@@ -93,14 +93,8 @@ func TestStreamMode(t *testing.T) {
 			}
 
 			outputStr := string(output)
-			if tt.wantText {
-				if !strings.Contains(outputStr, "Copied text content from stream") {
-					t.Errorf("Expected text stream copy, got: %s", outputStr)
-				}
-			} else {
-				if !strings.Contains(outputStr, "Copied stream as") {
-					t.Errorf("Expected binary stream copy, got: %s", outputStr)
-				}
+			if !strings.Contains(outputStr, "Copied content from stream using smart detection") {
+				t.Errorf("Expected smart stream copy, got: %s", outputStr)
 			}
 		})
 	}
@@ -188,17 +182,17 @@ func TestPipelines(t *testing.T) {
 		{
 			name:       "echo text to clippy",
 			pipeline:   `echo "Hello from pipeline" | ./clippy_test -v`,
-			wantOutput: "Copied text content from stream",
+			wantOutput: "Copied content from stream using smart detection",
 		},
 		{
 			name:       "cat text file to clippy",
 			pipeline:   `cat ../../test-files/sample.txt | ./clippy_test -v`,
-			wantOutput: "Copied text content from stream",
+			wantOutput: "Copied content from stream using smart detection",
 		},
 		{
 			name:       "cat binary file to clippy",
 			pipeline:   `cat ../../test-files/test.pdf | ./clippy_test -v`,
-			wantOutput: "Copied stream as temporary file",
+			wantOutput: "Copied content from stream using smart detection",
 		},
 		{
 			name:       "find and xargs single file",
@@ -213,32 +207,33 @@ func TestPipelines(t *testing.T) {
 		{
 			name:       "curl to clippy (simulated)",
 			pipeline:   `echo -n "GIF89a" | ./clippy_test -v`,
-			wantOutput: "Copied stream as temporary file",
+			wantOutput: "Copied content from stream using smart detection",
 		},
 		{
 			name:       "empty input",
 			pipeline:   `echo -n "" | ./clippy_test -v`,
-			wantOutput: "Warning: Input stream was empty",
+			wantOutput: "input data was empty",
+			wantError:  true,
 		},
 		{
 			name:       "multiline text",
 			pipeline:   `printf "line1\nline2\nline3" | ./clippy_test -v`,
-			wantOutput: "Copied text content from stream",
+			wantOutput: "Copied content from stream using smart detection",
 		},
 		{
 			name:       "command output pipe",
 			pipeline:   `ls -la ../../test-files | head -3 | ./clippy_test -v`,
-			wantOutput: "Copied text content from stream",
+			wantOutput: "Copied content from stream using smart detection",
 		},
 		{
 			name:       "base64 encoded binary",
 			pipeline:   `base64 -i ../../test-files/minimal.png | ./clippy_test -v`,
-			wantOutput: "Copied text content from stream",
+			wantOutput: "Copied content from stream using smart detection",
 		},
 		{
 			name:       "json data",
 			pipeline:   `echo '{"test": "data"}' | ./clippy_test -v`,
-			wantOutput: "Copied stream as temporary file", // JSON gets detected as application/json
+			wantOutput: "Copied content from stream using smart detection",
 		},
 	}
 
