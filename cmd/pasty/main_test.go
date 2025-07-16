@@ -9,10 +9,16 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	// Build the binary for testing
+	// Build the pasty binary for testing
 	cmd := exec.Command("go", "build", "-o", "pasty_test", ".")
 	if err := cmd.Run(); err != nil {
-		panic("Failed to build test binary: " + err.Error())
+		panic("Failed to build pasty test binary: " + err.Error())
+	}
+
+	// Build the clippy binary for testing (pasty tests need it)
+	cmd = exec.Command("go", "build", "-o", "clippy_test", "../clippy")
+	if err := cmd.Run(); err != nil {
+		panic("Failed to build clippy test binary: " + err.Error())
 	}
 
 	// Run tests
@@ -20,6 +26,7 @@ func TestMain(m *testing.M) {
 
 	// Cleanup
 	_ = os.Remove("pasty_test")
+	_ = os.Remove("clippy_test")
 
 	os.Exit(code)
 }
@@ -58,7 +65,7 @@ func TestPastyVersion(t *testing.T) {
 
 func TestPastyWithTextClipboard(t *testing.T) {
 	// First, put some text on the clipboard using clippy
-	clippyCmd := exec.Command("../clippy/clippy_test", "--verbose")
+	clippyCmd := exec.Command("./clippy_test", "--verbose")
 	clippyCmd.Stdin = strings.NewReader("Test text content for pasty")
 	clippyOutput, err := clippyCmd.CombinedOutput()
 	if err != nil {
@@ -88,7 +95,7 @@ func TestPastyWithTextClipboard(t *testing.T) {
 
 func TestPastyToFile(t *testing.T) {
 	// Put text on clipboard
-	clippyCmd := exec.Command("../clippy/clippy_test", "-v")
+	clippyCmd := exec.Command("./clippy_test", "-v")
 	clippyCmd.Stdin = strings.NewReader("Content for file test")
 	clippyOutput, err := clippyCmd.CombinedOutput()
 	if err != nil {
@@ -136,7 +143,7 @@ func TestPastyToFile(t *testing.T) {
 func TestPastyWithFileClipboard(t *testing.T) {
 	// Put a file reference on clipboard using clippy (use binary file so it copies as reference)
 	testFile := "../../test-files/minimal.png"
-	clippyCmd := exec.Command("../clippy/clippy_test", "-v", testFile)
+	clippyCmd := exec.Command("./clippy_test", "-v", testFile)
 	clippyOutput, err := clippyCmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to set clipboard with file: %v\nOutput: %s", err, clippyOutput)
@@ -167,7 +174,7 @@ func TestPastyWithFileClipboard(t *testing.T) {
 func TestPastyCopyFileToDirectory(t *testing.T) {
 	// Put a file reference on clipboard (use binary file so it copies as reference)
 	testFile := "../../test-files/test.pdf"
-	clippyCmd := exec.Command("../clippy/clippy_test", "-v", testFile)
+	clippyCmd := exec.Command("./clippy_test", "-v", testFile)
 	clippyOutput, err := clippyCmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to set clipboard with file: %v\nOutput: %s", err, clippyOutput)
