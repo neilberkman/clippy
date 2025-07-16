@@ -34,6 +34,7 @@ Stay in your terminal. Copy anything. Paste anywhere.
 - **Binary streaming**: Pipe images/PDFs and paste them as files in other apps
 - **Text handling**: Text files are copied as content, just like pbcopy
 - **Automatic cleanup**: Temporary files from piped data are cleaned up intelligently
+- **Library support**: Use clippy as a Go library in your own applications
 
 ## Installation
 
@@ -162,6 +163,57 @@ clippy -v recording.mp4
 # Run tests
 go test -v ./...
 ```
+
+## Using as a Library
+
+Clippy can be used as a Go library in your own applications:
+
+```bash
+go get github.com/neilberkman/clippy
+```
+
+### High-Level API
+
+```go
+import "github.com/neilberkman/clippy"
+
+// Smart copy - automatically detects text vs binary files
+err := clippy.Copy("document.pdf")
+
+// Copy multiple files as references
+err := clippy.CopyMultiple([]string{"image1.jpg", "image2.png"})
+
+// Copy text content
+clippy.CopyText("Hello, World!")
+
+// Copy data from reader (handles text/binary detection)
+reader := strings.NewReader("Some content")
+err := clippy.CopyData(reader)
+
+// Copy from stdin
+err := clippy.CopyData(os.Stdin)
+
+// Get clipboard content
+text, ok := clippy.GetText()
+files := clippy.GetFiles()
+```
+
+### Low-Level Clipboard API
+
+```go
+import "github.com/neilberkman/clippy/pkg/clipboard"
+
+// Direct clipboard operations
+clipboard.CopyText("Hello")
+clipboard.CopyFile("/path/to/file.pdf")
+clipboard.CopyFiles([]string{"/path/to/file1.jpg", "/path/to/file2.png"})
+
+// Read clipboard
+text, ok := clipboard.GetText()
+files := clipboard.GetFiles()
+```
+
+The high-level API provides the same smart detection and temp file management as the CLI tool, while the low-level API gives you direct access to clipboard operations without any automatic behavior.
 
 ## Alternatives
 

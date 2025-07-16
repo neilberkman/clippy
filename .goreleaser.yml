@@ -8,7 +8,7 @@ before:
 
 builds:
   - id: clippy
-    main: .
+    main: ./cmd/clippy
     binary: clippy
     env:
       - CGO_ENABLED=1
@@ -86,15 +86,12 @@ release:
     ---
     🐛 **Found a bug?** Please [open an issue](https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/clippy/issues/new)
 
-brews:
-  - repository:
+homebrew_casks:
+  - name: clippy
+    repository:
       owner: neilberkman
       name: homebrew-clippy
-    directory: Formula
+    directory: Casks
     homepage: "https://github.com/neilberkman/clippy"
     description: "Unified clipboard tool for macOS - a superset of pbcopy"
     license: "MIT"
-    test: |
-      system "#{bin}/clippy", "--version"
-    install: |
-      bin.install "clippy"

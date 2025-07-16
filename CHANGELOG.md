@@ -2,6 +2,20 @@
 
 Notable changes to clippy.
 
+## [0.5.0] - 2025-07-16
+
+### Added
+- **Library support**: Clippy can now be used as a Go library
+- High-level API with smart detection (`clippy.Copy()`, `clippy.CopyData()`, etc.)
+- Low-level clipboard API (`pkg/clipboard` package)
+- Examples directory with working code samples
+- Support for stdin in library API (`clippy.CopyData(os.Stdin)`)
+
+### Changed
+- Moved clipboard package to `pkg/clipboard` for public library use
+- Simplified clipboard package (removed low-level functions like `GetImage`, `GetTypes`)
+- Updated README with library usage documentation
+
 ## [0.4.0] - 2025-07-16
 
 ### Added

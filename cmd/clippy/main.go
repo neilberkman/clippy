@@ -12,7 +12,8 @@ import (
 	"time"
 
 	"github.com/gabriel-vasile/mimetype"
-	"github.com/neilberkman/clippy/internal/clipboard"
+	"github.com/neilberkman/clippy/pkg/clipboard"
+	"github.com/neilberkman/clippy/internal/log"
 )
 
 var (
@@ -22,6 +23,7 @@ var (
 	version = "dev"
 	commit  = "none"
 	date    = "unknown"
+	logger  *log.Logger
 )
 
 func main() {
@@ -83,6 +85,9 @@ Configuration:
 	// Load config file
 	loadConfig()
 
+	// Initialize logger
+	logger = log.New(log.Config{Verbose: verbose})
+
 	// Decide between File Mode and Stream Mode
 	args := flag.Args()
 	if len(args) > 0 {
@@ -114,8 +119,8 @@ func loadConfig() {
 		return // No config file is fine
 	}
 	defer func() {
-		if err := file.Close(); err != nil {
-			logWarning("failed to close config file: %v", err)
+		if err := file.Close(); err != nil && verbose {
+			fmt.Fprintf(os.Stderr, "Warning: failed to close config file: %v\n", err)
 		}
 	}()
 
@@ -149,31 +154,11 @@ func loadConfig() {
 	}
 }
 
-// exitWithError prints an error message and exits
-func exitWithError(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, "Error: "+format+"\n", args...)
-	os.Exit(1)
-}
-
-// logVerbose prints a message if verbose mode is enabled
-func logVerbose(format string, args ...interface{}) {
-	if verbose {
-		fmt.Printf(format+"\n", args...)
-	}
-}
-
-// logWarning prints a warning message to stderr if verbose mode is enabled
-func logWarning(format string, args ...interface{}) {
-	if verbose {
-		fmt.Fprintf(os.Stderr, "Warning: "+format+"\n", args...)
-	}
-}
-
 // getAbsPath returns the absolute path or exits with error
 func getAbsPath(path string) string {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		exitWithError("Invalid path %s", path)
+		logger.Error("Invalid path %s", path)
 	}
 	return absPath
 }
@@ -185,21 +170,21 @@ func handleFileMode(filePath string) {
 	// Detect MIME type to check if it's text
 	mtype, err := mimetype.DetectFile(absPath)
 	if err != nil {
-		exitWithError("Could not read file %s", absPath)
+		logger.Error("Could not read file %s", absPath)
 	}
 
 	// Special case for text files: copy content, not file reference
 	if strings.HasPrefix(mtype.String(), "text/") {
 		content, err := os.ReadFile(absPath)
 		if err != nil {
-			exitWithError("Could not read file content %s", absPath)
+			logger.Error("Could not read file content %s", absPath)
 		}
 		clipboard.CopyText(string(content))
-		logVerbose("✅ Copied text content from '%s'", filepath.Base(absPath))
+		logger.Verbose("✅ Copied text content from '%s'", filepath.Base(absPath))
 	} else {
 		// For all other file types, copy as a file reference
 		clipboard.CopyFile(absPath)
-		logVerbose("✅ Copied file reference for '%s'", filepath.Base(absPath))
+		logger.Verbose("✅ Copied file reference for '%s'", filepath.Base(absPath))
 	}
 }
 
@@ -211,7 +196,7 @@ func handleMultipleFiles(paths []string) {
 		absPath := getAbsPath(path)
 
 		if _, err := os.Stat(absPath); os.IsNotExist(err) {
-			exitWithError("Could not read file %s", absPath)
+			logger.Error("Could not read file %s", absPath)
 		}
 
 		absPaths = append(absPaths, absPath)
@@ -220,7 +205,7 @@ func handleMultipleFiles(paths []string) {
 	// Copy all files at once
 	clipboard.CopyFiles(absPaths)
 
-	logVerbose("✅ Copied %d file references", len(absPaths))
+	logger.Verbose("✅ Copied %d file references", len(absPaths))
 	if verbose {
 		for _, path := range absPaths {
 			fmt.Printf("  - %s\n", filepath.Base(path))
@@ -232,11 +217,11 @@ func handleMultipleFiles(paths []string) {
 func handleStreamMode() {
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, os.Stdin); err != nil {
-		exitWithError("reading from stdin")
+		logger.Error("reading from stdin")
 	}
 	data := buf.Bytes()
 	if len(data) == 0 {
-		fmt.Fprintln(os.Stderr, "Warning: Input stream was empty.")
+		logger.PrintErr("Warning: Input stream was empty.")
 		return
 	}
 
@@ -245,25 +230,25 @@ func handleStreamMode() {
 	// Special case for text streams: copy content
 	if strings.HasPrefix(mtype.String(), "text/") {
 		clipboard.CopyText(string(data))
-		logVerbose("✅ Copied text content from stream")
+		logger.Verbose("✅ Copied text content from stream")
 	} else {
 		// For binary streams, save to a temp file, then copy the reference
 		tmpFile, err := os.CreateTemp(tempDir, "clippy-*"+mtype.Extension())
 		if err != nil {
-			exitWithError("Could not create temporary file")
+			logger.Error("Could not create temporary file")
 		}
 		defer func() {
 			if err := tmpFile.Close(); err != nil {
-				logWarning("failed to close temp file: %v", err)
+				logger.Warning("failed to close temp file: %v", err)
 			}
 		}()
 
 		if _, err := tmpFile.Write(data); err != nil {
-			exitWithError("Could not write to temporary file")
+			logger.Error("Could not write to temporary file")
 		}
 
 		clipboard.CopyFile(tmpFile.Name())
-		logVerbose("✅ Copied stream as temporary file: %s", tmpFile.Name())
+		logger.Verbose("✅ Copied stream as temporary file: %s", tmpFile.Name())
 	}
 }
 
@@ -301,7 +286,7 @@ func cleanupOldTempFiles() {
 				}
 			}
 			if err := os.Remove(fullPath); err != nil {
-				logWarning("Failed to remove temp file %s: %v", filepath.Base(fullPath), err)
+				logger.Warning("Failed to remove temp file %s: %v", filepath.Base(fullPath), err)
 			}
 		}
 	}
