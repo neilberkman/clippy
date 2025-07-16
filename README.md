@@ -271,7 +271,7 @@ err := clippy.CopyMultiple([]string{"image1.jpg", "image2.png"})
 // Copy text content
 clippy.CopyText("Hello, World!")
 
-// Copy data from reader (handles text/binary detection)
+// Copy data from reader (uses MIME type detection)
 reader := strings.NewReader("Some content")
 err := clippy.CopyData(reader)
 
