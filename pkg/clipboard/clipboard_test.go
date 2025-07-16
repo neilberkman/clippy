@@ -31,7 +31,7 @@ func TestGetUTIForFile(t *testing.T) {
 		},
 		{
 			name:        "Elixir code file",
-			filePath:    "../../test-files/code.elixir",
+			filePath:    "../../test-files/code.exs",
 			expectedUTI: "public.text", // Generic text type for unknown extensions
 			shouldExist: true,
 		},
