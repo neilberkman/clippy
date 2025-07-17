@@ -16,10 +16,11 @@ clippy report.pdf         # ⌘V into Slack/email - uploads the file
 clippy *.jpg             # Multiple files at once
 
 # Copy your most recent download
-clippy --recent          # Grabs the file you just downloaded
+clippy -r                # Grabs the file you just downloaded
+clippy -r 5m             # Only last 5 minutes
 
 # Interactive picker for recent files
-clippy --recent --pick   # Choose from multiple recent downloads
+clippy -r --pick         # Choose from multiple recent downloads
 
 # Pipe data as files
 curl -sL https://picsum.photos/300 | clippy  # Download → clipboard as file
@@ -59,9 +60,9 @@ clippy *.jpg          # Multiple files at once
 
 ### 2. Recent Downloads
 ```bash
-clippy --recent        # Copy your most recent download
-clippy --recent --pick # Interactive picker for recent files
-clippy --recent 5m     # Only last 5 minutes
+clippy -r              # Copy your most recent download
+clippy -r --pick       # Interactive picker for recent files
+clippy -r 5m           # Only last 5 minutes
 ```
 
 ### 3. Pipe Data as Files
@@ -96,14 +97,14 @@ pasty
 ```bash
 # 1. Download file in browser
 # 2. Switch to terminal and run:
-pasty --recent
+pasty -r
 # Most recent download appears in your current directory
 ```
 
 **3. Interactive picker for recent files**
 ```bash
-pasty --recent --pick    # Choose from multiple recent downloads
-pasty --recent 5m        # Only last 5 minutes
+pasty -r --pick          # Choose from multiple recent downloads
+pasty -r 5m              # Only last 5 minutes
 ```
 
 **4. Text content handling**
