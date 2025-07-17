@@ -7,7 +7,7 @@ before:
     - go mod tidy
 
 builds:
-  - id: clippy
+  - id: clippy-darwin
     main: ./cmd/clippy
     binary: clippy
     env:
@@ -19,13 +19,37 @@ builds:
       - arm64
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
-  - id: pasty
+  - id: clippy-windows
+    main: ./cmd/clippy
+    binary: clippy
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+  - id: pasty-darwin
     main: ./cmd/pasty
     binary: pasty
     env:
       - CGO_ENABLED=1
     goos:
       - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+  - id: pasty-windows
+    main: ./cmd/pasty
+    binary: pasty
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
     goarch:
       - amd64
       - arm64
@@ -53,14 +77,14 @@ changelog:
 
 release:
   github:
-    owner: "{{ .Env.GITHUB_REPOSITORY_OWNER }}"
+    owner: neilberkman
     name: clippy
   draft: false
   prerelease: auto
   make_latest: true
   mode: replace
   header: |
-    ## Clippy {{.Tag}} - Unified Clipboard Tool for macOS
+    ## Clippy {{.Tag}} - Unified Clipboard Tool for macOS & Windows
 
     A smart clipboard utility that intelligently handles both text and file copying based on content type.
 
@@ -70,32 +94,39 @@ release:
     - Multiple file support
     - Natural language file copying (e.g., "copy *.txt")
     - Integration with system clipboard
+    - Cross-platform support (macOS & Windows)
 
     ### 📦 Installation
     
-    #### Homebrew (Recommended)
+    #### macOS - Homebrew (Recommended)
     ```bash
     brew tap neilberkman/clippy
     brew install clippy  # Installs both clippy and pasty
     ```
     
+    #### Windows - Scoop (Recommended)
+    ```powershell
+    scoop bucket add clippy https://github.com/neilberkman/scoop-clippy
+    scoop install clippy  # Installs both clippy and pasty
+    ```
+    
     #### Direct Download
     ```bash
-    # For Apple Silicon (M1/M2):
-    curl -L https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/clippy/releases/download/{{.Tag}}/clippy_{{.Tag}}_darwin_arm64.tar.gz | tar xz
+    # macOS - Apple Silicon (M1/M2):
+    curl -L https://github.com/neilberkman/clippy/releases/download/{{.Tag}}/clippy_{{.Tag}}_darwin_arm64.tar.gz | tar xz
 
-    # For Intel Macs:
-    curl -L https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/clippy/releases/download/{{.Tag}}/clippy_{{.Tag}}_darwin_amd64.tar.gz | tar xz
+    # macOS - Intel:
+    curl -L https://github.com/neilberkman/clippy/releases/download/{{.Tag}}/clippy_{{.Tag}}_darwin_amd64.tar.gz | tar xz
     
-    # Move to your PATH
-    sudo mv clippy /usr/local/bin/
+    # Windows:
+    # Download clippy_{{.Tag}}_windows_amd64.zip and extract to your PATH
     ```
 
   footer: |
-    **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/clippy/compare/{{.PreviousTag}}...{{.Tag}}
+    **Full Changelog**: https://github.com/neilberkman/clippy/compare/{{.PreviousTag}}...{{.Tag}}
     
     ---
-    🐛 **Found a bug?** Please [open an issue](https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/clippy/issues/new)
+    🐛 **Found a bug?** Please [open an issue](https://github.com/neilberkman/clippy/issues/new)
 
 brews:
   - repository:
@@ -110,3 +141,12 @@ brews:
     install: |
       bin.install "clippy"
       bin.install "pasty"
+
+scoops:
+  - repository:
+      owner: neilberkman
+      name: scoop-clippy
+    directory: bucket
+    homepage: "https://github.com/neilberkman/clippy"
+    description: "Unified clipboard tool for Windows - a superset of clip"
+    license: "MIT"
