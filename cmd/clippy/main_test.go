@@ -32,7 +32,7 @@ func TestFileMode(t *testing.T) {
 		wantText bool
 	}{
 		{"text file", "../../test-files/sample.txt", true},
-		{"elixir code", "../../test-files/code.elixir", true},
+		{"elixir code", "../../test-files/code.exs", true},
 		{"pdf file", "../../test-files/test.pdf", false},
 		{"png file", "../../test-files/minimal.png", false},
 	}
