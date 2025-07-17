@@ -7,7 +7,7 @@ before:
     - go mod tidy
 
 builds:
-  - id: clippy-darwin
+  - id: clippy
     main: ./cmd/clippy
     binary: clippy
     env:
@@ -19,37 +19,13 @@ builds:
       - arm64
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
-  - id: clippy-windows
-    main: ./cmd/clippy
-    binary: clippy
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
-  - id: pasty-darwin
+  - id: pasty
     main: ./cmd/pasty
     binary: pasty
     env:
       - CGO_ENABLED=1
     goos:
       - darwin
-    goarch:
-      - amd64
-      - arm64
-    ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
-  - id: pasty-windows
-    main: ./cmd/pasty
-    binary: pasty
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - windows
     goarch:
       - amd64
       - arm64
@@ -84,7 +60,7 @@ release:
   make_latest: true
   mode: replace
   header: |
-    ## Clippy {{.Tag}} - Unified Clipboard Tool for macOS & Windows
+    ## Clippy {{.Tag}} - Unified Clipboard Tool for macOS
 
     A smart clipboard utility that intelligently handles both text and file copying based on content type.
 
@@ -94,29 +70,25 @@ release:
     - Multiple file support
     - Natural language file copying (e.g., "copy *.txt")
     - Integration with system clipboard
-    - Cross-platform support (macOS & Windows)
 
     ### 📦 Installation
     
-    #### macOS - Homebrew (Recommended)
+    #### Homebrew (Recommended)
     ```bash
     brew tap neilberkman/clippy
     brew install clippy  # Installs both clippy and pasty
     ```
     
-    #### Windows - Direct Download
-    ```powershell
-    # Download and extract Windows binaries from GitHub releases
-    # clippy_{{.Tag}}_windows_amd64.zip
-    ```
-    
     #### Direct Download
     ```bash
-    # macOS - Apple Silicon (M1/M2):
+    # For Apple Silicon (M1/M2):
     curl -L https://github.com/neilberkman/clippy/releases/download/{{.Tag}}/clippy_{{.Tag}}_darwin_arm64.tar.gz | tar xz
 
-    # macOS - Intel:
+    # For Intel Macs:
     curl -L https://github.com/neilberkman/clippy/releases/download/{{.Tag}}/clippy_{{.Tag}}_darwin_amd64.tar.gz | tar xz
+    
+    # Move to your PATH
+    sudo mv clippy /usr/local/bin/
     ```
 
   footer: |
