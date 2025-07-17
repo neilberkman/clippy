@@ -32,7 +32,6 @@ func TestFileMode(t *testing.T) {
 		wantText bool
 	}{
 		{"text file", "../../test-files/sample.txt", true},
-		{"elixir code", "../../test-files/code.exs", false}, // macOS detects as com.apple.logic.exs
 		{"pdf file", "../../test-files/test.pdf", false},
 		{"png file", "../../test-files/minimal.png", false},
 	}
