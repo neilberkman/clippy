@@ -2,6 +2,34 @@
 
 Notable changes to clippy.
 
+## [0.7.1] - 2025-07-17
+
+### Changed
+- **Streamlined recent downloads UX**: `-r/--recent` now accepts optional time duration directly
+  - `clippy -r 5m` instead of `clippy --recent --recent-time 5m`
+  - `pasty -r 1h` instead of `pasty --recent --recent-time 1h`
+  - Backward compatibility maintained with `--recent` long form
+- **Updated documentation**: All examples now show the streamlined `-r` usage pattern
+
+## [0.7.0] - 2025-07-17
+
+### Added
+- **Recent downloads functionality**: Copy your most recent downloads without leaving the terminal
+  - `clippy -r` / `pasty -r` - copy most recent download
+  - `clippy -r 5m` / `pasty -r 5m` - time-based filtering
+  - `clippy -r --batch` / `pasty -r --batch` - copy all files from recent batch download
+  - `clippy -r --pick` / `pasty -r --pick` - interactive picker using promptui
+- **Smart Downloads folder detection**: Automatically finds and scans macOS Downloads folder
+- **Batch download handling**: Groups files downloaded within 30 seconds for batch operations
+- **Archive auto-detection**: Smart handling of common archive types (.zip, .tar.gz, .dmg, etc.)
+- **Separate debug and verbose modes**: `--debug` for technical details, `--verbose` for user-friendly output
+- **Enhanced logging**: Debug mode shows technical details while verbose shows user-friendly messages
+
+### Technical
+- **Cobra CLI framework**: Professional command-line interface with comprehensive help
+- **Library-first architecture**: All functionality available as Go library functions
+- **Platform-specific build constraints**: Proper macOS-only compilation
+
 ## [0.6.1] - 2025-07-17
 
 ### Fixed
