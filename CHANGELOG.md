@@ -2,6 +2,15 @@
 
 Notable changes to clippy.
 
+## [0.6.1] - 2025-07-17
+
+### Fixed
+- Pasty now correctly prioritizes file references over text content when both are present on clipboard
+- When you copy a file from Finder, pasty now outputs the file path instead of just the filename
+
+### Changed
+- Pasty now defaults to copying files to current directory when no destination is specified (equivalent to `pasty .`)
+
 ## [0.6.0] - 2025-07-16
 
 ### Added
