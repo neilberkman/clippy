@@ -328,7 +328,7 @@ func PasteRecentDownloads(destination string, maxAge time.Duration, maxCount int
 	
 	// Copy all files to destination
 	for _, file := range files {
-		err = copyFileToDestination(file.Path, destination)
+		err = CopyFileToDestination(file.Path, destination)
 		if err != nil {
 			return nil, fmt.Errorf("failed to copy file %s: %w", file.Name, err)
 		}
@@ -364,25 +364,6 @@ func PickRecentDownload(maxAge time.Duration) (*FileInfo, error) {
 	return showFilePicker(files)
 }
 
-// PastePickedRecentDownload shows picker and copies selected file to destination
-func PastePickedRecentDownload(destination string, maxAge time.Duration) (*FileInfo, error) {
-	file, err := PickRecentDownload(maxAge)
-	if err != nil {
-		return nil, err
-	}
-	
-	if destination == "" {
-		destination = "."
-	}
-	
-	// Copy the file to destination
-	err = copyFileToDestination(file.Path, destination)
-	if err != nil {
-		return nil, fmt.Errorf("failed to copy file: %w", err)
-	}
-	
-	return file, nil
-}
 
 // PasteMostRecentDownload finds and copies the most recent download to destination
 // This is the primary use case: "I just downloaded something, paste it here"
@@ -397,7 +378,7 @@ func PasteMostRecentDownload(destination string, maxAge time.Duration) (*FileInf
 	}
 	
 	// Copy the file to destination
-	err = copyFileToDestination(file.Path, destination)
+	err = CopyFileToDestination(file.Path, destination)
 	if err != nil {
 		return nil, fmt.Errorf("failed to copy file: %w", err)
 	}
@@ -405,8 +386,8 @@ func PasteMostRecentDownload(destination string, maxAge time.Duration) (*FileInf
 	return file, nil
 }
 
-// copyFileToDestination copies a file or directory to the destination
-func copyFileToDestination(srcPath, destPath string) error {
+// CopyFileToDestination copies a file or directory to the specified destination
+func CopyFileToDestination(srcPath, destPath string) error {
 	srcInfo, err := os.Stat(srcPath)
 	if err != nil {
 		return err
@@ -430,7 +411,9 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer srcFile.Close()
+	defer func() {
+		_ = srcFile.Close()
+	}()
 	
 	// Create destination directory if needed
 	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
@@ -441,7 +424,9 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer dstFile.Close()
+	defer func() {
+		_ = dstFile.Close()
+	}()
 	
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
 		return err
@@ -649,8 +634,8 @@ func showFilePicker(files []FileInfo) (*FileInfo, error) {
 		Size:      10,
 		Searcher: func(input string, index int) bool {
 			item := items[index]
-			name := strings.Replace(strings.ToLower(item.Name), " ", "", -1)
-			input = strings.Replace(strings.ToLower(input), " ", "", -1)
+			name := strings.ReplaceAll(strings.ToLower(item.Name), " ", "")
+			input = strings.ReplaceAll(strings.ToLower(input), " ", "")
 			return strings.Contains(name, input)
 		},
 	}
