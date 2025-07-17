@@ -18,7 +18,6 @@ var (
 	verbose     bool
 	debug       bool
 	recentFlag  string
-	recentCount bool
 	recentBatch bool
 	recentPick  bool
 	version     = "dev"
@@ -47,16 +46,17 @@ Examples:
 
   # Copy most recent download to current directory
   pasty --recent
-  pasty --recent --recent-time 10m  # last 10 minutes
+  pasty -r             # short form
+  pasty -r 5m          # last 5 minutes only
 
   # Copy most recent download to specific directory
-  pasty --recent /path/to/dest/
+  pasty -r /path/to/dest/
   
   # Copy batch of recent downloads
-  pasty --recent --batch  # copy all files downloaded together
+  pasty -r --batch     # copy all files downloaded together
   
   # Interactive picker for recent downloads
-  pasty --recent --pick   # choose from list of recent files
+  pasty -r --pick      # choose from list of recent files
 
 Description:
   Pasty intelligently pastes clipboard content:
@@ -70,7 +70,7 @@ Description:
 			logger = log.New(log.Config{Verbose: verbose || debug, Debug: debug})
 
 			// Handle --recent flag
-			if recentCount {
+			if recentFlag != "" {
 				handleRecentMode(recentFlag, recentBatch, recentPick, args)
 				return
 			}
@@ -129,8 +129,7 @@ Description:
 	// Add flags
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug output (includes technical details)")
-	rootCmd.PersistentFlags().BoolVarP(&recentCount, "recent", "r", false, "Copy most recent file from Downloads")
-	rootCmd.PersistentFlags().StringVar(&recentFlag, "recent-time", "", "Time duration for recent files (5m, 1h, etc.)")
+	rootCmd.PersistentFlags().StringVarP(&recentFlag, "recent", "r", "", "Copy most recent file from Downloads (optional: time duration like 5m, 1h)")
 	rootCmd.PersistentFlags().BoolVar(&recentBatch, "batch", false, "Copy all files from most recent batch download")
 	rootCmd.PersistentFlags().BoolVarP(&recentPick, "pick", "p", false, "Show interactive picker for recent downloads")
 

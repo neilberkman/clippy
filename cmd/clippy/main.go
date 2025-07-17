@@ -20,7 +20,6 @@ var (
 	cleanup     = true
 	tempDir     = ""
 	recentFlag  string
-	recentCount bool
 	recentBatch bool
 	recentPick  bool
 	version     = "dev"
@@ -54,14 +53,14 @@ Examples:
   
   # Copy most recent download
   clippy --recent
-  clippy --recent 10m  # last 10 minutes
-  clippy -r 5m         # short form
+  clippy -r            # short form
+  clippy -r 5m         # last 5 minutes only
   
   # Copy batch of recent downloads
-  clippy --recent --batch  # copy all files downloaded together
+  clippy -r --batch    # copy all files downloaded together
   
   # Interactive picker for recent downloads
-  clippy --recent --pick   # choose from list of recent files
+  clippy -r --pick     # choose from list of recent files
 
 Configuration:
   Create ~/.clippy.conf with:
@@ -77,7 +76,7 @@ Configuration:
 			logger = log.New(log.Config{Verbose: verbose || debug, Debug: debug})
 
 			// Handle --recent flag
-			if recentCount {
+			if recentFlag != "" {
 				handleRecentMode(recentFlag, recentBatch, recentPick)
 				return
 			}
@@ -103,8 +102,7 @@ Configuration:
 	// Add flags
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug output (includes technical details)")
-	rootCmd.PersistentFlags().BoolVarP(&recentCount, "recent", "r", false, "Copy most recent file from Downloads")
-	rootCmd.PersistentFlags().StringVar(&recentFlag, "recent-time", "", "Time duration for recent files (5m, 1h, etc.)")
+	rootCmd.PersistentFlags().StringVarP(&recentFlag, "recent", "r", "", "Copy most recent file from Downloads (optional: time duration like 5m, 1h)")
 	rootCmd.PersistentFlags().BoolVar(&recentBatch, "batch", false, "Copy all files from most recent batch download")
 	rootCmd.PersistentFlags().BoolVarP(&recentPick, "pick", "p", false, "Show interactive picker for recent downloads")
 	rootCmd.PersistentFlags().BoolVar(&cleanup, "cleanup", true, "Enable automatic temp file cleanup")
