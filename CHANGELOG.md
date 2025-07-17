@@ -2,6 +2,27 @@
 
 Notable changes to clippy.
 
+## [0.7.0] - 2025-07-17
+
+### Added
+- **Recent downloads functionality** (clippy & pasty): `--recent` flag finds and copies your most recent downloads automatically
+- **Interactive picker** (clippy & pasty): `--pick` flag (shortcut `-p`) shows beautiful promptui interface to choose from multiple recent files
+- **Batch mode** (clippy & pasty): `--batch` flag copies multiple files downloaded together (groups files within 30 seconds)
+- **Time-based filtering** (clippy & pasty): `--recent 5m`, `--recent 1h` for filtering by age
+- **Debug vs verbose separation** (clippy & pasty): `--debug` flag for technical details (UTI types, detection methods), `--verbose` for user-friendly messages
+- **Smart auto-unarchive detection**: Handles macOS automatic archive extraction in Downloads folder
+- **Recent downloads library**: High-level business functions like `recent.CopyMostRecentDownload()` and `recent.PickRecentDownload()`
+
+### Changed
+- **Migrated to Cobra CLI framework**: Professional command-line interface with better help and flag handling
+- **Streamlined README**: Focused on core features without overwhelming users
+- **Improved UX**: Debug mode automatically implies verbose mode
+- **Better output separation**: Regular users get clean messages with `-v`, developers get technical details with `--debug`
+
+### Fixed
+- **Removed Windows support files**: Stays on `windows-support` branch for later (macOS-only for now)
+- **Time filtering bug**: Fixed duration parsing to properly respect time windows
+
 ## [0.6.1] - 2025-07-17
 
 ### Fixed
