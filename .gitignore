@@ -15,8 +15,9 @@
 go.work
 go.work.sum
 
-# Binary
+# Binaries
 clippy
+pasty
 
 # Dependency directories
 vendor/
