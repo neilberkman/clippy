@@ -86,8 +86,14 @@ Description:
 	var err error
 
 	if destination == "" {
-		// Paste to stdout
-		result, err = clippy.PasteToStdout()
+		// Check if clipboard has files - if so, default to current directory
+		if files := clippy.GetFiles(); len(files) > 0 {
+			destination = "."
+			result, err = clippy.PasteToFile(destination)
+		} else {
+			// Paste text to stdout
+			result, err = clippy.PasteToStdout()
+		}
 	} else {
 		// Paste to file or directory
 		result, err = clippy.PasteToFile(destination)
