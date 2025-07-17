@@ -449,7 +449,7 @@ func copyFile(src, dst string) error {
 	
 	// Copy permissions
 	if info, err := os.Stat(src); err == nil {
-		os.Chmod(dst, info.Mode())
+		_ = os.Chmod(dst, info.Mode())
 	}
 	
 	return nil
