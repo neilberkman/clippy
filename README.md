@@ -90,7 +90,7 @@ Pasty is clippy's companion tool for intelligent pasting from the clipboard.
 # 1. Copy any file in Finder (⌘C)
 # 2. Switch to terminal and run:
 pasty
-# File appears in your current directory
+# File gets copied to your current directory
 ```
 
 **2. Download in browser → Paste in terminal**
@@ -98,7 +98,7 @@ pasty
 # 1. Download file in browser
 # 2. Switch to terminal and run:
 pasty -r
-# Most recent download appears in your current directory
+# Most recent download gets copied to your current directory
 ```
 
 **3. Interactive picker for recent files**
@@ -107,11 +107,11 @@ pasty -r --pick          # Choose from multiple recent downloads
 pasty -r 5m              # Only last 5 minutes
 ```
 
-**4. Text content handling**
+**4. Smart text file handling**
 ```bash
-# Copy text in any app, then:
-pasty                    # Outputs text to stdout
-pasty notes.txt          # Saves text to file
+# Copy a text file in Finder (⌘C), then:
+pasty                    # Outputs the file's text content to stdout
+pasty notes.txt          # Saves the file's text content to notes.txt
 ```
 
 ---
