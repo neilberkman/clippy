@@ -7,19 +7,22 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/neilberkman/clippy"
 	"github.com/neilberkman/clippy/internal/log"
+	"github.com/neilberkman/clippy/pkg/recent"
 )
 
 var (
-	verbose bool
-	cleanup = true
-	tempDir = ""
-	version = "dev"
-	commit  = "none"
-	date    = "unknown"
-	logger  *log.Logger
+	verbose    bool
+	cleanup    = true
+	tempDir    = ""
+	recentFlag = ""
+	version    = "dev"
+	commit     = "none"
+	date       = "unknown"
+	logger     *log.Logger
 )
 
 func main() {
@@ -32,6 +35,7 @@ Usage:
 
 Options:
   -v, --verbose    Enable verbose output
+  --recent [time]  Copy most recent file from Downloads (e.g. --recent 5m)
   --cleanup        Enable automatic temp file cleanup (default: true)
   --version        Show version information
   -h, --help       Show this help message
@@ -50,6 +54,11 @@ Examples:
   
   # Copy from curl
   curl -s https://example.com/image.jpg | clippy
+  
+  # Copy most recent download
+  clippy --recent
+  clippy --recent 10m  # last 10 minutes
+  clippy --recent 1h   # last hour
 
 Configuration:
   Create ~/.clippy.conf with:
@@ -57,6 +66,26 @@ Configuration:
     cleanup = false   # Disable automatic temp file cleanup
     temp_dir = /path  # Custom directory for temporary files
 `)
+	}
+
+	// Custom flag handling for --recent (can be used with or without value)
+	var recentFlagSet bool
+	
+	// Pre-process args to handle --recent flag
+	for i := 1; i < len(os.Args); i++ {
+		if os.Args[i] == "--recent" {
+			recentFlagSet = true
+			// Check if next arg is a time duration (not a flag)
+			if i+1 < len(os.Args) && !strings.HasPrefix(os.Args[i+1], "-") {
+				recentFlag = os.Args[i+1]
+				// Remove both --recent and the time arg
+				os.Args = append(os.Args[:i], os.Args[i+2:]...)
+			} else {
+				// Remove just --recent
+				os.Args = append(os.Args[:i], os.Args[i+1:]...)
+			}
+			break
+		}
 	}
 
 	// Parse flags
@@ -86,6 +115,12 @@ Configuration:
 	// Initialize logger
 	logger = log.New(log.Config{Verbose: verbose})
 
+	// Handle --recent flag
+	if recentFlagSet {
+		handleRecentMode(recentFlag)
+		return
+	}
+
 	// Decide between File Mode and Stream Mode
 	args := flag.Args()
 	if len(args) > 0 {
@@ -102,6 +137,28 @@ Configuration:
 	if cleanup {
 		cleanupOldTempFiles()
 	}
+}
+
+// handleRecentMode handles the --recent flag
+func handleRecentMode(timeStr string) {
+	// Parse time duration (library handles this)
+	maxAge, err := recent.ParseDuration(timeStr)
+	if err != nil {
+		logger.Error("Invalid time duration: %v", err)
+		os.Exit(1)
+	}
+
+	// Use high-level library function
+	file, err := recent.CopyMostRecentDownload(maxAge)
+	if err != nil {
+		logger.Error("No recent files found: %v", err)
+		os.Exit(1)
+	}
+
+	logger.Verbose("Found recent file: %s (modified %s ago)", file.Path, time.Since(file.Modified).Round(time.Second))
+
+	// Copy the file using existing clippy logic
+	handleFileMode(file.Path)
 }
 
 // Load configuration from ~/.clippy.conf

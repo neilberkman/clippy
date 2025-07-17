@@ -1,0 +1,444 @@
+package recent
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// FileInfo represents a file with its metadata
+type FileInfo struct {
+	Path     string
+	Name     string
+	Size     int64
+	Modified time.Time
+	IsDir    bool
+}
+
+// FindOptions controls how recent files are discovered
+type FindOptions struct {
+	MaxAge         time.Duration
+	MaxCount       int
+	Directories    []string
+	Extensions     []string
+	ExcludeTemp    bool
+	SmartUnarchive bool // Look inside auto-unarchived folders
+}
+
+// ArchiveInfo represents information about an auto-unarchived download
+type ArchiveInfo struct {
+	OriginalName string // e.g. "project.zip"
+	FolderPath   string // e.g. "/Users/neil/Downloads/project/"
+	Contents     []FileInfo
+}
+
+// DefaultFindOptions returns sensible defaults for finding recent files
+func DefaultFindOptions() FindOptions {
+	return FindOptions{
+		MaxAge:         5 * time.Minute,
+		MaxCount:       10,
+		Directories:    GetDefaultDownloadDirs(),
+		ExcludeTemp:    true,
+		SmartUnarchive: true,
+	}
+}
+
+// GetDefaultDownloadDirs returns common download directories on macOS
+func GetDefaultDownloadDirs() []string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return []string{"/tmp"}
+	}
+
+	return []string{
+		filepath.Join(homeDir, "Downloads"),
+		filepath.Join(homeDir, "Desktop"),
+		filepath.Join(homeDir, "Documents"),
+	}
+}
+
+// GetBrowserDownloadDir attempts to detect browser-specific download directories
+func GetBrowserDownloadDir() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return filepath.Join(homeDir, "Downloads")
+	}
+
+	// Default to ~/Downloads - most browsers use this
+	defaultDir := filepath.Join(homeDir, "Downloads")
+	
+	// TODO: Could check browser preferences here
+	// Chrome: ~/Library/Application Support/Google/Chrome/Default/Preferences
+	// Safari: ~/Library/Safari/Downloads.plist
+	// Firefox: ~/.mozilla/firefox/profiles.ini
+	
+	return defaultDir
+}
+
+// FindRecentFiles finds files matching the given criteria
+func FindRecentFiles(opts FindOptions) ([]FileInfo, error) {
+	var allFiles []FileInfo
+	
+	cutoff := time.Now().Add(-opts.MaxAge)
+	
+	for _, dir := range opts.Directories {
+		if !dirExists(dir) {
+			continue
+		}
+		
+		files, err := findFilesInDir(dir, cutoff, opts)
+		if err != nil {
+			// Log error but continue with other directories
+			continue
+		}
+		
+		allFiles = append(allFiles, files...)
+	}
+	
+	// Sort by modification time, newest first
+	sort.Slice(allFiles, func(i, j int) bool {
+		return allFiles[i].Modified.After(allFiles[j].Modified)
+	})
+	
+	// Limit results
+	if opts.MaxCount > 0 && len(allFiles) > opts.MaxCount {
+		allFiles = allFiles[:opts.MaxCount]
+	}
+	
+	return allFiles, nil
+}
+
+// FindMostRecentFile finds the single most recent file
+func FindMostRecentFile(opts FindOptions) (*FileInfo, error) {
+	opts.MaxCount = 1
+	files, err := FindRecentFiles(opts)
+	if err != nil {
+		return nil, err
+	}
+	
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no recent files found")
+	}
+	
+	return &files[0], nil
+}
+
+// ParseDuration parses duration strings like "5m", "1h", "30s"
+func ParseDuration(s string) (time.Duration, error) {
+	if s == "" {
+		return 5 * time.Minute, nil
+	}
+	
+	// Handle just numbers (assume minutes)
+	if num, err := strconv.Atoi(s); err == nil {
+		return time.Duration(num) * time.Minute, nil
+	}
+	
+	return time.ParseDuration(s)
+}
+
+// findFilesInDir recursively finds files in a directory
+func findFilesInDir(dir string, cutoff time.Time, opts FindOptions) ([]FileInfo, error) {
+	var files []FileInfo
+	
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip errors, continue walking
+		}
+		
+		// Skip the root directory itself
+		if path == dir {
+			return nil
+		}
+		
+		// Skip hidden files and directories
+		if strings.HasPrefix(info.Name(), ".") {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		
+		// Skip temporary files
+		if opts.ExcludeTemp && isTemporaryFile(info.Name()) {
+			return nil
+		}
+		
+		// Check modification time
+		if info.ModTime().Before(cutoff) {
+			return nil
+		}
+		
+		// Check extensions if specified
+		if len(opts.Extensions) > 0 && !info.IsDir() {
+			ext := strings.ToLower(filepath.Ext(path))
+			if !contains(opts.Extensions, ext) {
+				return nil
+			}
+		}
+		
+		files = append(files, FileInfo{
+			Path:     path,
+			Name:     info.Name(),
+			Size:     info.Size(),
+			Modified: info.ModTime(),
+			IsDir:    info.IsDir(),
+		})
+		
+		return nil
+	})
+	
+	return files, err
+}
+
+// isTemporaryFile checks if a file appears to be temporary
+func isTemporaryFile(name string) bool {
+	tempSuffixes := []string{
+		".tmp", ".temp", ".download", ".partial", ".crdownload",
+		".part", ".filepart", ".opdownload",
+	}
+	
+	lowerName := strings.ToLower(name)
+	for _, suffix := range tempSuffixes {
+		if strings.HasSuffix(lowerName, suffix) {
+			return true
+		}
+	}
+	
+	return false
+}
+
+// dirExists checks if a directory exists
+func dirExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+// contains checks if a slice contains a string
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+// IsArchive checks if a file is a common archive format
+func IsArchive(filename string) bool {
+	archiveExts := []string{
+		".zip", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2",
+		".tar.xz", ".txz", ".7z", ".rar", ".gz", ".bz2", ".xz",
+		".dmg", ".pkg",
+	}
+	
+	ext := strings.ToLower(filepath.Ext(filename))
+	for _, archiveExt := range archiveExts {
+		if ext == archiveExt {
+			return true
+		}
+	}
+	
+	// Handle .tar.gz and similar
+	if strings.Contains(strings.ToLower(filename), ".tar.") {
+		return true
+	}
+	
+	return false
+}
+
+// HIGH-LEVEL BUSINESS CASE FUNCTIONS
+
+// CopyMostRecentDownload finds the most recent download and copies it to clipboard
+// This is the primary use case: "I just downloaded something, copy it to clipboard"
+func CopyMostRecentDownload(maxAge time.Duration) (*FileInfo, error) {
+	opts := DefaultFindOptions()
+	if maxAge > 0 {
+		opts.MaxAge = maxAge
+	}
+	
+	file, err := FindMostRecentFile(opts)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Handle auto-unarchived folders
+	if file.IsDir && opts.SmartUnarchive {
+		if unarchived := detectAutoUnarchived(file); unarchived != nil {
+			// If it's a single file inside, use that
+			if len(unarchived.Contents) == 1 && !unarchived.Contents[0].IsDir {
+				return &unarchived.Contents[0], nil
+			}
+			// Otherwise return the folder itself
+		}
+	}
+	
+	return file, nil
+}
+
+// PasteMostRecentDownload finds and copies the most recent download to destination
+// This is the primary use case: "I just downloaded something, paste it here"
+func PasteMostRecentDownload(destination string, maxAge time.Duration) (*FileInfo, error) {
+	file, err := CopyMostRecentDownload(maxAge)
+	if err != nil {
+		return nil, err
+	}
+	
+	if destination == "" {
+		destination = "."
+	}
+	
+	// Copy the file to destination
+	err = copyFileToDestination(file.Path, destination)
+	if err != nil {
+		return nil, fmt.Errorf("failed to copy file: %w", err)
+	}
+	
+	return file, nil
+}
+
+// copyFileToDestination copies a file or directory to the destination
+func copyFileToDestination(srcPath, destPath string) error {
+	srcInfo, err := os.Stat(srcPath)
+	if err != nil {
+		return err
+	}
+	
+	// If destination is a directory, copy into it
+	if destInfo, err := os.Stat(destPath); err == nil && destInfo.IsDir() {
+		destPath = filepath.Join(destPath, filepath.Base(srcPath))
+	}
+	
+	if srcInfo.IsDir() {
+		return copyDir(srcPath, destPath)
+	}
+	
+	return copyFile(srcPath, destPath)
+}
+
+// copyFile copies a single file
+func copyFile(src, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+	
+	// Create destination directory if needed
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return err
+	}
+	
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+	
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return err
+	}
+	
+	// Copy permissions
+	if info, err := os.Stat(src); err == nil {
+		os.Chmod(dst, info.Mode())
+	}
+	
+	return nil
+}
+
+// copyDir copies a directory recursively
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		
+		// Calculate destination path
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dst, relPath)
+		
+		if info.IsDir() {
+			return os.MkdirAll(dstPath, info.Mode())
+		}
+		
+		return copyFile(path, dstPath)
+	})
+}
+
+// detectAutoUnarchived checks if a directory looks like an auto-unarchived download
+func detectAutoUnarchived(dir *FileInfo) *ArchiveInfo {
+	if !dir.IsDir {
+		return nil
+	}
+	
+	// Check if directory name suggests it was unarchived
+	dirName := filepath.Base(dir.Path)
+	
+	// Look for common archive patterns in the name
+	// e.g. "project" folder might have come from "project.zip"
+	archiveExtensions := []string{".zip", ".tar.gz", ".tgz", ".tar"}
+	
+	for _, ext := range archiveExtensions {
+		possibleArchiveName := dirName + ext
+		
+		// Check if this looks like an auto-unarchived folder
+		// (created recently, contains files, name suggests archive origin)
+		if time.Since(dir.Modified) < 10*time.Minute {
+			contents, err := getDirectoryContents(dir.Path)
+			if err == nil && len(contents) > 0 {
+				return &ArchiveInfo{
+					OriginalName: possibleArchiveName,
+					FolderPath:   dir.Path,
+					Contents:     contents,
+				}
+			}
+		}
+	}
+	
+	return nil
+}
+
+// getDirectoryContents returns the contents of a directory
+func getDirectoryContents(dirPath string) ([]FileInfo, error) {
+	var contents []FileInfo
+	
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		
+		// Skip the root directory
+		if path == dirPath {
+			return nil
+		}
+		
+		// Skip hidden files
+		if strings.HasPrefix(info.Name(), ".") {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		
+		contents = append(contents, FileInfo{
+			Path:     path,
+			Name:     info.Name(),
+			Size:     info.Size(),
+			Modified: info.ModTime(),
+			IsDir:    info.IsDir(),
+		})
+		
+		return nil
+	})
+	
+	return contents, err
+}
