@@ -647,3 +647,4 @@ func showFilePicker(files []FileInfo) (*FileInfo, error) {
 
 	return &files[i], nil
 }
+

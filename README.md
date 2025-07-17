@@ -52,6 +52,7 @@ go install github.com/neilberkman/clippy/cmd/clippy@latest
 ## Core Features
 
 ### 1. Smart File Copying
+
 ```bash
 clippy document.pdf    # Copies as file reference (paste into any app)
 clippy notes.txt       # Copies text content
@@ -59,19 +60,31 @@ clippy *.jpg          # Multiple files at once
 ```
 
 ### 2. Recent Downloads
+
 ```bash
 clippy -r              # Copy your most recent download
 clippy -r --pick       # Interactive picker for recent files
 clippy -r 5m           # Only last 5 minutes
+clippy -r --paste      # Copy and paste in one step
 ```
 
 ### 3. Pipe Data as Files
+
 ```bash
 curl -sL https://example.com/image.jpg | clippy
 cat archive.tar.gz | clippy
 ```
 
-### 4. Helpful Flags
+### 4. Copy and Paste Together
+
+```bash
+clippy file.txt --paste     # Copy to clipboard AND paste here
+clippy -r --paste          # Copy recent download and paste here
+clippy -r --pick --paste   # Pick file, copy it, and paste here
+```
+
+### 5. Helpful Flags
+
 ```bash
 clippy -v file.txt     # Show what happened
 clippy --debug file.txt # Technical details for debugging
@@ -86,6 +99,7 @@ Pasty is clippy's companion tool for intelligent pasting from the clipboard.
 ### Core Use Cases
 
 **1. Copy file in Finder → Paste in terminal**
+
 ```bash
 # 1. Copy any file in Finder (⌘C)
 # 2. Switch to terminal and run:
@@ -93,21 +107,8 @@ pasty
 # File gets copied to your current directory
 ```
 
-**2. Download in browser → Paste in terminal**
-```bash
-# 1. Download file in browser
-# 2. Switch to terminal and run:
-pasty -r
-# Most recent download gets copied to your current directory
-```
+**2. Smart text file handling**
 
-**3. Interactive picker for recent files**
-```bash
-pasty -r --pick          # Choose from multiple recent downloads
-pasty -r 5m              # Only last 5 minutes
-```
-
-**4. Smart text file handling**
 ```bash
 # Copy a text file in Finder (⌘C), then:
 pasty                    # Outputs the file's text content to stdout

@@ -22,6 +22,7 @@ var (
 	recentFlag  string
 	recentBatch bool
 	recentPick  bool
+	paste       bool
 	version     = "dev"
 	commit      = "none"
 	date        = "unknown"
@@ -61,6 +62,11 @@ Examples:
   
   # Interactive picker for recent downloads
   clippy -r --pick     # choose from list of recent files
+  
+  # Copy and paste in one step
+  clippy file.txt --paste      # copy to clipboard AND paste to current dir
+  clippy -r --paste            # copy recent file and paste here
+  clippy -r --pick --paste     # pick a file, copy it, and paste here
 
 Configuration:
   Create ~/.clippy.conf with:
@@ -105,6 +111,7 @@ Configuration:
 	rootCmd.PersistentFlags().StringVarP(&recentFlag, "recent", "r", "", "Copy most recent file from Downloads (optional: time duration like 5m, 1h)")
 	rootCmd.PersistentFlags().BoolVar(&recentBatch, "batch", false, "Copy all files from most recent batch download")
 	rootCmd.PersistentFlags().BoolVarP(&recentPick, "pick", "p", false, "Show interactive picker for recent downloads")
+	rootCmd.PersistentFlags().BoolVar(&paste, "paste", false, "Also paste copied files to current directory")
 	rootCmd.PersistentFlags().BoolVar(&cleanup, "cleanup", true, "Enable automatic temp file cleanup")
 
 	// Execute the command
@@ -234,6 +241,9 @@ func handleFileMode(filePath string) {
 	
 	// Show technical details in debug mode
 	logger.Debug("Detection method: %s, Type: %s", result.Method, result.Type)
+	
+	// Handle paste flag
+	pasteFiles([]string{filePath})
 }
 
 // Handle multiple files at once
@@ -250,6 +260,9 @@ func handleMultipleFiles(paths []string) {
 			fmt.Printf("  - %s\n", filepath.Base(path))
 		}
 	}
+	
+	// Handle paste flag
+	pasteFiles(paths)
 }
 
 // Logic for when data is piped via stdin
@@ -267,4 +280,20 @@ func handleStreamMode() {
 func cleanupOldTempFiles() {
 	// Use the library function for cleanup
 	clippy.CleanupTempFiles(tempDir, verbose)
+}
+
+// pasteFiles handles pasting files to current directory if --paste flag is set
+func pasteFiles(files []string) {
+	if !paste {
+		return
+	}
+	
+	for _, file := range files {
+		err := recent.CopyFileToDestination(file, ".")
+		if err != nil {
+			logger.Error("Failed to paste file %s: %v", filepath.Base(file), err)
+			continue
+		}
+	}
+	logger.Verbose("✅ Also pasted %d files to current directory", len(files))
 }

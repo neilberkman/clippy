@@ -2,6 +2,29 @@
 
 Notable changes to clippy.
 
+## [0.7.2] - 2025-07-17
+
+### Changed
+- **Major architectural refactor**: Moved all recent downloads functionality from pasty to clippy
+  - Recent downloads is about file selection, which belongs in clippy (copy TO clipboard)
+  - Pasty now focuses purely on pasting FROM clipboard
+  - This creates cleaner separation of concerns
+- **New `--paste` flag in clippy**: Copy and paste in one step
+  - `clippy file.txt --paste` - copy to clipboard AND paste to current directory
+  - `clippy -r --paste` - copy recent download and paste here
+  - `clippy -r --pick --paste` - pick file, copy it, and paste here
+
+### Fixed
+- **Picker functionality**: Fixed `--pick` flag that was broken in v0.7.1 due to buggy wrapper function
+- **DRY refactor**: Removed `PastePickedRecentDownload()` wrapper, both tools now use shared `PickRecentDownload()` function
+- **Public API**: Made `CopyFileToDestination()` public for shared use between tools
+- **Test fixes**: Fixed hardcoded test expectations and handling of filenames with spaces
+
+### Removed
+- **Recent downloads in pasty**: All `-r/--recent` functionality removed from pasty
+  - Use `clippy -r --paste` instead of `pasty -r`
+  - This is a breaking change but creates better architecture
+
 ## [0.7.1] - 2025-07-17
 
 ### Changed
