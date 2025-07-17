@@ -1,24 +1,22 @@
-I posted about clippy a couple of days ago and now I've released pasty, the companion tool that completes the bidirectional file workflow. It eliminates the cd ~/Downloads && ls -lt && cp ... && cd - workflow when you need to get a file into your project.
+I posted about clippy a couple of days ago and now I've released pasty, the companion tool that completes the bidirectional file workflow.
 
 Together they solve both directions:
 
 - clippy: Copy files from terminal that actually paste into GUI apps (Slack, email, etc.)
 
-- pasty: Paste files from GUI apps into your terminal
+- pasty: Paste files from GUI apps that actually work in your terminal
 
-Core use case: Copy a file in Finder → pasty → file gets copied to your current directory.
+Core use case: Copy a file in Finder → pasty → file appears in your current directory.
 
 Smart text handling: Copy a text file in Finder → pasty → outputs the file's content to terminal.
 
-Recent downloads feature:
+Since my last post, I've also added some killer features to clippy:
 
-    # Download something in your browser, then:
-    pasty -r                    # copies it to current directory
-    pasty -r --pick             # interactive picker for multiple files
-    pasty -r 5m                 # only last 5 minutes
-    pasty -r --batch            # all files from same download batch
+Recent downloads with interactive picker:
 
-This pasty -r feature alone has already saved me tons of time and context switching.
+    clippy -r                   # copy most recent download
+    clippy -r --pick            # interactive picker
+    clippy -r --paste           # copy and paste in one step
 
 You get both tools: brew install neilberkman/clippy/clippy
 
