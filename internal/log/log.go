@@ -8,6 +8,7 @@ import (
 // Config holds logging configuration
 type Config struct {
 	Verbose bool
+	Debug   bool
 }
 
 // Logger provides logging functionality
@@ -30,6 +31,13 @@ func (l *Logger) Error(format string, args ...interface{}) {
 func (l *Logger) Verbose(format string, args ...interface{}) {
 	if l.config.Verbose {
 		fmt.Printf(format+"\n", args...)
+	}
+}
+
+// Debug prints a message if debug mode is enabled
+func (l *Logger) Debug(format string, args ...interface{}) {
+	if l.config.Debug {
+		fmt.Printf("DEBUG: "+format+"\n", args...)
 	}
 }
 

@@ -44,3 +44,6 @@ debug.log
 # Temporary files
 *.tmp
 *.temp
+
+# Claude AI context file
+CLAUDE.md
