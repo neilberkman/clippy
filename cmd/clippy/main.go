@@ -152,7 +152,6 @@ func loadConfig() {
 	}
 }
 
-
 // Logic for when a filename is provided as an argument
 func handleFileMode(filePath string) {
 	// Use the library function for smart copying with result info

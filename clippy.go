@@ -282,16 +282,7 @@ type PasteResult struct {
 
 // PasteToStdout pastes clipboard content to stdout
 func PasteToStdout() (*PasteResult, error) {
-	// Try to get text content first
-	if text, ok := GetText(); ok {
-		fmt.Print(text)
-		return &PasteResult{
-			Type:    "text",
-			Content: text,
-		}, nil
-	}
-
-	// Try to get file references
+	// Try to get file references first (prioritize files over text)
 	files := GetFiles()
 	if len(files) > 0 {
 		for _, file := range files {
@@ -303,23 +294,21 @@ func PasteToStdout() (*PasteResult, error) {
 		}, nil
 	}
 
-	return nil, fmt.Errorf("no text or file content found on clipboard")
-}
-
-// PasteToFile pastes clipboard content to a file or directory
-func PasteToFile(destination string) (*PasteResult, error) {
-	// Try to get text content first
+	// Try to get text content
 	if text, ok := GetText(); ok {
-		if err := os.WriteFile(destination, []byte(text), 0644); err != nil {
-			return nil, fmt.Errorf("could not write to file %s: %w", destination, err)
-		}
+		fmt.Print(text)
 		return &PasteResult{
 			Type:    "text",
 			Content: text,
 		}, nil
 	}
 
-	// Try to get file references
+	return nil, fmt.Errorf("no text or file content found on clipboard")
+}
+
+// PasteToFile pastes clipboard content to a file or directory
+func PasteToFile(destination string) (*PasteResult, error) {
+	// Try to get file references first (prioritize files over text)
 	files := GetFiles()
 	if len(files) > 0 {
 		filesRead, err := copyFilesToDestination(files, destination)
@@ -330,6 +319,17 @@ func PasteToFile(destination string) (*PasteResult, error) {
 			Type:      "files",
 			Files:     files,
 			FilesRead: filesRead,
+		}, nil
+	}
+
+	// Try to get text content
+	if text, ok := GetText(); ok {
+		if err := os.WriteFile(destination, []byte(text), 0644); err != nil {
+			return nil, fmt.Errorf("could not write to file %s: %w", destination, err)
+		}
+		return &PasteResult{
+			Type:    "text",
+			Content: text,
 		}, nil
 	}
 
