@@ -166,8 +166,8 @@ func TestPastyWithFileClipboard(t *testing.T) {
 	if !strings.Contains(outputStr, "minimal.png") {
 		t.Errorf("Should list the file path from clipboard, got: %s", outputStr)
 	}
-	if !strings.Contains(outputStr, "✅ Listed 1 file references from clipboard") {
-		t.Errorf("Should show verbose message about listing files, got: %s", outputStr)
+	if !strings.Contains(outputStr, "✅ Copied 1 files to '.'") {
+		t.Errorf("Should show verbose message about copying files, got: %s", outputStr)
 	}
 }
 
