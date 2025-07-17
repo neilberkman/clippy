@@ -3,40 +3,37 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/neilberkman/clippy"
 	"github.com/neilberkman/clippy/internal/log"
 	"github.com/neilberkman/clippy/pkg/recent"
 )
 
 var (
-	verbose    bool
-	recentFlag = ""
-	version    = "dev"
-	commit     = "none"
-	date       = "unknown"
-	logger     *log.Logger
+	verbose     bool
+	debug       bool
+	recentFlag  string
+	recentCount bool
+	recentBatch bool
+	recentPick  bool
+	version     = "dev"
+	commit      = "none"
+	date        = "unknown"
+	logger      *log.Logger
 )
 
 func main() {
-	// Custom usage
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, `pasty - Smart paste tool for macOS
+	var rootCmd = &cobra.Command{
+		Use:   "pasty [destination]",
+		Short: "Smart paste tool for macOS",
+		Long: `pasty - Smart paste tool for macOS
 
-Usage:
-  pasty [options] [destination]
-
-Options:
-  -v, --verbose       Enable verbose output
-  --recent [time]     Copy most recent file from Downloads (e.g. --recent 5m)
-  --version           Show version information
-  -h, --help          Show this help message
+Companion to clippy, provides intelligent pasting from clipboard.
 
 Examples:
   # Paste clipboard content to stdout
@@ -50,123 +47,102 @@ Examples:
 
   # Copy most recent download to current directory
   pasty --recent
-  pasty --recent 10m  # last 10 minutes
+  pasty --recent --recent-time 10m  # last 10 minutes
 
   # Copy most recent download to specific directory
   pasty --recent /path/to/dest/
+  
+  # Copy batch of recent downloads
+  pasty --recent --batch  # copy all files downloaded together
+  
+  # Interactive picker for recent downloads
+  pasty --recent --pick   # choose from list of recent files
 
 Description:
   Pasty intelligently pastes clipboard content:
   - Text content is written directly
   - File references are copied to destination
   - If no destination specified, outputs to stdout
-  - With --recent, finds and copies most recent downloads
-`)
-	}
+  - With --recent, finds and copies most recent downloads`,
+		Version: fmt.Sprintf("%s (%s) built on %s", version, commit, date),
+		Run: func(cmd *cobra.Command, args []string) {
+			// Initialize logger
+			logger = log.New(log.Config{Verbose: verbose || debug, Debug: debug})
 
-	// Custom flag handling for --recent (can be used with or without value)
-	var recentFlagSet bool
-	
-	// Pre-process args to handle --recent flag
-	for i := 1; i < len(os.Args); i++ {
-		if os.Args[i] == "--recent" {
-			recentFlagSet = true
-			// Check if next arg is a time duration (not a flag)
-			if i+1 < len(os.Args) && !strings.HasPrefix(os.Args[i+1], "-") {
-				recentFlag = os.Args[i+1]
-				// Remove both --recent and the time arg
-				os.Args = append(os.Args[:i], os.Args[i+2:]...)
-			} else {
-				// Remove just --recent
-				os.Args = append(os.Args[:i], os.Args[i+1:]...)
+			// Handle --recent flag
+			if recentCount {
+				handleRecentMode(recentFlag, recentBatch, recentPick, args)
+				return
 			}
-			break
-		}
-	}
 
-	// Parse flags
-	flag.BoolVar(&verbose, "verbose", false, "Enable verbose output")
-	flag.BoolVar(&verbose, "v", false, "Enable verbose output (shorthand)")
-
-	showVersion := flag.Bool("version", false, "Show version information")
-	showHelp := flag.Bool("help", false, "Show help message")
-	flag.BoolVar(showHelp, "h", false, "Show help message (shorthand)")
-
-	flag.Parse()
-
-	if *showHelp {
-		flag.Usage()
-		os.Exit(0)
-	}
-
-	if *showVersion {
-		fmt.Printf("pasty version %s (%s) built on %s\n", version, commit, date)
-		os.Exit(0)
-	}
-
-	// Initialize logger
-	logger = log.New(log.Config{Verbose: verbose})
-
-	// Handle --recent flag
-	if recentFlagSet {
-		handleRecentMode(recentFlag, flag.Args())
-		return
-	}
-
-	// Get destination from args
-	args := flag.Args()
-	var destination string
-	if len(args) > 0 {
-		destination = args[0]
-	}
-
-	// Use library functions to paste content
-	var result *clippy.PasteResult
-	var err error
-
-	if destination == "" {
-		// Check if clipboard has files - if so, default to current directory
-		if files := clippy.GetFiles(); len(files) > 0 {
-			destination = "."
-			result, err = clippy.PasteToFile(destination)
-		} else {
-			// Paste text to stdout
-			result, err = clippy.PasteToStdout()
-		}
-	} else {
-		// Paste to file or directory
-		result, err = clippy.PasteToFile(destination)
-	}
-
-	if err != nil {
-		logger.Error("%v", err)
-	}
-
-	// Show verbose output
-	if result != nil {
-		if destination == "" {
-			if result.Type == "text" {
-				logger.Verbose("✅ Pasted text content to stdout")
-			} else {
-				logger.Verbose("✅ Listed %d file references from clipboard", len(result.Files))
+			// Get destination from args
+			var destination string
+			if len(args) > 0 {
+				destination = args[0]
 			}
-		} else {
-			if result.Type == "text" {
-				logger.Verbose("✅ Pasted text content to '%s'", destination)
+
+			// Use library functions to paste content
+			var result *clippy.PasteResult
+			var err error
+
+			if destination == "" {
+				// Check if clipboard has files - if so, default to current directory
+				if files := clippy.GetFiles(); len(files) > 0 {
+					destination = "."
+				}
+			}
+
+			if destination == "" {
+				result, err = clippy.PasteToStdout()
 			} else {
-				logger.Verbose("✅ Copied %d files to '%s'", result.FilesRead, destination)
-				if verbose {
-					for _, file := range result.Files {
-						fmt.Fprintf(os.Stderr, "  - %s\n", filepath.Base(file))
+				result, err = clippy.PasteToFile(destination)
+			}
+
+			if err != nil {
+				logger.Error("%v", err)
+			}
+
+			// Show verbose output
+			if result != nil {
+				if destination == "" {
+					if result.Type == "text" {
+						logger.Verbose("✅ Pasted text content to stdout")
+					} else {
+						logger.Verbose("✅ Listed %d file references from clipboard", len(result.Files))
+					}
+				} else {
+					if result.Type == "text" {
+						logger.Verbose("✅ Pasted text content to '%s'", destination)
+					} else {
+						logger.Verbose("✅ Copied %d files to '%s'", result.FilesRead, destination)
+						if verbose {
+							for _, file := range result.Files {
+								fmt.Fprintf(os.Stderr, "  - %s\n", filepath.Base(file))
+							}
+						}
 					}
 				}
 			}
-		}
+		},
+	}
+
+	// Add flags
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
+	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug output (includes technical details)")
+	rootCmd.PersistentFlags().BoolVarP(&recentCount, "recent", "r", false, "Copy most recent file from Downloads")
+	rootCmd.PersistentFlags().StringVar(&recentFlag, "recent-time", "", "Time duration for recent files (5m, 1h, etc.)")
+	rootCmd.PersistentFlags().BoolVar(&recentBatch, "batch", false, "Copy all files from most recent batch download")
+	rootCmd.PersistentFlags().BoolVarP(&recentPick, "pick", "p", false, "Show interactive picker for recent downloads")
+
+	// Execute the command
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 }
 
 // handleRecentMode handles the --recent flag
-func handleRecentMode(timeStr string, args []string) {
+func handleRecentMode(timeStr string, batch bool, pick bool, args []string) {
 	// Parse time duration (library handles this)
 	maxAge, err := recent.ParseDuration(timeStr)
 	if err != nil {
@@ -180,13 +156,38 @@ func handleRecentMode(timeStr string, args []string) {
 		destination = args[0]
 	}
 
-	// Use high-level library function
-	file, err := recent.PasteMostRecentDownload(destination, maxAge)
-	if err != nil {
-		logger.Error("No recent files found: %v", err)
-		os.Exit(1)
-	}
+	if pick {
+		// Use picker mode - interactively select file
+		file, err := recent.PastePickedRecentDownload(destination, maxAge)
+		if err != nil {
+			logger.Error("No file selected: %v", err)
+			os.Exit(1)
+		}
 
-	logger.Verbose("Found recent file: %s (modified %s ago)", file.Path, time.Since(file.Modified).Round(time.Second))
-	logger.Verbose("✅ Copied recent file to '%s'", destination)
+		logger.Verbose("Selected: %s (modified %s ago)", file.Path, time.Since(file.Modified).Round(time.Second))
+		logger.Verbose("✅ Copied selected file to '%s'", destination)
+	} else if batch {
+		// Use batch mode - copy multiple files
+		files, err := recent.PasteRecentDownloads(destination, maxAge, 10)
+		if err != nil {
+			logger.Error("No recent files found: %v", err)
+			os.Exit(1)
+		}
+
+		logger.Verbose("Found %d files in recent batch:", len(files))
+		for _, file := range files {
+			logger.Verbose("  - %s (modified %s ago)", file.Name, time.Since(file.Modified).Round(time.Second))
+		}
+		logger.Verbose("✅ Copied %d recent files to '%s'", len(files), destination)
+	} else {
+		// Use single file mode
+		file, err := recent.PasteMostRecentDownload(destination, maxAge)
+		if err != nil {
+			logger.Error("No recent files found: %v", err)
+			os.Exit(1)
+		}
+
+		logger.Verbose("Found recent file: %s (modified %s ago)", file.Path, time.Since(file.Modified).Round(time.Second))
+		logger.Verbose("✅ Copied recent file to '%s'", destination)
+	}
 }

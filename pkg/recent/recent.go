@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/manifoldco/promptui"
 )
 
 // FileInfo represents a file with its metadata
@@ -258,7 +260,7 @@ func IsArchive(filename string) bool {
 // This is the primary use case: "I just downloaded something, copy it to clipboard"
 func CopyMostRecentDownload(maxAge time.Duration) (*FileInfo, error) {
 	opts := DefaultFindOptions()
-	if maxAge > 0 {
+	if maxAge != 0 {
 		opts.MaxAge = maxAge
 	}
 	
@@ -276,6 +278,107 @@ func CopyMostRecentDownload(maxAge time.Duration) (*FileInfo, error) {
 			}
 			// Otherwise return the folder itself
 		}
+	}
+	
+	return file, nil
+}
+
+// CopyRecentDownloads finds multiple recent downloads and copies them to clipboard
+// This handles the case where multiple files were downloaded as a batch
+func CopyRecentDownloads(maxAge time.Duration, maxCount int) ([]FileInfo, error) {
+	opts := DefaultFindOptions()
+	if maxAge != 0 {
+		opts.MaxAge = maxAge
+	}
+	if maxCount > 0 {
+		opts.MaxCount = maxCount
+	}
+	
+	files, err := FindRecentFiles(opts)
+	if err != nil {
+		return nil, err
+	}
+	
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no recent files found")
+	}
+	
+	// Group files by their download time (within 30 seconds = batch)
+	batches := groupFilesByDownloadTime(files, 30*time.Second)
+	
+	// Return the most recent batch
+	if len(batches) > 0 {
+		return batches[0], nil
+	}
+	
+	return files, nil
+}
+
+// PasteRecentDownloads finds and copies multiple recent downloads to destination
+// This handles batch downloads like "I downloaded 5 photos, paste them all"
+func PasteRecentDownloads(destination string, maxAge time.Duration, maxCount int) ([]FileInfo, error) {
+	files, err := CopyRecentDownloads(maxAge, maxCount)
+	if err != nil {
+		return nil, err
+	}
+	
+	if destination == "" {
+		destination = "."
+	}
+	
+	// Copy all files to destination
+	for _, file := range files {
+		err = copyFileToDestination(file.Path, destination)
+		if err != nil {
+			return nil, fmt.Errorf("failed to copy file %s: %w", file.Name, err)
+		}
+	}
+	
+	return files, nil
+}
+
+// PickRecentDownload shows an interactive picker for recent downloads
+// This handles the case where you want to choose from multiple recent files
+func PickRecentDownload(maxAge time.Duration) (*FileInfo, error) {
+	opts := DefaultFindOptions()
+	if maxAge != 0 {
+		opts.MaxAge = maxAge
+	}
+	opts.MaxCount = 10 // Show up to 10 recent files
+	
+	files, err := FindRecentFiles(opts)
+	if err != nil {
+		return nil, err
+	}
+	
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no recent files found")
+	}
+	
+	// If only one file, return it directly
+	if len(files) == 1 {
+		return &files[0], nil
+	}
+	
+	// Show interactive picker
+	return showFilePicker(files)
+}
+
+// PastePickedRecentDownload shows picker and copies selected file to destination
+func PastePickedRecentDownload(destination string, maxAge time.Duration) (*FileInfo, error) {
+	file, err := PickRecentDownload(maxAge)
+	if err != nil {
+		return nil, err
+	}
+	
+	if destination == "" {
+		destination = "."
+	}
+	
+	// Copy the file to destination
+	err = copyFileToDestination(file.Path, destination)
+	if err != nil {
+		return nil, fmt.Errorf("failed to copy file: %w", err)
 	}
 	
 	return file, nil
@@ -441,4 +544,121 @@ func getDirectoryContents(dirPath string) ([]FileInfo, error) {
 	})
 	
 	return contents, err
+}
+
+// groupFilesByDownloadTime groups files that were downloaded within the same time window
+// This helps identify batch downloads (e.g., multiple files downloaded from the same page)
+func groupFilesByDownloadTime(files []FileInfo, window time.Duration) [][]FileInfo {
+	if len(files) == 0 {
+		return nil
+	}
+	
+	// Sort files by modification time (newest first)
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].Modified.After(files[j].Modified)
+	})
+	
+	var batches [][]FileInfo
+	var currentBatch []FileInfo
+	
+	for i, file := range files {
+		if i == 0 {
+			// First file starts the first batch
+			currentBatch = []FileInfo{file}
+		} else {
+			// Check if this file is within the time window of the batch
+			timeDiff := currentBatch[0].Modified.Sub(file.Modified)
+			if timeDiff <= window {
+				// Add to current batch
+				currentBatch = append(currentBatch, file)
+			} else {
+				// Start new batch
+				batches = append(batches, currentBatch)
+				currentBatch = []FileInfo{file}
+			}
+		}
+	}
+	
+	// Add the final batch
+	if len(currentBatch) > 0 {
+		batches = append(batches, currentBatch)
+	}
+	
+	return batches
+}
+
+// showFilePicker displays an interactive picker for selecting a file using promptui
+func showFilePicker(files []FileInfo) (*FileInfo, error) {
+	// Create templates for the prompt
+	templates := &promptui.SelectTemplates{
+		Label:    "{{ . }}",
+		Active:   "▶ {{ .Name | cyan }} ({{ .FormattedAge | faint }})",
+		Inactive: "  {{ .Name }} ({{ .FormattedAge | faint }})",
+		Selected: "✓ {{ .Name | green }}",
+		Details: `
+--------- File Details ---------
+{{ "Name:" | faint }}	{{ .Name }}
+{{ "Size:" | faint }}	{{ .FormattedSize }}
+{{ "Modified:" | faint }}	{{ .FormattedAge }}
+{{ "Path:" | faint }}	{{ .Path }}`,
+	}
+
+	// Create enriched items with formatted fields
+	type enrichedFileInfo struct {
+		FileInfo
+		FormattedAge  string
+		FormattedSize string
+	}
+	
+	var items []enrichedFileInfo
+	for _, file := range files {
+		age := time.Since(file.Modified)
+		var ageStr string
+		if age < time.Minute {
+			ageStr = fmt.Sprintf("%ds ago", int(age.Seconds()))
+		} else if age < time.Hour {
+			ageStr = fmt.Sprintf("%dm ago", int(age.Minutes()))
+		} else if age < 24*time.Hour {
+			ageStr = fmt.Sprintf("%dh ago", int(age.Hours()))
+		} else {
+			ageStr = fmt.Sprintf("%dd ago", int(age.Hours()/24))
+		}
+		
+		var sizeStr string
+		if file.Size < 1024 {
+			sizeStr = fmt.Sprintf("%d B", file.Size)
+		} else if file.Size < 1024*1024 {
+			sizeStr = fmt.Sprintf("%.1f KB", float64(file.Size)/1024)
+		} else if file.Size < 1024*1024*1024 {
+			sizeStr = fmt.Sprintf("%.1f MB", float64(file.Size)/(1024*1024))
+		} else {
+			sizeStr = fmt.Sprintf("%.1f GB", float64(file.Size)/(1024*1024*1024))
+		}
+		
+		items = append(items, enrichedFileInfo{
+			FileInfo:      file,
+			FormattedAge:  ageStr,
+			FormattedSize: sizeStr,
+		})
+	}
+
+	prompt := promptui.Select{
+		Label:     "Select recent download",
+		Items:     items,
+		Templates: templates,
+		Size:      10,
+		Searcher: func(input string, index int) bool {
+			item := items[index]
+			name := strings.Replace(strings.ToLower(item.Name), " ", "", -1)
+			input = strings.Replace(strings.ToLower(input), " ", "", -1)
+			return strings.Contains(name, input)
+		},
+	}
+
+	i, _, err := prompt.Run()
+	if err != nil {
+		return nil, fmt.Errorf("selection cancelled: %w", err)
+	}
+
+	return &files[i], nil
 }
