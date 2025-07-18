@@ -29,6 +29,8 @@ clippy -i 5m            # Show picker for last 5 minutes only
 
 Stay in your terminal. Copy anything. Paste anywhere.
 
+💡 **Bonus:** Clippy includes an [MCP server](#mcp-server) for AI assistants like Claude to manage your clipboard.
+
 ## Installation
 
 ### Homebrew (Recommended)
@@ -142,7 +144,7 @@ go install github.com/neilberkman/clippy/cmd/pasty@latest
 
 Because it's a helpful clipboard assistant that knows what you want to do! 📎
 
-## MCP Server for AI Integration
+## MCP Server
 
 Clippy includes a built-in MCP (Model Context Protocol) server that allows AI assistants like Claude to interact with your clipboard programmatically.
 
