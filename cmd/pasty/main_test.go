@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMain(m *testing.M) {
@@ -64,6 +65,11 @@ func TestPastyVersion(t *testing.T) {
 }
 
 func TestPastyWithTextClipboard(t *testing.T) {
+	// Clear clipboard first by copying empty text
+	clearCmd := exec.Command("./clippy_test")
+	clearCmd.Stdin = strings.NewReader("")
+	clearCmd.CombinedOutput() // Ignore errors
+
 	// First, put some text on the clipboard using clippy
 	clippyCmd := exec.Command("./clippy_test", "--verbose")
 	clippyCmd.Stdin = strings.NewReader("Test text content for pasty")
@@ -76,6 +82,9 @@ func TestPastyWithTextClipboard(t *testing.T) {
 	if !strings.Contains(string(clippyOutput), "Copied content from stream using smart detection") {
 		t.Fatalf("Clippy should have copied text content, got: %s", clippyOutput)
 	}
+
+	// Small delay to ensure clipboard operation completes
+	time.Sleep(100 * time.Millisecond)
 
 	// Now test pasty
 	cmd := exec.Command("./pasty_test", "-v")
