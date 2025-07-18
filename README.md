@@ -166,6 +166,11 @@ Sometimes you need to drag files to web upload fields or native apps. Draggy is 
 brew install --cask neilberkman/clippy/draggy
 ```
 
+**⚠️ First Launch:** macOS may show a security warning since Draggy isn't code-signed. If you see "Draggy is damaged and can't be opened":
+- The Homebrew cask automatically removes the quarantine flag during installation
+- If the warning persists, run: `xattr -dr com.apple.quarantine /Applications/Draggy.app`
+- Or right-click Draggy.app and select "Open" to bypass Gatekeeper
+
 ### Usage
 
 ```bash

@@ -43,7 +43,22 @@ swift build -c release
 
 ## Installation
 
-Coming soon to Homebrew!
+### Via Homebrew (Recommended)
+
+```bash
+brew install --cask neilberkman/clippy/draggy
+```
+
+**Note:** macOS may show a security warning on first launch since Draggy isn't code-signed. The Homebrew cask handles this automatically, but if you see "Draggy is damaged", run:
+```bash
+xattr -dr com.apple.quarantine /Applications/Draggy.app
+```
+
+### Manual Installation
+
+1. Download the latest release from [GitHub Releases](https://github.com/neilberkman/clippy/releases)
+2. Unzip and drag Draggy.app to your Applications folder
+3. Right-click and select "Open" to bypass Gatekeeper on first launch
 
 ## Requirements
 
