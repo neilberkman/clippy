@@ -125,7 +125,9 @@ func TestGetClipboardContent(t *testing.T) {
 
 	// Test with file reference - need absolute path
 	absPath := "/Users/neil/xuku/clippy/test-files/minimal.png"
-	CopyFile(absPath)
+	if err := CopyFile(absPath); err != nil {
+		t.Fatalf("Failed to copy file: %v", err)
+	}
 
 	content, err = GetClipboardContent()
 	if err != nil {
