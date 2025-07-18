@@ -2,6 +2,22 @@
 
 Notable changes to clippy.
 
+## [0.9.0] - 2025-01-18
+
+### Added
+- **Draggy**: New optional GUI companion app for drag-and-drop workflows
+  - Menu bar app that makes clipboard files draggable
+  - Zero background activity - no polling, no battery drain
+  - Event-driven architecture following Core vs Interface principles
+  - Located in `gui/draggy/` directory
+  - Not automatically installed with clippy (will be separate brew cask)
+
+### Changed
+- Updated MCP server config to use Homebrew-installed clippy path
+
+### Fixed
+- Fixed linter warnings in examples and main code
+
 ## [0.8.0] - 2025-01-18
 
 ### Added

@@ -192,7 +192,7 @@ Add to ~/Library/Application Support/Claude/claude_desktop_config.json:
 // handleRecentMode handles the --recent flag
 func handleRecentMode(timeStr string, interactiveMode bool) {
 	var maxAge time.Duration
-	var count int = 1 // Default to 1 most recent file
+	var count = 1 // Default to 1 most recent file
 	var err error
 
 	// First check if timeStr is empty or space (just -r or -i)

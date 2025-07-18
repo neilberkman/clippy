@@ -29,6 +29,8 @@ clippy -i 5m            # Show picker for last 5 minutes only
 
 Stay in your terminal. Copy anything. Paste anywhere.
 
+**The Terminal-First Clipboard Suite:** [Clippy](#core-features) copies files to clipboard, [Pasty](#pasty---intelligent-clipboard-pasting) pastes them intelligently, and [Draggy](#draggy---drag-and-drop-bridge) (optional GUI) bridges drag-and-drop workflows. All designed to minimize context switching from your terminal.
+
 💡 **Bonus:** Clippy includes an [MCP server](#mcp-server) for AI assistants like Claude to manage your clipboard.
 
 ## Installation
@@ -139,6 +141,42 @@ brew install neilberkman/clippy/clippy
 go install github.com/neilberkman/clippy/cmd/clippy@latest
 go install github.com/neilberkman/clippy/cmd/pasty@latest
 ```
+
+## Draggy - Drag and Drop Bridge
+
+Sometimes you need to drag files to web upload fields or native apps. Draggy is a minimal menu bar app that makes clipboard files draggable.
+
+**Important:** Draggy is a separate, optional tool. It's not automatically installed with clippy.
+
+### Features
+
+- **Minimal menu bar UI** - Click to see clipboard files, drag them where needed
+- **Zero background activity** - No polling, no battery drain. Only checks clipboard when activated
+- **Not a clipboard manager** - Draggy explicitly avoids history, search, or management features. It's just a bridge for drag-and-drop
+- **Shows file icons** - Native macOS file icons for easy recognition
+
+### Installation
+
+```bash
+# Separate brew install (not included with clippy)
+brew install --cask neilberkman/clippy/draggy
+```
+
+### Usage
+
+```bash
+# In terminal:
+clippy *.png              # Copy files with clippy
+curl -sL pic.jpg | clippy # Or pipe downloads
+
+# In GUI:
+# 1. Click Draggy icon in menu bar
+# 2. Drag files to browser upload fields, Slack, etc.
+```
+
+### Philosophy
+
+Draggy is intentionally minimal. If you want a full-featured clipboard manager with history, search, and organization, use something else. Draggy is for terminal users who occasionally need to drag a file somewhere and want to get back to their terminal as quickly as possible.
 
 ## Why "Clippy"?
 

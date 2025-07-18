@@ -13,7 +13,9 @@ func main() {
 	fmt.Println("Testing clippy library API...")
 
 	// 1. Copy text to clipboard
-	clippy.CopyText("Hello from clippy library!")
+	if err := clippy.CopyText("Hello from clippy library!"); err != nil {
+		log.Fatal(err)
+	}
 	fmt.Println("✓ Copied text to clipboard")
 
 	// 2. Copy a file intelligently (detects text vs binary)

@@ -1,0 +1,16 @@
+# Build artifacts
+.build/
+.swiftpm/
+*.xcodeproj
+*.xcworkspace
+DerivedData/
+*.swiftinterface
+
+# macOS
+.DS_Store
+
+# Draggy app bundle
+Draggy.app/
+
+# Swift Package Manager
+Package.resolved
