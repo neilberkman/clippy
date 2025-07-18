@@ -104,6 +104,10 @@ clippy -v file.txt     # Show what happened
 clippy --debug file.txt # Technical details for debugging
 ```
 
+## Why "Clippy"?
+
+Because it's a helpful clipboard assistant that knows what you want to do! 📎
+
 ---
 
 ## Pasty - Intelligent Clipboard Pasting
@@ -177,10 +181,6 @@ curl -sL pic.jpg | clippy # Or pipe downloads
 ### Philosophy
 
 Draggy is intentionally minimal. If you want a full-featured clipboard manager with history, search, and organization, use something else. Draggy is for terminal users who occasionally need to drag a file somewhere and want to get back to their terminal as quickly as possible.
-
-## Why "Clippy"?
-
-Because it's a helpful clipboard assistant that knows what you want to do! 📎
 
 ## MCP Server
 
