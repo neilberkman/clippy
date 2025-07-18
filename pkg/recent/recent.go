@@ -68,7 +68,8 @@ func GetDefaultDownloadDirs() []string {
 func GetBrowserDownloadDir() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return filepath.Join(homeDir, "Downloads")
+		// Return a fallback path when home directory can't be determined
+		return "/tmp"
 	}
 
 	// Default to ~/Downloads - most browsers use this
@@ -138,10 +139,22 @@ func ParseDuration(s string) (time.Duration, error) {
 	
 	// Handle just numbers (assume minutes)
 	if num, err := strconv.Atoi(s); err == nil {
+		if num < 0 {
+			return 0, fmt.Errorf("duration cannot be negative: %d", num)
+		}
 		return time.Duration(num) * time.Minute, nil
 	}
 	
-	return time.ParseDuration(s)
+	// Parse standard duration format
+	duration, err := time.ParseDuration(s)
+	if err != nil {
+		return 0, err
+	}
+	if duration < 0 {
+		return 0, fmt.Errorf("duration cannot be negative: %s", s)
+	}
+	
+	return duration, nil
 }
 
 // findFilesInDir recursively finds files in a directory
