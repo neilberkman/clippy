@@ -35,6 +35,7 @@ func main() {
 	var rootCmd = &cobra.Command{
 		Use:   "clippy [files...]",
 		Short: "Smart clipboard tool for macOS",
+		Args:  cobra.ArbitraryArgs,
 		Long: `clippy - Smart clipboard tool for macOS
 
 Copy files from your terminal that actually paste into GUI apps. No more switching to Finder.
