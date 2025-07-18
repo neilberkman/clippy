@@ -2,6 +2,14 @@
 
 Notable changes to clippy.
 
+## [Unreleased]
+
+### Changed
+- **BREAKING**: Changed default behavior to always copy files as file references, not content
+  - Text files (.txt, .md, etc.) now copy as files by default
+  - Added `--text` / `-t` flag to force copying text file content
+  - This allows pasting text files into Finder/GUI apps as files
+
 ## [0.9.0] - 2025-01-18
 
 ### Added

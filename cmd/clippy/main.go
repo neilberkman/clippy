@@ -25,6 +25,7 @@ var (
 	interactiveFlag string
 	paste           bool
 	absoluteTime    bool
+	textMode        bool
 	version         = "dev"
 	commit          = "none"
 	date            = "unknown"
@@ -44,9 +45,13 @@ Examples:
   # Copy text from stdin
   echo "Hello, World!" | clippy
   
-  # Copy a file (text files copy content, others copy reference)
+  # Copy a file as file reference (default for all files)
   clippy document.txt
   clippy image.png
+  
+  # Copy text file content instead of reference
+  clippy -t document.txt
+  clippy --text README.md
   
   # Copy multiple files at once
   clippy *.jpg
@@ -147,6 +152,7 @@ Configuration:
 
 	rootCmd.PersistentFlags().BoolVar(&paste, "paste", false, "Also paste copied files to current directory")
 	rootCmd.PersistentFlags().BoolVar(&cleanup, "cleanup", true, "Enable automatic temp file cleanup")
+	rootCmd.PersistentFlags().BoolVarP(&textMode, "text", "t", false, "Copy text files as content instead of file reference")
 
 	// Add MCP server subcommand
 	var mcpCmd = &cobra.Command{
@@ -350,13 +356,13 @@ func handleFileMode(filePath string) {
 	logger.Debug("handleFileMode called with path: %s", filePath)
 
 	// Use the library function for smart copying with result info
-	logger.Debug("Calling clippy.CopyWithResult for: %s", filePath)
-	result, err := clippy.CopyWithResult(filePath)
+	logger.Debug("Calling clippy.CopyWithResultAndMode for: %s (textMode=%v)", filePath, textMode)
+	result, err := clippy.CopyWithResultAndMode(filePath, textMode)
 	if err != nil {
 		logger.Error("Could not copy file %s: %v", filePath, err)
 		os.Exit(1)
 	}
-	logger.Debug("clippy.CopyWithResult returned successfully")
+	logger.Debug("clippy.CopyWithResultAndMode returned successfully")
 
 	// Show user-friendly verbose output
 	if result.AsText {

@@ -29,16 +29,19 @@ func TestFileMode(t *testing.T) {
 	tests := []struct {
 		name     string
 		file     string
+		args     []string
 		wantText bool
 	}{
-		{"text file", "../../test-files/sample.txt", true},
-		{"pdf file", "../../test-files/test.pdf", false},
-		{"png file", "../../test-files/minimal.png", false},
+		{"text file default", "../../test-files/sample.txt", []string{"--verbose"}, false},
+		{"text file with -t flag", "../../test-files/sample.txt", []string{"--verbose", "-t"}, true},
+		{"pdf file", "../../test-files/test.pdf", []string{"--verbose"}, false},
+		{"png file", "../../test-files/minimal.png", []string{"--verbose"}, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := exec.Command("./clippy_test", "--verbose", tt.file)
+			args := append(tt.args, tt.file)
+			cmd := exec.Command("./clippy_test", args...)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
 				t.Fatalf("clippy failed: %v\nOutput: %s", err, output)
@@ -196,7 +199,7 @@ func TestPipelines(t *testing.T) {
 		{
 			name:       "find and xargs single file",
 			pipeline:   `find ../../test-files -name "sample.txt" | xargs ./clippy_test -v`,
-			wantOutput: "Copied text content",
+			wantOutput: "Copied file reference",
 		},
 		{
 			name:       "find and xargs multiple files",

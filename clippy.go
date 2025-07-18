@@ -34,6 +34,11 @@ func Copy(path string) error {
 
 // CopyWithResult is like Copy but returns information about the detection method used
 func CopyWithResult(path string) (*CopyResult, error) {
+	return CopyWithResultAndMode(path, false)
+}
+
+// CopyWithResultAndMode is like CopyWithResult but allows forcing text mode
+func CopyWithResultAndMode(path string, forceTextMode bool) (*CopyResult, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("invalid path %s: %w", path, err)
@@ -44,6 +49,33 @@ func CopyWithResult(path string) (*CopyResult, error) {
 		return nil, fmt.Errorf("file not found: %s", absPath)
 	}
 
+	// If forceTextMode is false (default), always copy as file reference
+	if !forceTextMode {
+		if err := clipboard.CopyFile(absPath); err != nil {
+			return nil, fmt.Errorf("could not copy file to clipboard: %w", err)
+		}
+		
+		// Still detect the type for informational purposes
+		uti, _ := clipboard.GetUTIForFile(absPath)
+		typeStr := uti
+		method := "UTI"
+		if typeStr == "" || strings.HasPrefix(typeStr, "dyn.") {
+			mtype, _ := mimetype.DetectFile(absPath)
+			if mtype != nil {
+				typeStr = mtype.String()
+				method = "MIME"
+			}
+		}
+		
+		return &CopyResult{
+			Method:   method,
+			Type:     typeStr,
+			AsText:   false,
+			FilePath: absPath,
+		}, nil
+	}
+
+	// Force text mode is enabled, check if file is actually text
 	// Try UTI detection first (more reliable for macOS)
 	if uti, ok := clipboard.GetUTIForFile(absPath); ok {
 		// For dynamic UTIs (unknown types), skip to MIME detection
@@ -64,7 +96,7 @@ func CopyWithResult(path string) (*CopyResult, error) {
 				FilePath: absPath,
 			}, nil
 		} else {
-			// Non-text UTI, copy as file reference
+			// Non-text UTI but text mode forced - still copy as file
 			if err := clipboard.CopyFile(absPath); err != nil {
 				return nil, fmt.Errorf("could not copy file to clipboard: %w", err)
 			}
@@ -83,8 +115,8 @@ func CopyWithResult(path string) (*CopyResult, error) {
 		return nil, fmt.Errorf("could not detect file type for %s: %w", absPath, err)
 	}
 
-	// Text files: copy content, others: copy file reference
-	if strings.HasPrefix(mtype.String(), "text/") {
+	// Text files with force text mode: copy content
+	if forceTextMode && strings.HasPrefix(mtype.String(), "text/") {
 		content, err := os.ReadFile(absPath)
 		if err != nil {
 			return nil, fmt.Errorf("could not read file content %s: %w", absPath, err)
@@ -99,6 +131,7 @@ func CopyWithResult(path string) (*CopyResult, error) {
 			FilePath: absPath,
 		}, nil
 	} else {
+		// Binary files or text mode not forced: copy file reference
 		if err := clipboard.CopyFile(absPath); err != nil {
 			return nil, fmt.Errorf("could not copy file to clipboard: %w", err)
 		}

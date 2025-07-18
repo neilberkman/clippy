@@ -60,7 +60,8 @@ go install github.com/neilberkman/clippy/cmd/clippy@latest
 
 ```bash
 clippy document.pdf    # Copies as file reference (paste into any app)
-clippy notes.txt       # Copies text content
+clippy notes.txt       # Also copies as file reference
+clippy -t notes.txt    # Use -t flag to copy text content instead
 clippy *.jpg          # Multiple files at once
 ```
 
