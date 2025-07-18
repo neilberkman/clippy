@@ -189,7 +189,14 @@ Draggy is intentionally minimal. If you want a full-featured clipboard manager w
 
 ## MCP Server
 
-Clippy includes a built-in MCP (Model Context Protocol) server that allows AI assistants like Claude to interact with your clipboard programmatically.
+Clippy includes a built-in MCP (Model Context Protocol) server that lets AI assistants copy generated content directly to your clipboard.
+
+Ask Claude to generate any text - code, emails, documents - and have it instantly available to paste anywhere:
+- "Write a Python script to process CSV files and copy it to my clipboard"
+- "Draft an email about the meeting and put it on my clipboard"
+- "Generate that regex and copy it so I can paste into my editor"
+
+No more manual selecting and copying from the chat interface.
 
 ### Setup
 
@@ -212,7 +219,7 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 - **clipboard_paste** - Paste clipboard content to files/directories
 - **get_recent_downloads** - List recently downloaded files
 
-Now Claude can help you manage your clipboard, create and copy files, and work with your recent downloads!
+Claude can generate content and put it directly on your clipboard, ready to paste wherever you need it.
 
 ## License
 
