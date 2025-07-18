@@ -64,7 +64,9 @@ func TestGetUTIForFile(t *testing.T) {
 
 func TestClipboardTypes(t *testing.T) {
 	// Put some text on clipboard first
-	CopyText("Test text for clipboard types")
+	if err := CopyText("Test text for clipboard types"); err != nil {
+		t.Fatalf("Failed to copy text: %v", err)
+	}
 
 	types := GetClipboardTypes()
 	if len(types) == 0 {
@@ -87,7 +89,9 @@ func TestClipboardTypes(t *testing.T) {
 
 func TestContainsType(t *testing.T) {
 	// Put text on clipboard
-	CopyText("Test text for type checking")
+	if err := CopyText("Test text for type checking"); err != nil {
+		t.Fatalf("Failed to copy text: %v", err)
+	}
 
 	// Should contain text type
 	if !ContainsType("public.utf8-plain-text") && !ContainsType("NSStringPboardType") {
@@ -102,7 +106,9 @@ func TestContainsType(t *testing.T) {
 
 func TestGetClipboardContent(t *testing.T) {
 	// Test with text content
-	CopyText("Test text content")
+	if err := CopyText("Test text content"); err != nil {
+		t.Fatalf("Failed to copy text: %v", err)
+	}
 
 	content, err := GetClipboardContent()
 	if err != nil {

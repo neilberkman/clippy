@@ -54,7 +54,9 @@ func CopyWithResult(path string) (*CopyResult, error) {
 			if err != nil {
 				return nil, fmt.Errorf("could not read file content %s: %w", absPath, err)
 			}
-			clipboard.CopyText(string(content))
+			if err := clipboard.CopyText(string(content)); err != nil {
+				return nil, fmt.Errorf("could not copy text to clipboard: %w", err)
+			}
 			return &CopyResult{
 				Method:   "UTI",
 				Type:     uti,
@@ -63,7 +65,9 @@ func CopyWithResult(path string) (*CopyResult, error) {
 			}, nil
 		} else {
 			// Non-text UTI, copy as file reference
-			clipboard.CopyFile(absPath)
+			if err := clipboard.CopyFile(absPath); err != nil {
+				return nil, fmt.Errorf("could not copy file to clipboard: %w", err)
+			}
 			return &CopyResult{
 				Method:   "UTI",
 				Type:     uti,

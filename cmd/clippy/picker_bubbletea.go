@@ -224,50 +224,6 @@ func truncateString(s string, maxLen int) string {
 	return s[:maxLen-3] + "..."
 }
 
-// showBubbleTeaPicker shows an interactive picker using Bubble Tea
-func showBubbleTeaPicker(files []recent.FileInfo, absoluteTime bool) ([]*recent.FileInfo, error) {
-	m := pickerModel{
-		files:        files,
-		cursor:       0,
-		selected:     make(map[int]bool),
-		absoluteTime: absoluteTime,
-	}
-
-	// Run the program inline (not fullscreen)
-	p := tea.NewProgram(m)
-	finalModel, err := p.Run()
-	if err != nil {
-		return nil, err
-	}
-
-	// Get the final model
-	finalPicker := finalModel.(pickerModel)
-
-	// Check if cancelled
-	if finalPicker.cancelled {
-		return nil, fmt.Errorf("cancelled")
-	}
-
-	// Collect selected files
-	var result []*recent.FileInfo
-
-	// If nothing is selected, use the current item
-	if len(finalPicker.selected) == 0 && finalPicker.cursor < len(files) {
-		fileCopy := files[finalPicker.cursor]
-		result = append(result, &fileCopy)
-	} else {
-		// Return all selected files
-		for i := range files {
-			if finalPicker.selected[i] {
-				fileCopy := files[i]
-				result = append(result, &fileCopy)
-			}
-		}
-	}
-
-	return result, nil
-}
-
 // showBubbleTeaPickerWithResult shows an interactive picker and returns the full result
 func showBubbleTeaPickerWithResult(files []recent.FileInfo, absoluteTime bool) (*recent.PickerResult, error) {
 	m := pickerModel{

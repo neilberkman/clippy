@@ -10,7 +10,9 @@ import (
 
 func Example() {
 	// Copy text to clipboard
-	clippy.CopyText("Hello, World!")
+	if err := clippy.CopyText("Hello, World!"); err != nil {
+		log.Fatal(err)
+	}
 
 	// Copy a file (text files copy content, others copy reference)
 	err := clippy.Copy("document.pdf")
@@ -53,7 +55,9 @@ func ExampleCopy() {
 
 func ExampleCopyText() {
 	// Copy text to clipboard
-	clippy.CopyText("Hello from clippy library!")
+	if err := clippy.CopyText("Hello from clippy library!"); err != nil {
+		log.Printf("Failed to copy text: %v", err)
+	}
 }
 
 func ExampleGetText() {
