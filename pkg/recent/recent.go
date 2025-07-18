@@ -74,45 +74,45 @@ func GetBrowserDownloadDir() string {
 
 	// Default to ~/Downloads - most browsers use this
 	defaultDir := filepath.Join(homeDir, "Downloads")
-	
+
 	// TODO: Could check browser preferences here
 	// Chrome: ~/Library/Application Support/Google/Chrome/Default/Preferences
 	// Safari: ~/Library/Safari/Downloads.plist
 	// Firefox: ~/.mozilla/firefox/profiles.ini
-	
+
 	return defaultDir
 }
 
 // FindRecentFiles finds files matching the given criteria
 func FindRecentFiles(opts FindOptions) ([]FileInfo, error) {
 	var allFiles []FileInfo
-	
+
 	cutoff := time.Now().Add(-opts.MaxAge)
-	
+
 	for _, dir := range opts.Directories {
 		if !dirExists(dir) {
 			continue
 		}
-		
+
 		files, err := findFilesInDir(dir, cutoff, opts)
 		if err != nil {
 			// Log error but continue with other directories
 			continue
 		}
-		
+
 		allFiles = append(allFiles, files...)
 	}
-	
+
 	// Sort by modification time, newest first
 	sort.Slice(allFiles, func(i, j int) bool {
 		return allFiles[i].Modified.After(allFiles[j].Modified)
 	})
-	
+
 	// Limit results
 	if opts.MaxCount > 0 && len(allFiles) > opts.MaxCount {
 		allFiles = allFiles[:opts.MaxCount]
 	}
-	
+
 	return allFiles, nil
 }
 
@@ -123,11 +123,11 @@ func FindMostRecentFile(opts FindOptions) (*FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if len(files) == 0 {
 		return nil, fmt.Errorf("no recent files found")
 	}
-	
+
 	return &files[0], nil
 }
 
@@ -136,7 +136,7 @@ func ParseDuration(s string) (time.Duration, error) {
 	if s == "" {
 		return 5 * time.Minute, nil
 	}
-	
+
 	// Handle just numbers (assume minutes)
 	if num, err := strconv.Atoi(s); err == nil {
 		if num < 0 {
@@ -144,7 +144,7 @@ func ParseDuration(s string) (time.Duration, error) {
 		}
 		return time.Duration(num) * time.Minute, nil
 	}
-	
+
 	// Parse standard duration format
 	duration, err := time.ParseDuration(s)
 	if err != nil {
@@ -153,24 +153,24 @@ func ParseDuration(s string) (time.Duration, error) {
 	if duration < 0 {
 		return 0, fmt.Errorf("duration cannot be negative: %s", s)
 	}
-	
+
 	return duration, nil
 }
 
 // findFilesInDir recursively finds files in a directory
 func findFilesInDir(dir string, cutoff time.Time, opts FindOptions) ([]FileInfo, error) {
 	var files []FileInfo
-	
+
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // Skip errors, continue walking
 		}
-		
+
 		// Skip the root directory itself
 		if path == dir {
 			return nil
 		}
-		
+
 		// Skip hidden files and directories
 		if strings.HasPrefix(info.Name(), ".") {
 			if info.IsDir() {
@@ -178,17 +178,17 @@ func findFilesInDir(dir string, cutoff time.Time, opts FindOptions) ([]FileInfo,
 			}
 			return nil
 		}
-		
+
 		// Skip temporary files
 		if opts.ExcludeTemp && isTemporaryFile(info.Name()) {
 			return nil
 		}
-		
+
 		// Check modification time
 		if info.ModTime().Before(cutoff) {
 			return nil
 		}
-		
+
 		// Check extensions if specified
 		if len(opts.Extensions) > 0 && !info.IsDir() {
 			ext := strings.ToLower(filepath.Ext(path))
@@ -196,7 +196,7 @@ func findFilesInDir(dir string, cutoff time.Time, opts FindOptions) ([]FileInfo,
 				return nil
 			}
 		}
-		
+
 		files = append(files, FileInfo{
 			Path:     path,
 			Name:     info.Name(),
@@ -204,10 +204,10 @@ func findFilesInDir(dir string, cutoff time.Time, opts FindOptions) ([]FileInfo,
 			Modified: info.ModTime(),
 			IsDir:    info.IsDir(),
 		})
-		
+
 		return nil
 	})
-	
+
 	return files, err
 }
 
@@ -217,14 +217,14 @@ func isTemporaryFile(name string) bool {
 		".tmp", ".temp", ".download", ".partial", ".crdownload",
 		".part", ".filepart", ".opdownload",
 	}
-	
+
 	lowerName := strings.ToLower(name)
 	for _, suffix := range tempSuffixes {
 		if strings.HasSuffix(lowerName, suffix) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -251,19 +251,19 @@ func IsArchive(filename string) bool {
 		".tar.xz", ".txz", ".7z", ".rar", ".gz", ".bz2", ".xz",
 		".dmg", ".pkg",
 	}
-	
+
 	ext := strings.ToLower(filepath.Ext(filename))
 	for _, archiveExt := range archiveExts {
 		if ext == archiveExt {
 			return true
 		}
 	}
-	
+
 	// Handle .tar.gz and similar
 	if strings.Contains(strings.ToLower(filename), ".tar.") {
 		return true
 	}
-	
+
 	return false
 }
 
@@ -276,12 +276,12 @@ func CopyMostRecentDownload(maxAge time.Duration) (*FileInfo, error) {
 	if maxAge != 0 {
 		opts.MaxAge = maxAge
 	}
-	
+
 	file, err := FindMostRecentFile(opts)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Handle auto-unarchived folders
 	if file.IsDir && opts.SmartUnarchive {
 		if unarchived := detectAutoUnarchived(file); unarchived != nil {
@@ -292,7 +292,7 @@ func CopyMostRecentDownload(maxAge time.Duration) (*FileInfo, error) {
 			// Otherwise return the folder itself
 		}
 	}
-	
+
 	return file, nil
 }
 
@@ -306,24 +306,24 @@ func CopyRecentDownloads(maxAge time.Duration, maxCount int) ([]FileInfo, error)
 	if maxCount > 0 {
 		opts.MaxCount = maxCount
 	}
-	
+
 	files, err := FindRecentFiles(opts)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if len(files) == 0 {
 		return nil, fmt.Errorf("no recent files found")
 	}
-	
+
 	// Group files by their download time (within 30 seconds = batch)
 	batches := groupFilesByDownloadTime(files, 30*time.Second)
-	
+
 	// Return the most recent batch
 	if len(batches) > 0 {
 		return batches[0], nil
 	}
-	
+
 	return files, nil
 }
 
@@ -334,11 +334,11 @@ func PasteRecentDownloads(destination string, maxAge time.Duration, maxCount int
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if destination == "" {
 		destination = "."
 	}
-	
+
 	// Copy all files to destination
 	for _, file := range files {
 		err = CopyFileToDestination(file.Path, destination)
@@ -346,7 +346,7 @@ func PasteRecentDownloads(destination string, maxAge time.Duration, maxCount int
 			return nil, fmt.Errorf("failed to copy file %s: %w", file.Name, err)
 		}
 	}
-	
+
 	return files, nil
 }
 
@@ -358,25 +358,24 @@ func PickRecentDownload(maxAge time.Duration) (*FileInfo, error) {
 		opts.MaxAge = maxAge
 	}
 	opts.MaxCount = 10 // Show up to 10 recent files
-	
+
 	files, err := FindRecentFiles(opts)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if len(files) == 0 {
 		return nil, fmt.Errorf("no recent files found")
 	}
-	
+
 	// If only one file, return it directly
 	if len(files) == 1 {
 		return &files[0], nil
 	}
-	
+
 	// Show interactive picker
 	return showFilePicker(files)
 }
-
 
 // PasteMostRecentDownload finds and copies the most recent download to destination
 // This is the primary use case: "I just downloaded something, paste it here"
@@ -385,17 +384,17 @@ func PasteMostRecentDownload(destination string, maxAge time.Duration) (*FileInf
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if destination == "" {
 		destination = "."
 	}
-	
+
 	// Copy the file to destination
 	err = CopyFileToDestination(file.Path, destination)
 	if err != nil {
 		return nil, fmt.Errorf("failed to copy file: %w", err)
 	}
-	
+
 	return file, nil
 }
 
@@ -405,16 +404,16 @@ func CopyFileToDestination(srcPath, destPath string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// If destination is a directory, copy into it
 	if destInfo, err := os.Stat(destPath); err == nil && destInfo.IsDir() {
 		destPath = filepath.Join(destPath, filepath.Base(srcPath))
 	}
-	
+
 	if srcInfo.IsDir() {
 		return copyDir(srcPath, destPath)
 	}
-	
+
 	return copyFile(srcPath, destPath)
 }
 
@@ -427,12 +426,12 @@ func copyFile(src, dst string) error {
 	defer func() {
 		_ = srcFile.Close()
 	}()
-	
+
 	// Create destination directory if needed
 	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
 		return err
 	}
-	
+
 	dstFile, err := os.Create(dst)
 	if err != nil {
 		return err
@@ -440,16 +439,16 @@ func copyFile(src, dst string) error {
 	defer func() {
 		_ = dstFile.Close()
 	}()
-	
+
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
 		return err
 	}
-	
+
 	// Copy permissions
 	if info, err := os.Stat(src); err == nil {
 		_ = os.Chmod(dst, info.Mode())
 	}
-	
+
 	return nil
 }
 
@@ -459,18 +458,18 @@ func copyDir(src, dst string) error {
 		if err != nil {
 			return err
 		}
-		
+
 		// Calculate destination path
 		relPath, err := filepath.Rel(src, path)
 		if err != nil {
 			return err
 		}
 		dstPath := filepath.Join(dst, relPath)
-		
+
 		if info.IsDir() {
 			return os.MkdirAll(dstPath, info.Mode())
 		}
-		
+
 		return copyFile(path, dstPath)
 	})
 }
@@ -480,17 +479,17 @@ func detectAutoUnarchived(dir *FileInfo) *ArchiveInfo {
 	if !dir.IsDir {
 		return nil
 	}
-	
+
 	// Check if directory name suggests it was unarchived
 	dirName := filepath.Base(dir.Path)
-	
+
 	// Look for common archive patterns in the name
 	// e.g. "project" folder might have come from "project.zip"
 	archiveExtensions := []string{".zip", ".tar.gz", ".tgz", ".tar"}
-	
+
 	for _, ext := range archiveExtensions {
 		possibleArchiveName := dirName + ext
-		
+
 		// Check if this looks like an auto-unarchived folder
 		// (created recently, contains files, name suggests archive origin)
 		if time.Since(dir.Modified) < 10*time.Minute {
@@ -504,24 +503,24 @@ func detectAutoUnarchived(dir *FileInfo) *ArchiveInfo {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
 // getDirectoryContents returns the contents of a directory
 func getDirectoryContents(dirPath string) ([]FileInfo, error) {
 	var contents []FileInfo
-	
+
 	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
-		
+
 		// Skip the root directory
 		if path == dirPath {
 			return nil
 		}
-		
+
 		// Skip hidden files
 		if strings.HasPrefix(info.Name(), ".") {
 			if info.IsDir() {
@@ -529,7 +528,7 @@ func getDirectoryContents(dirPath string) ([]FileInfo, error) {
 			}
 			return nil
 		}
-		
+
 		contents = append(contents, FileInfo{
 			Path:     path,
 			Name:     info.Name(),
@@ -537,10 +536,10 @@ func getDirectoryContents(dirPath string) ([]FileInfo, error) {
 			Modified: info.ModTime(),
 			IsDir:    info.IsDir(),
 		})
-		
+
 		return nil
 	})
-	
+
 	return contents, err
 }
 
@@ -550,15 +549,15 @@ func groupFilesByDownloadTime(files []FileInfo, window time.Duration) [][]FileIn
 	if len(files) == 0 {
 		return nil
 	}
-	
+
 	// Sort files by modification time (newest first)
 	sort.Slice(files, func(i, j int) bool {
 		return files[i].Modified.After(files[j].Modified)
 	})
-	
+
 	var batches [][]FileInfo
 	var currentBatch []FileInfo
-	
+
 	for i, file := range files {
 		if i == 0 {
 			// First file starts the first batch
@@ -576,12 +575,12 @@ func groupFilesByDownloadTime(files []FileInfo, window time.Duration) [][]FileIn
 			}
 		}
 	}
-	
+
 	// Add the final batch
 	if len(currentBatch) > 0 {
 		batches = append(batches, currentBatch)
 	}
-	
+
 	return batches
 }
 
@@ -607,7 +606,7 @@ func showFilePicker(files []FileInfo) (*FileInfo, error) {
 		FormattedAge  string
 		FormattedSize string
 	}
-	
+
 	var items []enrichedFileInfo
 	for _, file := range files {
 		age := time.Since(file.Modified)
@@ -621,7 +620,7 @@ func showFilePicker(files []FileInfo) (*FileInfo, error) {
 		} else {
 			ageStr = fmt.Sprintf("%dd ago", int(age.Hours()/24))
 		}
-		
+
 		var sizeStr string
 		if file.Size < 1024 {
 			sizeStr = fmt.Sprintf("%d B", file.Size)
@@ -632,7 +631,7 @@ func showFilePicker(files []FileInfo) (*FileInfo, error) {
 		} else {
 			sizeStr = fmt.Sprintf("%.1f GB", float64(file.Size)/(1024*1024*1024))
 		}
-		
+
 		items = append(items, enrichedFileInfo{
 			FileInfo:      file,
 			FormattedAge:  ageStr,
@@ -660,4 +659,3 @@ func showFilePicker(files []FileInfo) (*FileInfo, error) {
 
 	return &files[i], nil
 }
-

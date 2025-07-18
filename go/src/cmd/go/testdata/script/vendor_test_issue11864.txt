@@ -1,0 +1,12 @@
+[!net:github.com] skip
+[!git] skip
+env GO111MODULE=off
+
+go get github.com/rsc/go-get-issue-11864
+
+# test should work too
+go test github.com/rsc/go-get-issue-11864
+go test github.com/rsc/go-get-issue-11864/t
+
+# external tests should observe internal test exports (golang.org/issue/11977)
+go test github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx2
