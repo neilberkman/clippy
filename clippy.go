@@ -34,12 +34,10 @@ func Copy(path string) error {
 
 // CopyWithResult is like Copy but returns information about the detection method used
 func CopyWithResult(path string) (*CopyResult, error) {
-	fmt.Fprintf(os.Stderr, "[DEBUG] CopyWithResult called with path: %s\n", path)
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("invalid path %s: %w", path, err)
 	}
-	fmt.Fprintf(os.Stderr, "[DEBUG] Absolute path: %s\n", absPath)
 
 	// Check if file exists
 	if _, err := os.Stat(absPath); os.IsNotExist(err) {
@@ -65,7 +63,6 @@ func CopyWithResult(path string) (*CopyResult, error) {
 			}, nil
 		} else {
 			// Non-text UTI, copy as file reference
-			fmt.Fprintf(os.Stderr, "[DEBUG] Copying as file reference via UTI: %s\n", uti)
 			clipboard.CopyFile(absPath)
 			return &CopyResult{
 				Method:   "UTI",
@@ -98,7 +95,6 @@ func CopyWithResult(path string) (*CopyResult, error) {
 			FilePath: absPath,
 		}, nil
 	} else {
-		fmt.Fprintf(os.Stderr, "[DEBUG] Copying as file reference via MIME: %s\n", mtype.String())
 		if err := clipboard.CopyFile(absPath); err != nil {
 			return nil, fmt.Errorf("could not copy file to clipboard: %w", err)
 		}
@@ -113,7 +109,6 @@ func CopyWithResult(path string) (*CopyResult, error) {
 
 // CopyMultiple copies multiple files to clipboard as file references.
 func CopyMultiple(paths []string) error {
-	fmt.Fprintf(os.Stderr, "[DEBUG] CopyMultiple called with %d paths\n", len(paths))
 	if len(paths) == 0 {
 		return fmt.Errorf("no files provided")
 	}
@@ -133,14 +128,9 @@ func CopyMultiple(paths []string) error {
 		absPaths = append(absPaths, absPath)
 	}
 
-	fmt.Fprintf(os.Stderr, "[DEBUG] Calling clipboard.CopyFiles with %d absolute paths\n", len(absPaths))
-	for i, p := range absPaths {
-		fmt.Fprintf(os.Stderr, "[DEBUG]   [%d]: %s\n", i, p)
-	}
 	if err := clipboard.CopyFiles(absPaths); err != nil {
 		return fmt.Errorf("could not copy files to clipboard: %w", err)
 	}
-	fmt.Fprintf(os.Stderr, "[DEBUG] clipboard.CopyFiles completed\n")
 	return nil
 }
 
