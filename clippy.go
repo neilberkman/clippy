@@ -34,10 +34,12 @@ func Copy(path string) error {
 
 // CopyWithResult is like Copy but returns information about the detection method used
 func CopyWithResult(path string) (*CopyResult, error) {
+	fmt.Fprintf(os.Stderr, "[DEBUG] CopyWithResult called with path: %s\n", path)
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("invalid path %s: %w", path, err)
 	}
+	fmt.Fprintf(os.Stderr, "[DEBUG] Absolute path: %s\n", absPath)
 
 	// Check if file exists
 	if _, err := os.Stat(absPath); os.IsNotExist(err) {
@@ -63,6 +65,7 @@ func CopyWithResult(path string) (*CopyResult, error) {
 			}, nil
 		} else {
 			// Non-text UTI, copy as file reference
+			fmt.Fprintf(os.Stderr, "[DEBUG] Copying as file reference via UTI: %s\n", uti)
 			clipboard.CopyFile(absPath)
 			return &CopyResult{
 				Method:   "UTI",
@@ -85,7 +88,9 @@ func CopyWithResult(path string) (*CopyResult, error) {
 		if err != nil {
 			return nil, fmt.Errorf("could not read file content %s: %w", absPath, err)
 		}
-		clipboard.CopyText(string(content))
+		if err := clipboard.CopyText(string(content)); err != nil {
+			return nil, fmt.Errorf("could not copy text to clipboard: %w", err)
+		}
 		return &CopyResult{
 			Method:   "MIME",
 			Type:     mtype.String(),
@@ -93,7 +98,10 @@ func CopyWithResult(path string) (*CopyResult, error) {
 			FilePath: absPath,
 		}, nil
 	} else {
-		clipboard.CopyFile(absPath)
+		fmt.Fprintf(os.Stderr, "[DEBUG] Copying as file reference via MIME: %s\n", mtype.String())
+		if err := clipboard.CopyFile(absPath); err != nil {
+			return nil, fmt.Errorf("could not copy file to clipboard: %w", err)
+		}
 		return &CopyResult{
 			Method:   "MIME",
 			Type:     mtype.String(),
@@ -105,6 +113,7 @@ func CopyWithResult(path string) (*CopyResult, error) {
 
 // CopyMultiple copies multiple files to clipboard as file references.
 func CopyMultiple(paths []string) error {
+	fmt.Fprintf(os.Stderr, "[DEBUG] CopyMultiple called with %d paths\n", len(paths))
 	if len(paths) == 0 {
 		return fmt.Errorf("no files provided")
 	}
@@ -124,13 +133,20 @@ func CopyMultiple(paths []string) error {
 		absPaths = append(absPaths, absPath)
 	}
 
-	clipboard.CopyFiles(absPaths)
+	fmt.Fprintf(os.Stderr, "[DEBUG] Calling clipboard.CopyFiles with %d absolute paths\n", len(absPaths))
+	for i, p := range absPaths {
+		fmt.Fprintf(os.Stderr, "[DEBUG]   [%d]: %s\n", i, p)
+	}
+	if err := clipboard.CopyFiles(absPaths); err != nil {
+		return fmt.Errorf("could not copy files to clipboard: %w", err)
+	}
+	fmt.Fprintf(os.Stderr, "[DEBUG] clipboard.CopyFiles completed\n")
 	return nil
 }
 
 // CopyText copies text content to clipboard.
-func CopyText(text string) {
-	clipboard.CopyText(text)
+func CopyText(text string) error {
+	return clipboard.CopyText(text)
 }
 
 // CopyData copies data from a reader to clipboard.
@@ -157,7 +173,9 @@ func CopyDataWithTempDir(reader io.Reader, tempDir string) error {
 
 	// Text data: copy as text
 	if strings.HasPrefix(mtype.String(), "text/") {
-		clipboard.CopyText(string(data))
+		if err := clipboard.CopyText(string(data)); err != nil {
+			return fmt.Errorf("could not copy text to clipboard: %w", err)
+		}
 		return nil
 	}
 
@@ -176,7 +194,9 @@ func CopyDataWithTempDir(reader io.Reader, tempDir string) error {
 		return fmt.Errorf("could not write to temporary file: %w", err)
 	}
 
-	clipboard.CopyFile(tmpFile.Name())
+	if err := clipboard.CopyFile(tmpFile.Name()); err != nil {
+		return fmt.Errorf("could not copy file to clipboard: %w", err)
+	}
 	return nil
 }
 
@@ -324,12 +344,22 @@ func PasteToFile(destination string) (*PasteResult, error) {
 
 	// Try to get text content
 	if text, ok := GetText(); ok {
-		if err := os.WriteFile(destination, []byte(text), 0644); err != nil {
-			return nil, fmt.Errorf("could not write to file %s: %w", destination, err)
+		// Check if destination is a directory
+		destPath := destination
+		destInfo, err := os.Stat(destination)
+		if err == nil && destInfo.IsDir() || strings.HasSuffix(destination, "/") {
+			// Create a default filename for text content
+			timestamp := time.Now().Format("2006-01-02-150405")
+			destPath = filepath.Join(destination, fmt.Sprintf("clipboard-%s.txt", timestamp))
+		}
+
+		if err := os.WriteFile(destPath, []byte(text), 0644); err != nil {
+			return nil, fmt.Errorf("could not write to file %s: %w", destPath, err)
 		}
 		return &PasteResult{
 			Type:    "text",
 			Content: text,
+			Files:   []string{destPath}, // Include the created file path
 		}, nil
 	}
 

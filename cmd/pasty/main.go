@@ -7,18 +7,18 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
 	"github.com/neilberkman/clippy"
 	"github.com/neilberkman/clippy/internal/log"
+	"github.com/spf13/cobra"
 )
 
 var (
-	verbose     bool
-	debug       bool
-	version     = "dev"
-	commit      = "none"
-	date        = "unknown"
-	logger      *log.Logger
+	verbose bool
+	debug   bool
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+	logger  *log.Logger
 )
 
 func main() {

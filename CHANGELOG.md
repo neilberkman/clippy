@@ -2,6 +2,55 @@
 
 Notable changes to clippy.
 
+## [0.8.0] - 2025-01-18
+
+### Added
+- **MCP (Model Context Protocol) server**: New `mcp-server` subcommand enables AI assistants to use clippy
+  - Integrate with Claude Desktop, Cursor, or any MCP-compatible AI tool
+  - Three powerful tools exposed:
+    - `clipboard_copy`: Copy text or files to clipboard programmatically
+    - `clipboard_paste`: Paste clipboard content to files/directories
+    - `get_recent_downloads`: List and work with recently downloaded files
+  - Built with github.com/mark3labs/mcp-go for standard MCP compliance
+  - Includes pre-built prompts for common operations
+  - Simple setup: just add to claude_desktop_config.json
+- **New `-i` flag for interactive picker**: Clean separation between immediate copy (`-r`) and interactive mode (`-i`)
+  - `clippy -i` - show interactive picker with recent files
+  - `clippy -i 3` - show picker with 3 most recent files
+  - `clippy -i 5m` - show picker for files from last 5 minutes
+  - Both `-r` and `-i` accept the same arguments (DRY implementation)
+- **Lowercase 'p' key in picker**: Changed from 'P' to 'p' for copy & paste mode (easier to type)
+- **Text paste to directories**: Pasting text content to a directory now creates timestamped .txt files
+
+### Changed
+- **Major architectural refactor**: Following Saša Jurić's Core vs Interface philosophy
+  - Moved Bubble Tea picker from `pkg/recent/` to `cmd/clippy/`
+  - Core library (pkg/) now only provides data and business logic
+  - Interface elements (UI/TUI) live in cmd/ where they belong
+  - This creates proper separation of concerns
+- **Simplified `-r` flag behavior**: Now always does immediate copy (no picker)
+  - `clippy -r` - copies most recent download immediately
+  - `clippy -r 3` - copies 3 most recent downloads immediately
+  - Use `-i` flag for interactive picker mode
+- **Bubble Tea picker improvements**: Now supports both single and multi-select seamlessly
+  - Space to toggle selection
+  - Enter to copy (selected items or current item if nothing selected)
+  - 'p' to copy & paste in one operation
+
+### Fixed
+- **Clipboard synchronization bug**: Fixed "Heisenbug" where clipboard operations only worked with --debug flag
+  - Replaced hacky sleep with proper NSPasteboard changeCount polling
+  - Clipboard operations now wait for macOS to confirm completion
+  - Uses NSRunLoop to properly handle asynchronous pasteboard operations
+  - This is the correct way to handle clipboard operations in macOS CLI tools
+- **MCP tool naming**: Fixed validation error by changing tool names from forward slashes to underscores
+- **Directories in picker**: Fixed issue where directories appeared in the file picker
+
+### Removed
+- **Removed --batch flag**: Functionality integrated into numbered copies (e.g., `clippy -r 3`)
+- **Removed --pick flag**: Use `-i` for interactive picker instead
+- **Removed picker from pkg/recent**: UI components now properly live in cmd/
+
 ## [0.7.2] - 2025-07-17
 
 ### Changed

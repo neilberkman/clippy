@@ -15,15 +15,16 @@ Clippy bridges this gap by detecting what you want and using the right clipboard
 clippy report.pdf         # ⌘V into Slack/email - uploads the file
 clippy *.jpg             # Multiple files at once
 
-# Copy your most recent download
-clippy -r                # Grabs the file you just downloaded
-clippy -r 5m             # Only last 5 minutes
-
-# Interactive picker for recent files
-clippy -r --pick         # Choose from multiple recent downloads
-
 # Pipe data as files
 curl -sL https://picsum.photos/300 | clippy  # Download → clipboard as file
+
+# Copy your most recent download (immediate)
+clippy -r                # Grabs the file you just downloaded
+clippy -r 3              # Copy 3 most recent downloads
+
+# Interactive picker for recent files
+clippy -i               # Choose from list of recent downloads
+clippy -i 5m            # Show picker for last 5 minutes only
 ```
 
 Stay in your terminal. Copy anything. Paste anywhere.
@@ -62,10 +63,19 @@ clippy *.jpg          # Multiple files at once
 ### 2. Recent Downloads
 
 ```bash
+# Immediate copy (no UI)
 clippy -r              # Copy your most recent download
-clippy -r --pick       # Interactive picker for recent files
-clippy -r 5m           # Only last 5 minutes
-clippy -r --paste      # Copy and paste in one step
+clippy -r 3            # Copy 3 most recent downloads
+clippy -r 5m           # Copy all downloads from last 5 minutes
+
+# Interactive picker
+clippy -i              # Choose from list of recent downloads
+clippy -i 3            # Show picker with 3 most recent files
+clippy -i 5m           # Show picker for last 5 minutes only
+
+# Copy and paste in one step
+clippy -r --paste      # Copy most recent and paste here
+clippy -i --paste      # Pick file, copy it, and paste here
 ```
 
 ### 3. Pipe Data as Files
@@ -80,7 +90,7 @@ cat archive.tar.gz | clippy
 ```bash
 clippy file.txt --paste     # Copy to clipboard AND paste here
 clippy -r --paste          # Copy recent download and paste here
-clippy -r --pick --paste   # Pick file, copy it, and paste here
+clippy -i --paste           # Pick file, copy it, and paste here
 ```
 
 ### 5. Helpful Flags
@@ -131,6 +141,33 @@ go install github.com/neilberkman/clippy/cmd/pasty@latest
 ## Why "Clippy"?
 
 Because it's a helpful clipboard assistant that knows what you want to do! 📎
+
+## MCP Server for AI Integration
+
+Clippy includes a built-in MCP (Model Context Protocol) server that allows AI assistants like Claude to interact with your clipboard programmatically.
+
+### Setup
+
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "clippy": {
+      "command": "clippy",
+      "args": ["mcp-server"]
+    }
+  }
+}
+```
+
+### Available Tools
+
+- **clipboard_copy** - Copy text or files to clipboard
+- **clipboard_paste** - Paste clipboard content to files/directories
+- **get_recent_downloads** - List recently downloaded files
+
+Now Claude can help you manage your clipboard, create and copy files, and work with your recent downloads!
 
 ## License
 

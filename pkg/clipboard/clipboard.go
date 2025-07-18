@@ -9,19 +9,51 @@ package clipboard
 #import <CoreServices/CoreServices.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
+// Helper function to wait for pasteboard to complete write operation
+static int waitForPasteboardChange(NSPasteboard *pasteboard, NSInteger initialChangeCount) {
+    NSDate *timeoutDate = [NSDate dateWithTimeIntervalSinceNow:2.0]; // 2-second timeout
+    while ([pasteboard changeCount] == initialChangeCount && [timeoutDate timeIntervalSinceNow] > 0) {
+        // Run the loop for a very short interval to allow the main thread to process events
+        [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+    }
+
+    // Check if the changeCount was updated
+    if ([pasteboard changeCount] == initialChangeCount) {
+        return -1; // Timed out
+    }
+
+    return 0; // Success
+}
+
 // Function to copy a file reference to the clipboard
-void copyFile(const char *path) {
+int copyFile(const char *path) {
     @autoreleasepool {
         [NSApplication sharedApplication]; // Initialize the app context
         NSURL *fileURL = [NSURL fileURLWithPath:[NSString stringWithUTF8String:path]];
         NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+
+        // Get the current changeCount before operation
+        NSInteger initialChangeCount = [pasteboard changeCount];
+
+        // Perform the write operation
         [pasteboard clearContents];
-        [pasteboard writeObjects:@[fileURL]];
+        BOOL success = [pasteboard writeObjects:@[fileURL]];
+
+        if (!success) {
+            return -1; // Write operation failed to start
+        }
+
+        // Wait for pasteboard to complete
+        if (waitForPasteboardChange(pasteboard, initialChangeCount) != 0) {
+            return -2; // Timed out
+        }
+
+        return 0; // Success
     }
 }
 
 // Function to copy multiple file references to the clipboard
-void copyFiles(const char **paths, int count) {
+int copyFiles(const char **paths, int count) {
     @autoreleasepool {
         [NSApplication sharedApplication]; // Initialize the app context
         NSMutableArray *fileURLs = [NSMutableArray arrayWithCapacity:count];
@@ -32,19 +64,51 @@ void copyFiles(const char **paths, int count) {
         }
 
         NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+
+        // Get the current changeCount before operation
+        NSInteger initialChangeCount = [pasteboard changeCount];
+
+        // Perform the write operation
         [pasteboard clearContents];
-        [pasteboard writeObjects:fileURLs];
+        BOOL success = [pasteboard writeObjects:fileURLs];
+
+        if (!success) {
+            return -1; // Write operation failed to start
+        }
+
+        // Wait for pasteboard to complete
+        if (waitForPasteboardChange(pasteboard, initialChangeCount) != 0) {
+            return -2; // Timed out
+        }
+
+        return 0; // Success
     }
 }
 
 // Function to copy plain text content to the clipboard
-void copyText(const char *text) {
+int copyText(const char *text) {
     @autoreleasepool {
         [NSApplication sharedApplication]; // Initialize the app context
         NSString *nsText = [NSString stringWithUTF8String:text];
         NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+
+        // Get the current changeCount before operation
+        NSInteger initialChangeCount = [pasteboard changeCount];
+
+        // Perform the write operation
         [pasteboard clearContents];
-        [pasteboard setString:nsText forType:NSPasteboardTypeString];
+        BOOL success = [pasteboard setString:nsText forType:NSPasteboardTypeString];
+
+        if (!success) {
+            return -1; // Write operation failed to start
+        }
+
+        // Wait for pasteboard to complete
+        if (waitForPasteboardChange(pasteboard, initialChangeCount) != 0) {
+            return -2; // Timed out
+        }
+
+        return 0; // Success
     }
 }
 
@@ -228,27 +292,60 @@ import (
 )
 
 // CopyFile copies a single file reference to clipboard
-func CopyFile(path string) {
+func CopyFile(path string) error {
 	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
-	C.copyFile(cPath)
+	result := C.copyFile(cPath)
+
+	switch result {
+	case 0:
+		return nil
+	case -1:
+		return fmt.Errorf("failed to write to clipboard")
+	case -2:
+		return fmt.Errorf("clipboard operation timed out")
+	default:
+		return fmt.Errorf("unknown clipboard error: %d", result)
+	}
 }
 
 // CopyFiles copies multiple file references to clipboard
-func CopyFiles(paths []string) {
+func CopyFiles(paths []string) error {
 	cPaths := make([]*C.char, len(paths))
 	for i, path := range paths {
 		cPaths[i] = C.CString(path)
 		defer C.free(unsafe.Pointer(cPaths[i]))
 	}
-	C.copyFiles(&cPaths[0], C.int(len(cPaths)))
+	result := C.copyFiles(&cPaths[0], C.int(len(cPaths)))
+
+	switch result {
+	case 0:
+		return nil
+	case -1:
+		return fmt.Errorf("failed to write to clipboard")
+	case -2:
+		return fmt.Errorf("clipboard operation timed out")
+	default:
+		return fmt.Errorf("unknown clipboard error: %d", result)
+	}
 }
 
 // CopyText copies text content to clipboard
-func CopyText(text string) {
+func CopyText(text string) error {
 	cText := C.CString(text)
 	defer C.free(unsafe.Pointer(cText))
-	C.copyText(cText)
+	result := C.copyText(cText)
+
+	switch result {
+	case 0:
+		return nil
+	case -1:
+		return fmt.Errorf("failed to write to clipboard")
+	case -2:
+		return fmt.Errorf("clipboard operation timed out")
+	default:
+		return fmt.Errorf("unknown clipboard error: %d", result)
+	}
 }
 
 // GetFiles returns file paths currently on clipboard
