@@ -112,17 +112,17 @@ Because it's a helpful clipboard assistant that knows what you want to do! 📎
 
 ## Pasty - Intelligent Clipboard Pasting
 
-Pasty is clippy's companion tool for intelligent pasting from the clipboard.
+When you copy a file in Finder and press ⌘V in terminal, you just get the filename as text. Pasty actually copies the file itself to your current directory.
 
 ### Core Use Cases
 
-**1. Copy file in Finder → Paste in terminal**
+**1. Copy file in Finder → Paste actual file in terminal**
 
 ```bash
 # 1. Copy any file in Finder (⌘C)
 # 2. Switch to terminal and run:
 pasty
-# File gets copied to your current directory
+# File gets copied to your current directory (not just the filename!)
 ```
 
 **2. Smart text file handling**
