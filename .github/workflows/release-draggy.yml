@@ -60,9 +60,9 @@ jobs:
           ```
     
     - name: Update Homebrew Tap
-      if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+      if: ${{ secrets.GORELEASER_TOKEN != '' }}
       env:
-        HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        HOMEBREW_TAP_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
       run: |
         # Extract version from tag
         VERSION=${GITHUB_REF#refs/tags/draggy-v}
