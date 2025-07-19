@@ -94,7 +94,9 @@ struct FooterView: View {
 struct FileRow: View {
     let file: ClipboardFile
     @State private var isHovering = false
+    @State private var thumbnail: NSImage? = nil
     @AppStorage("showFullPath") private var showFullPath: Bool = false
+    @AppStorage("showThumbnails") private var showThumbnails: Bool = true
     
     private var fileURL: URL {
         URL(fileURLWithPath: file.path)
@@ -106,10 +108,18 @@ struct FileRow: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            Image(nsImage: fileIcon)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 32, height: 32)
+            if showThumbnails, let thumbnail = thumbnail {
+                Image(nsImage: thumbnail)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(4)
+            } else {
+                Image(nsImage: fileIcon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 32, height: 32)
+            }
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(file.name)
@@ -131,9 +141,34 @@ struct FileRow: View {
         .cornerRadius(6)
         .onHover { hovering in
             isHovering = hovering
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
+        .onTapGesture(count: 2) {
+            // Double-click to open file
+            NSWorkspace.shared.open(fileURL)
         }
         .draggable(fileURL) {
-            DragPreview(file: file, icon: fileIcon)
+            DragPreview(file: file, icon: thumbnail ?? fileIcon)
+        }
+        .onAppear {
+            generateThumbnail()
+        }
+        .help("Double-click to open • Drag to another app")
+    }
+    
+    private func generateThumbnail() {
+        guard showThumbnails else { return }
+        
+        DispatchQueue.global(qos: .background).async {
+            if let thumb = ThumbnailGenerator.generateThumbnail(for: file.path, size: CGSize(width: 64, height: 64)) {
+                DispatchQueue.main.async {
+                    self.thumbnail = thumb
+                }
+            }
         }
     }
 }
