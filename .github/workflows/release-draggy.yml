@@ -60,6 +60,7 @@ jobs:
           ```
     
     - name: Update Homebrew Tap
+      if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
       env:
         HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
       run: |
