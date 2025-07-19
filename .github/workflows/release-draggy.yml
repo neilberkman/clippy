@@ -60,10 +60,15 @@ jobs:
           ```
     
     - name: Update Homebrew Tap
-      if: secrets.GORELEASER_TOKEN != ''
       env:
         HOMEBREW_TAP_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
       run: |
+        # Skip if no token
+        if [ -z "$HOMEBREW_TAP_TOKEN" ]; then
+          echo "No HOMEBREW_TAP_TOKEN found, skipping Homebrew tap update"
+          exit 0
+        fi
+        
         # Extract version from tag
         VERSION=${GITHUB_REF#refs/tags/draggy-v}
         SHA256=${{ steps.sha256.outputs.sha256 }}
