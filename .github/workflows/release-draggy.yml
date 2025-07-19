@@ -43,6 +43,7 @@ jobs:
       with:
         files: gui/draggy/Draggy.app.zip
         generate_release_notes: true
+        draft: false
         body: |
           ## Draggy ${{ github.ref_name }}
           
@@ -80,6 +81,9 @@ jobs:
         # Update formula
         sed -i '' "s/version \".*\"/version \"$VERSION\"/" Casks/draggy.rb
         sed -i '' "s/sha256 \".*\"/sha256 \"$SHA256\"/" Casks/draggy.rb
+        
+        # Fix URL format to use draggy-v prefix
+        sed -i '' 's|download/v#{version}|download/draggy-v#{version}|' Casks/draggy.rb
         
         # Commit and push
         git config user.name "GitHub Actions"
