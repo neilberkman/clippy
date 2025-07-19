@@ -4,6 +4,7 @@ import LaunchAtLogin
 struct PreferencesView: View {
     @AppStorage("maxFilesShown") private var maxFilesShown: Int = 20
     @AppStorage("showFullPath") private var showFullPath: Bool = false
+    @AppStorage("showThumbnails") private var showThumbnails: Bool = true
     
     var body: some View {
         Form {
@@ -19,6 +20,9 @@ struct PreferencesView: View {
                 
                 Toggle("Show full file paths", isOn: $showFullPath)
                     .help("Show complete paths instead of just parent directory")
+                
+                Toggle("Show file thumbnails", isOn: $showThumbnails)
+                    .help("Display previews for images and PDFs instead of generic icons")
             }
             
             

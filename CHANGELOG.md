@@ -10,6 +10,14 @@ Notable changes to clippy.
   - Added `--text` / `-t` flag to force copying text file content
   - This allows pasting text files into Finder/GUI apps as files
 
+### Draggy [1.1.0]
+- **File previews**: Thumbnail generation for images and PDFs
+  - Uses QuickLook, native image rendering, and PDF rendering
+  - Smart caching to minimize performance impact
+  - Toggle in preferences
+- **Double-click to open**: Quick file access without leaving the menu bar
+- **UI improvements**: Hand cursor on hover, helpful tooltips
+
 ## [0.9.0] - 2025-01-18
 
 ### Added

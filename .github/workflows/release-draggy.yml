@@ -1,0 +1,80 @@
+name: Release Draggy
+
+on:
+  push:
+    tags:
+      - 'draggy-v*'
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: '5.9'
+    
+    - name: Build Draggy
+      run: |
+        cd gui/draggy
+        ./build-app.sh
+    
+    - name: Create ZIP
+      run: |
+        cd gui/draggy
+        zip -r Draggy.app.zip Draggy.app
+    
+    - name: Calculate SHA256
+      id: sha256
+      run: |
+        cd gui/draggy
+        SHA=$(shasum -a 256 Draggy.app.zip | awk '{print $1}')
+        echo "sha256=$SHA" >> $GITHUB_OUTPUT
+        echo "SHA256: $SHA"
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: gui/draggy/Draggy.app.zip
+        generate_release_notes: true
+        body: |
+          ## Draggy ${{ github.ref_name }}
+          
+          ### Installation
+          
+          ```bash
+          brew install --cask neilberkman/clippy/draggy
+          ```
+          
+          Or download `Draggy.app.zip` below and extract to your Applications folder.
+          
+          ### SHA256
+          ```
+          ${{ steps.sha256.outputs.sha256 }}
+          ```
+    
+    - name: Update Homebrew Tap
+      env:
+        HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      run: |
+        # Extract version from tag
+        VERSION=${GITHUB_REF#refs/tags/draggy-v}
+        SHA256=${{ steps.sha256.outputs.sha256 }}
+        
+        # Clone tap repo
+        git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/neilberkman/homebrew-clippy.git
+        cd homebrew-clippy
+        
+        # Update formula
+        sed -i '' "s/version \".*\"/version \"$VERSION\"/" Casks/draggy.rb
+        sed -i '' "s/sha256 \".*\"/sha256 \"$SHA256\"/" Casks/draggy.rb
+        
+        # Commit and push
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add Casks/draggy.rb
+        git commit -m "Update Draggy to $VERSION"
+        git push

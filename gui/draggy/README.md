@@ -14,6 +14,8 @@ If you live in your terminal but occasionally need to drag files to web browsers
 - **Zero background activity**: No polling, no battery drain
 - **Terminal-first**: Designed to work seamlessly with clippy
 - **Native performance**: Pure Swift, no Electron
+- **File previews**: Thumbnails for images and PDFs
+- **Double-click to open**: Quick file access without leaving the menu bar
 
 ## Usage
 
@@ -24,7 +26,8 @@ curl -sL pic.jpg | clippy # Or pipe downloads
 
 # In the GUI:
 # 1. Click Draggy in menu bar
-# 2. Drag files to browser upload fields, Slack, etc.
+# 2. Double-click to open files, or
+# 3. Drag files to browser upload fields, Slack, etc.
 ```
 
 ## Configuration
@@ -32,6 +35,7 @@ curl -sL pic.jpg | clippy # Or pipe downloads
 Right-click the menu bar icon for preferences:
 - **Launch at login**
 - **Show full paths** - Display complete file paths instead of just directories
+- **Show file thumbnails** - Enable previews for images and PDFs
 - **Max files shown** - Limit for performance
 
 ## Building
