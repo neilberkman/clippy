@@ -2,6 +2,12 @@
 
 Notable changes to clippy.
 
+## [1.2.1] - 2025-01-20
+
+### Fixed
+- Version information now properly displayed in `--version` output
+  - Fixed ldflags in GoReleaser to correctly set version variables
+
 ## [1.2.0] - 2025-01-20
 
 ### Added

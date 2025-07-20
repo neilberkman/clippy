@@ -18,7 +18,7 @@ builds:
       - amd64
       - arm64
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+      - -s -w -X github.com/neilberkman/clippy/cmd/internal/common.Version={{.Version}} -X github.com/neilberkman/clippy/cmd/internal/common.Commit={{.Commit}} -X github.com/neilberkman/clippy/cmd/internal/common.Date={{.Date}}
   - id: pasty
     main: ./cmd/pasty
     binary: pasty
@@ -30,7 +30,7 @@ builds:
       - amd64
       - arm64
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+      - -s -w -X github.com/neilberkman/clippy/cmd/internal/common.Version={{.Version}} -X github.com/neilberkman/clippy/cmd/internal/common.Commit={{.Commit}} -X github.com/neilberkman/clippy/cmd/internal/common.Date={{.Date}}
 
 archives:
   - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
