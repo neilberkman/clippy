@@ -20,6 +20,15 @@ jobs:
       with:
         swift-version: '5.9'
 
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Build clippy C library
+      run: |
+        ./build-clib.sh
+
     - name: Build Draggy
       run: |
         cd gui/draggy

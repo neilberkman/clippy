@@ -19,7 +19,7 @@ Notable changes to clippy.
   - Added `--text` / `-t` flag to force copying text file content
   - This allows pasting text files into Finder/GUI apps as files
 
-### Draggy [0.10.1]
+### Draggy [0.11.0]
 
 - **Version checking**: Check for updates when opening the app (max once every 2 hours)
   - Respects Homebrew installations with appropriate update instructions
