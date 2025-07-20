@@ -10,10 +10,14 @@ Notable changes to clippy.
   - Previously required `=` syntax (e.g., `-r=3`)
 - Help text now correctly shows usage examples
 
-### Draggy [0.11.1]
-- Fixed blank settings window
-  - Removed problematic `.formStyle(.grouped)` 
-  - Fixed version display (was showing v1.0.0)
+### Draggy [0.11.2]
+- Fixed blank "Draggy Settings" window appearing at startup
+  - Properly configured SwiftUI App scene to prevent default window
+  - Added window closing on app launch as safety measure
+  - Only affects release builds (not seen in development)
+- Previous fixes from 0.11.1:
+  - Fixed settings window content display
+  - Fixed version display (now shows v0.11.0) 
   - Fixed window title consistency
 
 ## [1.2.1] - 2025-01-20

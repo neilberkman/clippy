@@ -33,9 +33,19 @@ struct DraggyApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        // No window scene - we're a menu bar app
-        Settings {
+        // Return an empty scene for menu bar apps
+        WindowGroup("") {
             EmptyView()
+        }
+        .windowResizability(.contentSize)
+        .defaultSize(width: 0, height: 0)
+        .commands {
+            // Remove all default menus except the app menu
+            CommandGroup(replacing: .newItem) { }
+            CommandGroup(replacing: .pasteboard) { }
+            CommandGroup(replacing: .undoRedo) { }
+            CommandGroup(replacing: .windowSize) { }
+            CommandGroup(replacing: .help) { }
         }
     }
 }
@@ -52,6 +62,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var viewModel: ClipboardViewModel?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Hide any default windows
+        for window in NSApp.windows {
+            window.close()
+        }
+        
         setupStatusItem()
         setupPopover()
         setupEventMonitor()
