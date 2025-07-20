@@ -27,6 +27,8 @@ jobs:
 
     - name: Build clippy C library
       run: |
+        # Ensure Xcode command line tools are available
+        sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
         ./build-clib.sh
 
     - name: Build Draggy
