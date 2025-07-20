@@ -35,13 +35,13 @@ struct PreferencesView: View {
 
                     Spacer()
 
-                    Text("v1.0.0")
+                    Text("v0.11.0")
                         .foregroundColor(.secondary)
                         .font(.caption)
                 }
             }
         }
-        .formStyle(.grouped)
-        .frame(width: 400, height: 350)
+        .padding()
+        .frame(width: 400)
     }
 }

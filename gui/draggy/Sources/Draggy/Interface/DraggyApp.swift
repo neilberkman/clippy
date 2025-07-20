@@ -181,7 +181,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 backing: .buffered,
                 defer: false
             )
-            window.title = "Draggy Preferences"
+            window.title = "Draggy Settings"
             window.contentView = NSHostingView(rootView: PreferencesView())
             window.center()
             preferencesWindow = window

@@ -33,6 +33,9 @@ var (
 )
 
 func main() {
+	// Preprocess args to convert "-r 3" to "-r=3" for Cobra compatibility
+	os.Args = preprocessArgs(os.Args)
+	
 	var rootCmd = &cobra.Command{
 		Use:   "clippy [files...]",
 		Short: "Smart clipboard tool for macOS",
@@ -470,4 +473,25 @@ func pasteFiles(files []string) {
 		}
 	}
 	logger.Verbose("✅ Also pasted %d files to current directory", len(files))
+}
+
+// preprocessArgs converts "-r 3" to "-r=3" for better Cobra compatibility
+func preprocessArgs(args []string) []string {
+	result := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		// Check if this is -r or -i flag
+		if (arg == "-r" || arg == "--recent" || arg == "-i" || arg == "--interactive") && i+1 < len(args) {
+			// Check if next arg looks like a value (not another flag)
+			nextArg := args[i+1]
+			if !strings.HasPrefix(nextArg, "-") {
+				// Combine into single arg with =
+				result = append(result, arg+"="+nextArg)
+				i++ // Skip next arg since we consumed it
+				continue
+			}
+		}
+		result = append(result, arg)
+	}
+	return result
 }

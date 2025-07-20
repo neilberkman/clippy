@@ -2,6 +2,20 @@
 
 Notable changes to clippy.
 
+## [1.2.2] - 2025-01-20
+
+### Fixed
+- Recent downloads flags (`-r 3`, `-i 5m`) now work correctly
+  - Fixed argument parsing to support space-separated values 
+  - Previously required `=` syntax (e.g., `-r=3`)
+- Help text now correctly shows usage examples
+
+### Draggy [0.11.1]
+- Fixed blank settings window
+  - Removed problematic `.formStyle(.grouped)` 
+  - Fixed version display (was showing v1.0.0)
+  - Fixed window title consistency
+
 ## [1.2.1] - 2025-01-20
 
 ### Fixed
