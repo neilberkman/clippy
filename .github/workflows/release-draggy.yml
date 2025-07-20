@@ -27,8 +27,10 @@ jobs:
 
     - name: Build clippy C library
       run: |
-        # Ensure Xcode command line tools are available
-        sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+        # Set up environment for CGO
+        export SDK_PATH=$(xcrun --sdk macosx --show-sdk-path)
+        export CGO_CFLAGS="-isysroot $SDK_PATH"
+        export CGO_LDFLAGS="-isysroot $SDK_PATH"
         ./build-clib.sh
 
     - name: Build Draggy
