@@ -162,6 +162,27 @@ void freeString(char *str) {
     if (str) free(str);
 }
 
+// Clear the clipboard
+int clearClipboard() {
+    @autoreleasepool {
+        [NSApplication sharedApplication]; // Initialize the app context
+        NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+
+        // Get the current changeCount before operation
+        NSInteger initialChangeCount = [pasteboard changeCount];
+
+        // Clear the clipboard
+        [pasteboard clearContents];
+
+        // Wait for pasteboard to complete
+        if (waitForPasteboardChange(pasteboard, initialChangeCount) != 0) {
+            return -2; // Timed out
+        }
+
+        return 0; // Success
+    }
+}
+
 // Get UTI for a file path
 char* getUTIForFile(const char* path) {
     @autoreleasepool {
@@ -341,6 +362,20 @@ func CopyText(text string) error {
 		return nil
 	case -1:
 		return fmt.Errorf("failed to write to clipboard")
+	case -2:
+		return fmt.Errorf("clipboard operation timed out")
+	default:
+		return fmt.Errorf("unknown clipboard error: %d", result)
+	}
+}
+
+// Clear clears the clipboard
+func Clear() error {
+	result := C.clearClipboard()
+
+	switch result {
+	case 0:
+		return nil
 	case -2:
 		return fmt.Errorf("clipboard operation timed out")
 	default:

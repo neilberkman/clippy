@@ -14,6 +14,7 @@ import (
 
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/neilberkman/clippy/pkg/clipboard"
+	"github.com/neilberkman/clippy/pkg/recent"
 )
 
 // CopyResult contains information about what was copied and how
@@ -54,7 +55,7 @@ func CopyWithResultAndMode(path string, forceTextMode bool) (*CopyResult, error)
 		if err := clipboard.CopyFile(absPath); err != nil {
 			return nil, fmt.Errorf("could not copy file to clipboard: %w", err)
 		}
-		
+
 		// Still detect the type for informational purposes
 		uti, _ := clipboard.GetUTIForFile(absPath)
 		typeStr := uti
@@ -66,7 +67,7 @@ func CopyWithResultAndMode(path string, forceTextMode bool) (*CopyResult, error)
 				method = "MIME"
 			}
 		}
-		
+
 		return &CopyResult{
 			Method:   method,
 			Type:     typeStr,
@@ -270,6 +271,11 @@ func isTextUTI(uti string) bool {
 	return conformsToText
 }
 
+// ClearClipboard clears the clipboard
+func ClearClipboard() error {
+	return clipboard.Clear()
+}
+
 // CleanupTempFiles removes old temporary files that are no longer in clipboard
 func CleanupTempFiles(tempDir string, verbose bool) {
 	// Get current clipboard files
@@ -426,7 +432,7 @@ func copyFilesToDestination(files []string, destination string) (int, error) {
 			destFile = destination
 		}
 
-		if err := copyFile(srcFile, destFile); err != nil {
+		if err := recent.CopyFile(srcFile, destFile); err != nil {
 			return filesRead, fmt.Errorf("could not copy %s to %s: %w", srcFile, destFile, err)
 		}
 
@@ -434,20 +440,4 @@ func copyFilesToDestination(files []string, destination string) (int, error) {
 	}
 
 	return filesRead, nil
-}
-
-// copyFile copies a file from src to dst
-func copyFile(src, dst string) error {
-	// Read source file
-	data, err := os.ReadFile(src)
-	if err != nil {
-		return fmt.Errorf("could not read source file: %w", err)
-	}
-
-	// Write to destination
-	if err := os.WriteFile(dst, data, 0644); err != nil {
-		return fmt.Errorf("could not write destination file: %w", err)
-	}
-
-	return nil
 }

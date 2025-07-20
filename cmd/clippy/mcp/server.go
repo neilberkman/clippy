@@ -15,8 +15,9 @@ import (
 
 // CopyArgs defines arguments for the copy tool
 type CopyArgs struct {
-	Text string `json:"text,omitempty" jsonschema:"description=Text content to copy to clipboard"`
-	File string `json:"file,omitempty" jsonschema:"description=File path to copy to clipboard"`
+	Text      string `json:"text,omitempty" jsonschema:"description=Text content to copy to clipboard"`
+	File      string `json:"file,omitempty" jsonschema:"description=File path to copy to clipboard"`
+	ForceText string `json:"force_text,omitempty" jsonschema:"description=Set to 'true' to force copying file content as text (only used with 'file' parameter)"`
 }
 
 // PasteArgs defines arguments for the paste tool
@@ -64,9 +65,10 @@ func StartServer() error {
 	// Define copy tool
 	copyTool := mcp.NewTool(
 		"clipboard_copy",
-		mcp.WithDescription("Copy text or file to clipboard"),
-		mcp.WithString("text", mcp.Description("Text to copy")),
-		mcp.WithString("file", mcp.Description("File path to copy")),
+		mcp.WithDescription("Copy text or file to clipboard. CRITICAL: Use 'text' parameter for ANY generated content, code, messages, or text that will be pasted. Use 'file' parameter ONLY for existing files that need to be attached/uploaded. DEFAULT TO 'text' FOR ALL GENERATED CONTENT."),
+		mcp.WithString("text", mcp.Description("Text content to copy - USE THIS for all generated content, code snippets, messages, emails, documentation, or any text that will be pasted")),
+		mcp.WithString("file", mcp.Description("File path to copy as file reference - ONLY use this for existing files on disk that need to be dragged/attached, NOT for generated content")),
+		mcp.WithString("force_text", mcp.Description("Set to 'true' to force copying file content as text (only with 'file' parameter)")),
 	)
 
 	// Add copy tool handler
@@ -115,7 +117,8 @@ func StartServer() error {
 				return nil, fmt.Errorf("file not found: %s", absPath)
 			}
 
-			copyResult, err := clippy.CopyWithResult(absPath)
+			forceText := args.ForceText == "true" || args.ForceText == "1"
+			copyResult, err := clippy.CopyWithResultAndMode(absPath, forceText)
 			if err != nil {
 				result = CopyResult{
 					Success: false,
@@ -147,7 +150,7 @@ func StartServer() error {
 	// Define paste tool
 	pasteTool := mcp.NewTool(
 		"clipboard_paste",
-		mcp.WithDescription("Paste clipboard content to file or directory"),
+		mcp.WithDescription("Paste clipboard content to file or directory. Intelligently handles both text content and file references from clipboard."),
 		mcp.WithString("destination", mcp.Description("Destination directory (defaults to current directory)")),
 	)
 
@@ -225,7 +228,7 @@ func StartServer() error {
 	// Define recent downloads tool
 	recentTool := mcp.NewTool(
 		"get_recent_downloads",
-		mcp.WithDescription("Get list of recently downloaded files"),
+		mcp.WithDescription("Get list of recently added files from Downloads, Desktop, and Documents folders. Only shows files that were recently added to these directories."),
 		mcp.WithNumber("count", mcp.Description("Number of files to return (default: 10)")),
 		mcp.WithString("duration", mcp.Description("Time duration to look back (e.g. 5m, 1h)")),
 	)
@@ -254,17 +257,14 @@ func StartServer() error {
 		}
 
 		// Get recent downloads
-		files, err := recent.GetRecentDownloads(config)
+		files, err := recent.GetRecentDownloads(config, args.Count)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get recent downloads: %w", err)
 		}
 
 		// Convert to response format
 		var recentFiles []RecentFile
-		for i, file := range files {
-			if i >= args.Count {
-				break
-			}
+		for _, file := range files {
 			recentFiles = append(recentFiles, RecentFile{
 				Path:     file.Path,
 				Name:     file.Name,

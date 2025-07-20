@@ -40,7 +40,7 @@ type ArchiveInfo struct {
 // DefaultFindOptions returns sensible defaults for finding recent files
 func DefaultFindOptions() FindOptions {
 	return FindOptions{
-		MaxAge:         5 * time.Minute,
+		MaxAge:         2 * 24 * time.Hour, // 2 days - reasonable for "recent" downloads
 		MaxCount:       10,
 		Directories:    GetDefaultDownloadDirs(),
 		ExcludeTemp:    true,
@@ -151,6 +151,32 @@ func ParseDuration(s string) (time.Duration, error) {
 		return 0, fmt.Errorf("duration cannot be negative")
 	}
 	return duration, nil
+}
+
+// ParseRecentArgument parses the argument to -r or -i flags
+// Returns count (number of files) and maxAge (time duration)
+// Examples:
+//   - "" or " " -> count=1, maxAge=0 (default)
+//   - "3" -> count=3, maxAge=0
+//   - "5m" -> count=0, maxAge=5 minutes (0 means all files in period)
+func ParseRecentArgument(arg string) (count int, maxAge time.Duration, err error) {
+	// Default behavior for empty argument
+	if arg == "" || arg == " " {
+		return 1, 0, nil
+	}
+
+	// Try to parse as a number first
+	if num, parseErr := strconv.Atoi(arg); parseErr == nil && num > 0 {
+		return num, 0, nil
+	}
+
+	// Parse as duration
+	duration, err := ParseDuration(arg)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid argument %q: use a number like '3' or duration like '5m'", arg)
+	}
+
+	return 0, duration, nil
 }
 
 // findFilesInDir recursively finds files in a directory
@@ -357,8 +383,8 @@ type PickerResult struct {
 	PasteMode bool // true if user pressed 'p' to copy & paste
 }
 
-// PickRecentDownload shows an interactive picker for recent downloads
-// This handles the case where you want to choose from multiple recent files
+// PickRecentDownload returns a single recent download
+// This handles the case where you want to select from multiple recent files
 type PickerConfig struct {
 	MaxAge       time.Duration
 	AbsoluteTime bool
@@ -373,12 +399,16 @@ func PickRecentDownload(maxAge time.Duration) (*FileInfo, error) {
 }
 
 // GetRecentDownloads returns recent files for picker display
-func GetRecentDownloads(config PickerConfig) ([]FileInfo, error) {
+func GetRecentDownloads(config PickerConfig, maxCount int) ([]FileInfo, error) {
 	opts := DefaultFindOptions()
 	if config.MaxAge != 0 {
 		opts.MaxAge = config.MaxAge
 	}
-	opts.MaxCount = 20 // Show up to 20 recent files
+	if maxCount > 0 {
+		opts.MaxCount = maxCount
+	} else {
+		opts.MaxCount = 20 // Default to 20 if not specified
+	}
 
 	files, err := FindRecentFiles(opts)
 	if err != nil {
@@ -393,7 +423,7 @@ func GetRecentDownloads(config PickerConfig) ([]FileInfo, error) {
 }
 
 func PickRecentDownloadWithConfig(config PickerConfig) (*FileInfo, error) {
-	files, err := GetRecentDownloads(config)
+	files, err := GetRecentDownloads(config, 0) // Use default maxCount
 	if err != nil {
 		return nil, err
 	}
@@ -403,13 +433,13 @@ func PickRecentDownloadWithConfig(config PickerConfig) (*FileInfo, error) {
 		return &files[0], nil
 	}
 
-	// Return an error - picker must be handled at the interface layer
-	return nil, fmt.Errorf("multiple files found, interactive picker required")
+	// Return an error - selection must be handled at the interface layer
+	return nil, fmt.Errorf("multiple files found, selection required")
 }
 
 // PickMultipleRecentDownloads is deprecated - use GetRecentDownloads instead
 func PickMultipleRecentDownloads(config PickerConfig) ([]*FileInfo, error) {
-	files, err := GetRecentDownloads(config)
+	files, err := GetRecentDownloads(config, 0) // Use default maxCount
 	if err != nil {
 		return nil, err
 	}
@@ -423,7 +453,7 @@ func PickMultipleRecentDownloads(config PickerConfig) ([]*FileInfo, error) {
 
 // PickRecentDownloadsWithResult is deprecated - use GetRecentDownloads instead
 func PickRecentDownloadsWithResult(config PickerConfig) (*PickerResult, error) {
-	return nil, fmt.Errorf("interactive picker not available in core library - use GetRecentDownloads instead")
+	return nil, fmt.Errorf("selection functionality not available in core library - use GetRecentDownloads instead")
 }
 
 // PasteMostRecentDownload finds and copies the most recent download to destination
@@ -463,11 +493,12 @@ func CopyFileToDestination(srcPath, destPath string) error {
 		return copyDir(srcPath, destPath)
 	}
 
-	return copyFile(srcPath, destPath)
+	return CopyFile(srcPath, destPath)
 }
 
 // copyFile copies a single file
-func copyFile(src, dst string) error {
+// CopyFile copies a file from src to dst, preserving permissions and creating directories as needed
+func CopyFile(src, dst string) error {
 	srcFile, err := os.Open(src)
 	if err != nil {
 		return err
@@ -519,7 +550,7 @@ func copyDir(src, dst string) error {
 			return os.MkdirAll(dstPath, info.Mode())
 		}
 
-		return copyFile(path, dstPath)
+		return CopyFile(path, dstPath)
 	})
 }
 

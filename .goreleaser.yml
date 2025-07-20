@@ -72,13 +72,13 @@ release:
     - Integration with system clipboard
 
     ### 📦 Installation
-    
+
     #### Homebrew (Recommended)
     ```bash
     brew tap neilberkman/clippy
     brew install clippy  # Installs both clippy and pasty
     ```
-    
+
     #### Direct Download
     ```bash
     # For Apple Silicon (M1/M2):
@@ -86,14 +86,14 @@ release:
 
     # For Intel Macs:
     curl -L https://github.com/neilberkman/clippy/releases/download/{{.Tag}}/clippy_{{.Tag}}_darwin_amd64.tar.gz | tar xz
-    
+
     # Move to your PATH
     sudo mv clippy /usr/local/bin/
     ```
 
   footer: |
     **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/clippy/compare/{{.PreviousTag}}...{{.Tag}}
-    
+
     ---
     🐛 **Found a bug?** Please [open an issue](https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/clippy/issues/new)
 

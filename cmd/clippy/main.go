@@ -2,15 +2,17 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/neilberkman/clippy"
 	"github.com/neilberkman/clippy/cmd/clippy/mcp"
+	"github.com/neilberkman/clippy/cmd/internal/common"
 	"github.com/neilberkman/clippy/internal/log"
 	"github.com/neilberkman/clippy/pkg/recent"
 	"github.com/spf13/cobra"
@@ -26,9 +28,7 @@ var (
 	paste           bool
 	absoluteTime    bool
 	textMode        bool
-	version         = "dev"
-	commit          = "none"
-	date            = "unknown"
+	clearFlag       bool
 	logger          *log.Logger
 )
 
@@ -44,28 +44,28 @@ Copy files from your terminal that actually paste into GUI apps. No more switchi
 Examples:
   # Copy text from stdin
   echo "Hello, World!" | clippy
-  
+
   # Copy a file as file reference (default for all files)
   clippy document.txt
   clippy image.png
-  
+
   # Copy text file content instead of reference
   clippy -t document.txt
   clippy --text README.md
-  
+
   # Copy multiple files at once
   clippy *.jpg
   clippy file1.pdf file2.doc file3.png
-  
+
   # Copy from curl
   curl -s https://example.com/image.jpg | clippy
-  
+
   # Copy most recent download(s)
   clippy -r            # copy the most recent download
   clippy -r 3          # copy the 3 most recent downloads
   clippy -r 5m         # copy all downloads from last 5 minutes
   clippy -r 1h         # copy all downloads from last hour
-  
+
   # Interactive picker for recent downloads
   clippy -i            # show interactive picker with recent files
   clippy -i 3          # show picker with 3 most recent files
@@ -74,11 +74,15 @@ Examples:
   # - Space to toggle selection
   # - Enter to copy (selected items or current item)
   # - p to copy & paste (selected items or current item)
-  
+
   # Copy and paste in one step
   clippy file.txt --paste      # copy to clipboard AND paste to current dir
   clippy -r --paste            # copy most recent file and paste here
   clippy -i --paste            # pick recent file interactively and paste here
+
+  # Clear clipboard
+  clippy --clear               # empty the clipboard
+  echo -n | clippy             # also clears the clipboard
 
 Configuration:
   Create ~/.clippy.conf with:
@@ -86,13 +90,13 @@ Configuration:
     cleanup = false       # Disable automatic temp file cleanup
     temp_dir = /path      # Custom directory for temporary files
     absolute_time = true  # Show absolute timestamps in picker (default: relative)`,
-		Version: fmt.Sprintf("%s (%s) built on %s", version, commit, date),
+		Version: fmt.Sprintf("%s (%s) built on %s", common.Version, common.Commit, common.Date),
 		Run: func(cmd *cobra.Command, args []string) {
 			// Load config file
 			loadConfig()
 
 			// Initialize logger
-			logger = log.New(log.Config{Verbose: verbose || debug, Debug: debug})
+			logger = common.SetupLogger(verbose, debug)
 
 			// If files are provided as arguments, handle them (takes precedence)
 			if len(args) > 0 {
@@ -128,6 +132,20 @@ Configuration:
 				return
 			}
 
+			// Handle --clear flag
+			if clearFlag {
+				if err := clearClipboard(); err != nil {
+					logger.Error("Failed to clear clipboard: %v", err)
+					os.Exit(1)
+				}
+				logger.Verbose("✅ Clipboard cleared")
+				// Run cleanup and return
+				if cleanup {
+					cleanupOldTempFiles()
+				}
+				return
+			}
+
 			// Default: handle stream mode (stdin)
 			handleStreamMode()
 
@@ -139,8 +157,7 @@ Configuration:
 	}
 
 	// Add flags
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
-	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug output (includes technical details)")
+	common.AddCommonFlags(rootCmd, &verbose, &debug)
 
 	// Recent flag with optional value
 	rootCmd.PersistentFlags().StringVarP(&recentFlag, "recent", "r", "", "Copy most recent file(s) from Downloads (defaults to 1, or specify number/duration like 3, 5m, 1h)")
@@ -153,6 +170,7 @@ Configuration:
 	rootCmd.PersistentFlags().BoolVar(&paste, "paste", false, "Also paste copied files to current directory")
 	rootCmd.PersistentFlags().BoolVar(&cleanup, "cleanup", true, "Enable automatic temp file cleanup")
 	rootCmd.PersistentFlags().BoolVarP(&textMode, "text", "t", false, "Copy text files as content instead of file reference")
+	rootCmd.PersistentFlags().BoolVar(&clearFlag, "clear", false, "Clear the clipboard")
 
 	// Add MCP server subcommand
 	var mcpCmd = &cobra.Command{
@@ -195,30 +213,18 @@ Add to ~/Library/Application Support/Claude/claude_desktop_config.json:
 	}
 }
 
+// clearClipboard clears the clipboard (common function for DRY code)
+func clearClipboard() error {
+	return clippy.ClearClipboard()
+}
+
 // handleRecentMode handles the --recent flag
 func handleRecentMode(timeStr string, interactiveMode bool) {
-	var maxAge time.Duration
-	var count = 1 // Default to 1 most recent file
-	var err error
-
-	// First check if timeStr is empty or space (just -r or -i)
-	if timeStr == "" || timeStr == " " {
-		// Default behavior: copy the most recent file
-		maxAge = 24 * time.Hour * 30 // Look back up to 30 days
-	} else {
-		// Try to parse as a number first (e.g., "3" for 3 most recent files)
-		if num, err := strconv.Atoi(timeStr); err == nil && num > 0 {
-			count = num
-			maxAge = 24 * time.Hour * 30 // Look back up to 30 days
-		} else {
-			// Parse as duration (e.g., "5m", "1h")
-			maxAge, err = recent.ParseDuration(timeStr)
-			if err != nil {
-				logger.Error("Invalid argument: %v (use a number like '3' or duration like '5m')", err)
-				os.Exit(1)
-			}
-			count = 0 // 0 means get all files within the time period
-		}
+	// Use Core function to parse the argument
+	count, maxAge, err := recent.ParseRecentArgument(timeStr)
+	if err != nil {
+		logger.Error("%v", err)
+		os.Exit(1)
 	}
 
 	// Get recent files based on criteria
@@ -227,7 +233,14 @@ func handleRecentMode(timeStr string, interactiveMode bool) {
 		AbsoluteTime: absoluteTime,
 	}
 
-	files, err := recent.GetRecentDownloads(config)
+	// Pass count to Core layer for proper limiting
+	// If interactive mode, get more files for the picker to show
+	maxFiles := count
+	if interactiveMode && count == 0 {
+		maxFiles = 20 // Default for interactive picker
+	}
+
+	files, err := recent.GetRecentDownloads(config, maxFiles)
 	if err != nil {
 		logger.Error("Failed to find recent files: %v", err)
 		os.Exit(1)
@@ -275,22 +288,15 @@ func handleRecentMode(timeStr string, interactiveMode bool) {
 			handleMultipleFiles(paths)
 		}
 	} else {
-		// Non-interactive mode: copy the requested number of files
-		filesToCopy := files
-
-		// If count is specified and we have more files than needed, slice it
-		if count > 0 && len(files) > count {
-			filesToCopy = files[:count]
-		}
-
-		if len(filesToCopy) == 1 {
+		// Non-interactive mode: files are already limited by Core layer
+		if len(files) == 1 {
 			logger.Verbose("Copying most recent file: %s (modified %s ago)",
-				filesToCopy[0].Name, time.Since(filesToCopy[0].Modified).Round(time.Second))
-			handleFileMode(filesToCopy[0].Path)
+				files[0].Name, time.Since(files[0].Modified).Round(time.Second))
+			handleFileMode(files[0].Path)
 		} else {
-			logger.Verbose("Copying %d most recent files:", len(filesToCopy))
+			logger.Verbose("Copying %d most recent files:", len(files))
 			var paths []string
-			for _, file := range filesToCopy {
+			for _, file := range files {
 				logger.Verbose("  - %s (modified %s ago)", file.Name, time.Since(file.Modified).Round(time.Second))
 				paths = append(paths, file.Path)
 			}
@@ -409,13 +415,39 @@ func handleMultipleFiles(paths []string) {
 
 // Logic for when data is piped via stdin
 func handleStreamMode() {
-	// Use the library function for stream copying
-	err := clippy.CopyDataWithTempDir(os.Stdin, tempDir)
-	if err != nil {
-		logger.Error("Could not copy from stdin: %v", err)
-	}
+	// Check if stdin has data
+	stat, _ := os.Stdin.Stat()
+	if (stat.Mode() & os.ModeCharDevice) == 0 {
+		// stdin has data - read it
+		var buf bytes.Buffer
+		_, err := io.Copy(&buf, os.Stdin)
+		if err != nil {
+			logger.Error("Could not read from stdin: %v", err)
+			os.Exit(1)
+		}
 
-	logger.Verbose("✅ Copied content from stream using smart detection")
+		// Check if input is empty
+		if buf.Len() == 0 {
+			// Empty input - clear clipboard
+			if err := clearClipboard(); err != nil {
+				logger.Error("Failed to clear clipboard: %v", err)
+				os.Exit(1)
+			}
+			logger.Verbose("✅ Clipboard cleared (empty input)")
+		} else {
+			// Non-empty input - copy to clipboard
+			err := clippy.CopyDataWithTempDir(&buf, tempDir)
+			if err != nil {
+				logger.Error("Could not copy from stdin: %v", err)
+				os.Exit(1)
+			}
+			logger.Verbose("✅ Copied content from stream using smart detection")
+		}
+	} else {
+		// No stdin data and no arguments - show usage
+		logger.Error("No input provided. Use --help for usage information.")
+		os.Exit(1)
+	}
 }
 
 // Clean up old temp files that are no longer in clipboard

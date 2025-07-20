@@ -214,8 +214,8 @@ func TestPipelines(t *testing.T) {
 		{
 			name:       "empty input",
 			pipeline:   `echo -n "" | ./clippy_test -v`,
-			wantOutput: "input data was empty",
-			wantError:  true,
+			wantOutput: "Clipboard cleared",
+			wantError:  false,
 		},
 		{
 			name:       "multiline text",

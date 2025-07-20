@@ -19,7 +19,13 @@ let package = Package(
         .executableTarget(
             name: "Draggy",
             dependencies: ["LaunchAtLogin"],
-            path: "Sources/Draggy"
+            path: "Sources/Draggy",
+            linkerSettings: [
+                .unsafeFlags([
+                    "-L.",  // Look for libraries in current directory
+                    "-lclippy"  // Link with libclippy.a
+                ])
+            ]
         )
     ]
 )

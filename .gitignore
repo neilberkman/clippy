@@ -15,9 +15,9 @@
 go.work
 go.work.sum
 
-# Binaries
-clippy
-pasty
+# Binaries (only in root directory)
+/clippy
+/pasty
 
 # Dependency directories
 vendor/
@@ -51,3 +51,21 @@ CLAUDE.md
 
 # Development notes
 IDEAS.md
+
+# Swift/Xcode build artifacts
+.build/
+.swiftpm/
+*.xcodeproj/
+*.xcworkspace/
+*.dSYM
+*.swiftinterface
+*.swiftmodule
+*.swiftdoc
+Package.resolved
+
+# C/C++ build artifacts
+*.o
+*.a
+*.lib
+libclippy.h
+libclippy.a
