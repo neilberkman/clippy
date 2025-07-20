@@ -29,9 +29,9 @@ clippy -i 5m            # Show picker for last 5 minutes only
 
 Stay in your terminal. Copy anything. Paste anywhere.
 
-**The Terminal-First Clipboard Suite:** [Clippy](#core-features) copies files to clipboard, [Pasty](#pasty---intelligent-clipboard-pasting) pastes them intelligently, and [Draggy](#draggy---drag-and-drop-bridge) (optional GUI) bridges drag-and-drop workflows. All designed to minimize context switching from your terminal.
+**The Terminal-First Clipboard Suite:** [Clippy](#core-features) copies files to clipboard, [Pasty](#pasty---intelligent-clipboard-pasting) pastes them intelligently, and [Draggy](#draggy---drag-and-drop-bridge) (optional GUI) bridges drag-and-drop workflows. Use as a [Go library](#library) for custom integrations. All designed to minimize context switching from your terminal.
 
-💡 **Bonus:** Clippy includes an [MCP server](#mcp-server) for AI assistants like Claude to manage your clipboard.
+💡 **Bonus:** Clippy includes an [MCP server](#mcp-server) for AI assistants like Claude to copy generated content directly to your clipboard.
 
 ## Installation
 
@@ -98,7 +98,14 @@ clippy -r --paste          # Copy recent download and paste here
 clippy -i --paste           # Pick file, copy it, and paste here
 ```
 
-### 5. Helpful Flags
+### 5. Clear Clipboard
+
+```bash
+clippy --clear         # Empty the clipboard
+echo -n | clippy       # Also clears the clipboard
+```
+
+### 6. Helpful Flags
 
 ```bash
 clippy -v file.txt     # Show what happened
@@ -168,6 +175,7 @@ brew install --cask neilberkman/clippy/draggy
 ```
 
 **⚠️ First Launch:** macOS may show a security warning since Draggy isn't code-signed. If you see "Draggy is damaged and can't be opened":
+
 - The Homebrew cask automatically removes the quarantine flag during installation
 - If the warning persists, run: `xattr -dr com.apple.quarantine /Applications/Draggy.app`
 - Or right-click Draggy.app and select "Open" to bypass Gatekeeper
@@ -193,6 +201,7 @@ Draggy is intentionally minimal. If you want a full-featured clipboard manager w
 Clippy includes a built-in MCP (Model Context Protocol) server that lets AI assistants copy generated content directly to your clipboard.
 
 Ask Claude to generate any text - code, emails, documents - and have it instantly available to paste anywhere:
+
 - "Write a Python script to process CSV files and copy it to my clipboard"
 - "Draft an email about the meeting and put it on my clipboard"
 - "Generate that regex and copy it so I can paste into my editor"
@@ -221,6 +230,48 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 - **get_recent_downloads** - List recently downloaded files
 
 Claude can generate content and put it directly on your clipboard, ready to paste wherever you need it.
+
+## Library
+
+[Clippy](#core-features) can be used as a Go library in your own applications:
+
+```bash
+go get github.com/neilberkman/clippy
+```
+
+### High-Level API
+
+```go
+import "github.com/neilberkman/clippy"
+
+// Smart copy - automatically detects text vs binary files
+err := clippy.Copy("document.pdf")
+
+// Copy multiple files as references
+err := clippy.CopyMultiple([]string{"image1.jpg", "image2.png"})
+
+// Copy text content
+err := clippy.CopyText("Hello, World!")
+
+// Copy data from reader (handles text/binary detection)
+reader := strings.NewReader("Some content")
+err := clippy.CopyData(reader)
+
+// Copy from stdin
+err := clippy.CopyData(os.Stdin)
+
+// Get clipboard content
+text, ok := clippy.GetText()
+files := clippy.GetFiles()
+```
+
+### Features
+
+- **Smart Detection**: Automatically determines whether to copy as file reference or text content
+- **Multiple Files**: Copy multiple files in one operation
+- **Reader Support**: Copy from any io.Reader with automatic format detection
+- **Clipboard Access**: Read current clipboard content (text or file paths)
+- **Cross-Platform Types**: Uses standard Go types, handles platform-specific clipboard internally
 
 ## License
 

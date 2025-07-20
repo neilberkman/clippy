@@ -65,10 +65,12 @@ func TestPastyVersion(t *testing.T) {
 }
 
 func TestPastyWithTextClipboard(t *testing.T) {
-	// Clear clipboard first by copying empty text
-	clearCmd := exec.Command("./clippy_test")
-	clearCmd.Stdin = strings.NewReader("")
-	_, _ = clearCmd.CombinedOutput() // Explicitly ignore errors
+	// Clear clipboard first using --clear flag
+	clearCmd := exec.Command("./clippy_test", "--clear")
+	_, err := clearCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to clear clipboard: %v", err)
+	}
 
 	// First, put some text on the clipboard using clippy
 	clippyCmd := exec.Command("./clippy_test", "--verbose")

@@ -21,7 +21,7 @@ brew install --cask neilberkman/clippy/draggy
 
 These GUI tools are:
 - **Optional** - The CLI tools work perfectly without them
-- **Minimal** - Just enough UI to bridge terminal-to-GUI workflows  
+- **Minimal** - Just enough UI to bridge terminal-to-GUI workflows
 - **Focused** - Each tool does one thing well
 
 They are NOT:

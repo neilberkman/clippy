@@ -10,8 +10,8 @@ import (
 func TestDefaultFindOptions(t *testing.T) {
 	opts := DefaultFindOptions()
 
-	if opts.MaxAge != 5*time.Minute {
-		t.Errorf("Expected MaxAge to be 5 minutes, got %v", opts.MaxAge)
+	if opts.MaxAge != 2*24*time.Hour {
+		t.Errorf("Expected MaxAge to be 2 days, got %v", opts.MaxAge)
 	}
 
 	if opts.MaxCount != 10 {

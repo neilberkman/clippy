@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/neilberkman/clippy"
+	"github.com/neilberkman/clippy/cmd/internal/common"
 	"github.com/neilberkman/clippy/internal/log"
 	"github.com/spf13/cobra"
 )
@@ -15,9 +16,6 @@ import (
 var (
 	verbose bool
 	debug   bool
-	version = "dev"
-	commit  = "none"
-	date    = "unknown"
 	logger  *log.Logger
 )
 
@@ -44,10 +42,10 @@ Description:
   - Text content is written directly
   - File references are copied to destination
   - If no destination specified, outputs to stdout`,
-		Version: fmt.Sprintf("%s (%s) built on %s", version, commit, date),
+		Version: fmt.Sprintf("%s (%s) built on %s", common.Version, common.Commit, common.Date),
 		Run: func(cmd *cobra.Command, args []string) {
 			// Initialize logger
-			logger = log.New(log.Config{Verbose: verbose || debug, Debug: debug})
+			logger = common.SetupLogger(verbose, debug)
 
 			// Get destination from args
 			var destination string
@@ -101,8 +99,7 @@ Description:
 	}
 
 	// Add flags
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
-	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug output (includes technical details)")
+	common.AddCommonFlags(rootCmd, &verbose, &debug)
 
 	// Execute the command
 	if err := rootCmd.Execute(); err != nil {

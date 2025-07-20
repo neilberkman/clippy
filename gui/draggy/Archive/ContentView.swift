@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @ObservedObject var clipboardManager: ClipboardManager
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -17,9 +17,9 @@ struct ContentView: View {
                 .buttonStyle(.plain)
             }
             .padding()
-            
+
             Divider()
-            
+
             // File list
             if clipboardManager.files.isEmpty {
                 VStack {
@@ -42,9 +42,9 @@ struct ContentView: View {
                     .padding()
                 }
             }
-            
+
             Divider()
-            
+
             // Footer
             HStack {
                 Text("\(clipboardManager.files.count) file\(clipboardManager.files.count == 1 ? "" : "s")")
@@ -62,38 +62,38 @@ struct ContentView: View {
 struct FileRow: View {
     let filePath: String
     @State private var isHovering = false
-    
+
     var fileURL: URL {
         URL(fileURLWithPath: filePath)
     }
-    
+
     var fileName: String {
         fileURL.lastPathComponent
     }
-    
+
     var fileIcon: NSImage {
         NSWorkspace.shared.icon(forFile: filePath)
     }
-    
+
     var body: some View {
         HStack(spacing: 12) {
             Image(nsImage: fileIcon)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 32, height: 32)
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(fileName)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                
+
                 Text(fileURL.deletingLastPathComponent().path)
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
-            
+
             Spacer()
         }
         .padding(.horizontal, 12)
@@ -124,32 +124,32 @@ class ClipboardManager: ObservableObject {
     @Published var files: [String] = []
     @AppStorage("refreshInterval") private var refreshInterval: Double = 2.0
     @AppStorage("maxFilesShown") private var maxFilesShown: Int = 20
-    
+
     var onFilesChanged: (([String]) -> Void)?
     private var timer: Timer?
     private var lastChangeCount: Int = 0
-    
+
     init() {
         refresh()
         startMonitoring()
     }
-    
+
     deinit {
         timer?.invalidate()
     }
-    
+
     func refresh() {
         let pasteboard = NSPasteboard.general
         let currentChangeCount = pasteboard.changeCount
-        
+
         // Skip if clipboard hasn't changed
         if currentChangeCount == lastChangeCount {
             return
         }
         lastChangeCount = currentChangeCount
-        
+
         var foundFiles: [String] = []
-        
+
         // Check for file URLs
         if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL] {
             foundFiles = urls.compactMap { url in
@@ -160,36 +160,36 @@ class ClipboardManager: ObservableObject {
                 return nil
             }
         }
-        
+
         // If no URLs found, check for file paths as strings
         if foundFiles.isEmpty {
             if let filePaths = pasteboard.propertyList(forType: .fileURL) as? [String] {
                 foundFiles = filePaths
             }
         }
-        
+
         // Check the older NSFilenamesPboardType
         if foundFiles.isEmpty {
             if let filePaths = pasteboard.propertyList(forType: NSPasteboard.PasteboardType("NSFilenamesPboardType")) as? [String] {
                 foundFiles = filePaths
             }
         }
-        
+
         // Limit files shown
         if foundFiles.count > maxFilesShown {
             foundFiles = Array(foundFiles.prefix(maxFilesShown))
         }
-        
+
         // Update and notify if changed
         if files != foundFiles {
             files = foundFiles
             onFilesChanged?(files)
         }
     }
-    
+
     private func startMonitoring() {
         updateTimer()
-        
+
         // Listen for preference changes
         NotificationCenter.default.addObserver(
             self,
@@ -198,7 +198,7 @@ class ClipboardManager: ObservableObject {
             object: nil
         )
     }
-    
+
     @objc private func updateTimer() {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in

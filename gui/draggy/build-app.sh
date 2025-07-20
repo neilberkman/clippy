@@ -4,7 +4,8 @@ set -e
 cd "$(dirname "$0")"
 
 # Build the executable
-swift build -c release
+echo "Building for production..."
+swift build -c release --arch arm64
 
 # Create app bundle structure
 APP_NAME="Draggy"

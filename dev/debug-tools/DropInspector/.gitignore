@@ -1,0 +1,17 @@
+# Swift build artifacts
+.build/
+.swiftpm/
+*.xcodeproj/
+*.xcworkspace/
+
+# macOS
+.DS_Store
+
+# Build products
+*.dSYM
+*.swiftinterface
+*.swiftmodule
+*.swiftdoc
+
+# SPM
+Package.resolved

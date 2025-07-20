@@ -1,18 +1,36 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+
 struct ContentView: View {
     @ObservedObject var viewModel: ClipboardViewModel
-    
+    @StateObject private var updateChecker = UpdateChecker()
+
     var body: some View {
-        VStack(spacing: 0) {
-            HeaderView(viewModel: viewModel)
-            Divider()
-            FileListView(files: viewModel.files)
-            Divider()
-            FooterView(fileCount: viewModel.files.count)
+        ZStack {
+            VStack(spacing: 0) {
+                // Show update notification at the top if available
+                if updateChecker.updateAvailable {
+                    UpdateNotificationView(updateChecker: updateChecker)
+                    Divider()
+                }
+
+                HeaderView(viewModel: viewModel)
+                Divider()
+                FileListView(files: viewModel.files, viewModel: viewModel)
+                Divider()
+                FooterView(fileCount: viewModel.files.count, viewModel: viewModel)
+            }
+            .frame(width: 300, height: 400)
+
+            if viewModel.showOnboarding {
+                OnboardingView(viewModel: viewModel)
+            }
         }
-        .frame(width: 300, height: 400)
+        .onAppear {
+            // Check for updates when view appears
+            updateChecker.checkForUpdatesIfNeeded()
+        }
     }
 }
 
@@ -20,17 +38,36 @@ struct ContentView: View {
 
 struct HeaderView: View {
     @ObservedObject var viewModel: ClipboardViewModel
-    
+    @State private var showToggleTooltip = false
+    @State private var showRefreshTooltip = false
+
     var body: some View {
         HStack {
             Text("Draggy")
                 .font(.headline)
+                .help("This is Draggy")
+
             Spacer()
+
+            Text(viewModel.showingRecentDownloads ? "Recent Downloads" : "Clipboard")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+            Spacer()
+
+            // Toggle between clipboard and recent downloads
+            Button(action: viewModel.toggleRecentMode) {
+                Image(systemName: viewModel.showingRecentDownloads ? "paperclip" : "clock")
+            }
+            .buttonStyle(.plain)
+            .help(viewModel.showingRecentDownloads ? "Show clipboard" : "Show recent downloads")
+
             Button(action: viewModel.refresh) {
                 Image(systemName: viewModel.isRefreshing ? "arrow.clockwise.circle.fill" : "arrow.clockwise")
             }
             .buttonStyle(.plain)
             .disabled(viewModel.isRefreshing)
+            .help("Refresh")
         }
         .padding()
     }
@@ -38,51 +75,166 @@ struct HeaderView: View {
 
 struct FileListView: View {
     let files: [ClipboardFile]
-    
+    @ObservedObject var viewModel: ClipboardViewModel
+    @State private var hasCheckedOnce = false
+
     var body: some View {
-        if files.isEmpty {
-            EmptyStateView()
-        } else {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(files, id: \.path) { file in
-                        FileRow(file: file)
+        Group {
+            if files.isEmpty && hasCheckedOnce {
+                EmptyStateView(showingRecentDownloads: viewModel.showingRecentDownloads, viewModel: viewModel)
+            } else if !files.isEmpty {
+                VStack(spacing: 0) {
+
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(files, id: \.path) { file in
+                                FileRow(file: file, onDragStarted: viewModel.onDragStarted)
+                            }
+                        }
+                        .padding()
+                    }
+                    .safeAreaInset(edge: .bottom) {
+                        InfoBar(viewModel: viewModel)
                     }
                 }
-                .padding()
+            } else {
+                // Loading state - show nothing initially
+                Spacer()
+            }
+        }
+        .onAppear {
+            // Mark that we've checked at least once after a small delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                hasCheckedOnce = true
             }
         }
     }
 }
 
 struct EmptyStateView: View {
+    let showingRecentDownloads: Bool
+    @ObservedObject var viewModel: ClipboardViewModel
+
     var body: some View {
         VStack {
             Spacer()
-            Image(systemName: "doc.on.clipboard")
+            Image(systemName: showingRecentDownloads ? "clock" : "clipboard")
                 .font(.largeTitle)
                 .foregroundColor(.secondary)
                 .padding(.bottom, 8)
-            Text("No files in clipboard")
-                .foregroundColor(.secondary)
-            Text("Copy files with clippy first")
-                .font(.caption)
-                .foregroundColor(.secondary)
+
+            if showingRecentDownloads {
+                Text("No recent downloads")
+                    .foregroundColor(.secondary)
+                Text("Files added to Downloads folder will appear here")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                Text("Clipboard is empty")
+                    .foregroundColor(.secondary)
+                Text("Copy files to see them here")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                // Show option to enable recent downloads if not already enabled
+                if !viewModel.recentDownloadsEnabled && !viewModel.hasSeenRecentDownloadsPrompt {
+                    Button("Show recent files when empty") {
+                        viewModel.showOnboarding = true
+                    }
+                    .buttonStyle(.link)
+                    .padding(.top, 8)
+                }
+            }
+
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
+struct InfoBar: View {
+    @ObservedObject var viewModel: ClipboardViewModel
+    @AppStorage("showInfoBar") private var showInfoBar: Bool = true
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Auto-switch message
+            if viewModel.showAutoSwitchMessage {
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.blue)
+                    Text("Nothing in clipboard, showing recent downloads")
+                        .font(.caption)
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Button(action: {
+                        viewModel.showAutoSwitchMessage = false
+                        viewModel.showingRecentDownloads = false
+                        viewModel.refresh()
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color(NSColor.windowBackgroundColor).opacity(0.9))
+                Divider()
+            }
+
+            // Regular info bar - only show if auto-switch message is not showing
+            if showInfoBar && !viewModel.showAutoSwitchMessage {
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.secondary)
+                    Text("Hold ⌥ Option while hovering to preview • Drag files to other apps")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button(action: { showInfoBar = false }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color(NSColor.windowBackgroundColor).opacity(0.9))
+            }
+        }
+    }
+}
+
 struct FooterView: View {
     let fileCount: Int
-    
+    @ObservedObject var viewModel: ClipboardViewModel
+
     var body: some View {
-        HStack {
-            Text("\(fileCount) file\(fileCount == 1 ? "" : "s")")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            Spacer()
+        VStack(spacing: 4) {
+            // Show opt-in reminder if user declined but hasn't re-enabled
+            if viewModel.hasSeenRecentDownloadsPrompt && !viewModel.recentDownloadsEnabled && !viewModel.showingRecentDownloads {
+                Button(action: { viewModel.showOnboarding = true }) {
+                    HStack {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.caption)
+                        Text("Show recent files when clipboard empty")
+                            .font(.caption)
+                    }
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.accentColor)
+                .padding(.vertical, 4)
+            }
+
+            HStack {
+                Text("\(fileCount) file\(fileCount == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
@@ -91,68 +243,88 @@ struct FooterView: View {
 
 // MARK: - File Row
 
-struct FileRow: View {
-    let file: ClipboardFile
-    @State private var isHovering = false
-    @AppStorage("showFullPath") private var showFullPath: Bool = false
-    
-    private var fileURL: URL {
-        URL(fileURLWithPath: file.path)
-    }
-    
-    private var fileIcon: NSImage {
-        NSWorkspace.shared.icon(forFile: file.path)
-    }
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(nsImage: fileIcon)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 32, height: 32)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(file.name)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                
-                Text(showFullPath ? file.path : file.directory)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-            
-            Spacer()
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(isHovering ? Color.accentColor.opacity(0.1) : Color.clear)
-        .cornerRadius(6)
-        .onHover { hovering in
-            isHovering = hovering
-        }
-        .draggable(fileURL) {
-            DragPreview(file: file, icon: fileIcon)
-        }
-    }
-}
+// FileRow moved to its own file
 
-struct DragPreview: View {
-    let file: ClipboardFile
-    let icon: NSImage
-    
+
+// MARK: - Onboarding
+
+struct OnboardingView: View {
+    @ObservedObject var viewModel: ClipboardViewModel
+    @State private var showRelaunchWarning = false
+
     var body: some View {
-        HStack {
-            Image(nsImage: icon)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 16, height: 16)
-            Text(file.name)
-                .font(.caption)
+        ZStack {
+            VStack(spacing: 16) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: 40))
+                    .foregroundColor(.accentColor)
+
+                Text("Show Recent Files When Empty")
+                    .font(.headline)
+
+                Text("Draggy can automatically show files from your Downloads, Desktop, and Documents folders when the clipboard is empty.")
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.secondary)
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if !showRelaunchWarning {
+                    Text("This requires permission to access your Downloads, Desktop, and Documents folders.")
+                        .font(.caption2)
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 8)
+
+                    HStack(spacing: 16) {
+                        Button("Not now") {
+                            viewModel.declineRecentDownloads()
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(.secondary)
+
+                        Button("Enable") {
+                            showRelaunchWarning = true
+                            // Don't auto-trigger permissions
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                } else {
+                    VStack(spacing: 8) {
+                        Text("macOS will now ask for permission to access your Downloads, Desktop, and Documents folders")
+                            .font(.caption)
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
+
+                        Text("You'll need to reopen Draggy after granting these permissions")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(12)
+                    .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                    )
+
+                    Spacer()
+                        .frame(height: 8)
+
+                    Button("Continue →") {
+                        viewModel.enableRecentDownloads()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+            }
+            .padding(24)
+            .background(Color(NSColor.windowBackgroundColor))
+            .cornerRadius(10)
+            .shadow(radius: 10)
+            .frame(width: 300, height: 400)
+            .background(Color.black.opacity(0.3))
         }
-        .padding(4)
-        .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(4)
     }
 }
