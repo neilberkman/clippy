@@ -2,6 +2,31 @@
 
 Notable changes to clippy.
 
+## [1.2.6] - 2025-01-21
+
+### Added
+
+- **Folder selection for recent files**: Control which folders to search
+  - New `--folders` flag to specify folders (e.g., `--folders downloads,desktop`)
+  - Supports downloads, desktop, and documents folders
+  - Config option `default_folders` to set default search folders
+  - Updated help text to reflect broader search scope
+
+### Draggy [0.12.0]
+
+- **Folder preferences**: Configure which folders to search for recent files
+  - New preferences section for folder selection
+  - Checkboxes for Downloads, Desktop, and Documents
+  - Settings persist across app restarts
+- **Improved recent files display**: Better organization and UI
+  - Enhanced file row display with better formatting
+  - Improved view model for recent files handling
+  - Better integration with folder preferences
+- **UI refinements**: Various interface improvements
+  - Better settings window layout
+  - Improved content view organization
+  - Enhanced file browsing experience
+
 ## [1.2.5] - 2025-01-21
 
 ### Fixed
