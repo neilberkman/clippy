@@ -169,8 +169,7 @@ struct InfoBar: View {
                     Spacer()
                     Button(action: {
                         viewModel.showAutoSwitchMessage = false
-                        viewModel.showingRecentDownloads = false
-                        viewModel.refresh()
+                        showInfoBar = true  // Show info bar after dismissing auto-switch message
                     }) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(.secondary)

@@ -245,14 +245,7 @@ func GetText() (string, bool) {
 // GetFiles returns file paths from clipboard.
 // Uses hybrid detection for better reliability.
 func GetFiles() []string {
-	// Try hybrid detection first
-	if content, err := clipboard.GetClipboardContent(); err == nil {
-		if content.IsFile {
-			return []string{content.FilePath}
-		}
-	}
-
-	// Fallback to simple file detection
+	// Always use the proper GetFiles that returns all files
 	return clipboard.GetFiles()
 }
 

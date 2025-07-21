@@ -29,7 +29,7 @@ struct UpdateNotificationView: View {
                 .foregroundColor(.secondary)
 
                 if updateChecker.isInstalledViaHomebrew() {
-                    Button("Copy Command") {
+                    Button("Copy") {
                         // Copy brew command to clipboard
                         let command = updateChecker.getBrewUpdateCommand()
                         NSPasteboard.general.clearContents()
@@ -39,6 +39,7 @@ struct UpdateNotificationView: View {
                     .buttonStyle(.borderedProminent)
                     .font(.caption)
                     .controlSize(.small)
+                    .help("Copy update command to clipboard")
                 } else {
                     Button("Download") {
                         updateChecker.openDownloadPage()

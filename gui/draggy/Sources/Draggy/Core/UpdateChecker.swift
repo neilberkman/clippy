@@ -113,11 +113,7 @@ class UpdateChecker: ObservableObject {
     }
 
     func getBrewUpdateCommand() -> String {
-        if let brewPath = findBrewPath() {
-            return "\(brewPath) upgrade clippy"
-        } else {
-            return "brew upgrade clippy"
-        }
+        return "brew upgrade --cask draggy"
     }
 
     func isInstalledViaHomebrew() -> Bool {

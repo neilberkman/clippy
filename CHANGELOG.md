@@ -4,6 +4,16 @@ Notable changes to clippy.
 
 ## [1.2.2] - 2025-01-20
 
+### Draggy [0.11.3]
+- Fixed auto-switch message behavior
+  - X button now only dismisses the message, doesn't switch views
+  - Info bar with tips now appears after dismissing message
+- Fixed update notification button truncation
+  - "Copy Command" button shortened to "Copy" with tooltip
+- UI improvements for better clarity
+
+## [1.2.2] - 2025-01-20
+
 ### Fixed
 - Recent downloads flags (`-r 3`, `-i 5m`) now work correctly
   - Fixed argument parsing to support space-separated values 
