@@ -29,7 +29,7 @@ clippy -i 5m            # Show picker for last 5 minutes only
 
 Stay in your terminal. Copy anything. Paste anywhere.
 
-**The Terminal-First Clipboard Suite:** [Clippy](#core-features) copies files to clipboard, [Pasty](#pasty---intelligent-clipboard-pasting) pastes them intelligently, and [Draggy](#draggy---drag-and-drop-bridge) (optional GUI) bridges drag-and-drop workflows. Use as a [Go library](#library) for custom integrations. All designed to minimize context switching from your terminal.
+**The Terminal-First Clipboard Suite:** [Clippy](#core-features) copies files to clipboard, [Pasty](#pasty---intelligent-clipboard-pasting) pastes them intelligently, and [Draggy](#draggy---visual-clipboard-companion) (optional GUI) bridges drag-and-drop workflows. Use as a [Go library](#library) for custom integrations. All designed to minimize context switching from your terminal.
 
 💡 **Bonus:** Clippy includes an [MCP server](#mcp-server) for AI assistants like Claude to copy generated content directly to your clipboard.
 
@@ -93,7 +93,7 @@ cat archive.tar.gz | clippy
 ### 4. Copy and Paste Together
 
 ```bash
-clippy file.txt --paste     # Copy to clipboard AND paste here
+clippy ~/Downloads/report.pdf --paste  # Copy to clipboard AND paste here
 clippy -r --paste          # Copy recent download and paste here
 clippy -i --paste           # Pick file, copy it, and paste here
 ```
@@ -154,18 +154,32 @@ go install github.com/neilberkman/clippy/cmd/clippy@latest
 go install github.com/neilberkman/clippy/cmd/pasty@latest
 ```
 
-## Draggy - Drag and Drop Bridge
+## Draggy - Visual Clipboard Companion
 
-Sometimes you need to drag files to web upload fields or native apps. Draggy is a minimal menu bar app that makes clipboard files draggable.
+Draggy is a menu bar app that brings visual functionality to your clipboard workflow. While clippy handles copying from the terminal, Draggy provides a visual interface for dragging files to applications and viewing recent downloads.
 
 **Important:** Draggy is a separate, optional tool. It's not automatically installed with clippy.
 
 ### Features
 
-- **Minimal menu bar UI** - Click to see clipboard files, drag them where needed
-- **Zero background activity** - No polling, no battery drain. Only checks clipboard when activated
-- **Not a clipboard manager** - Draggy explicitly avoids history, search, or management features. It's just a bridge for drag-and-drop
-- **Shows file icons** - Native macOS file icons for easy recognition
+#### Core Functionality
+
+- **Drag & Drop Bridge** - Makes clipboard files draggable to web browsers, Slack, and other apps
+- **Recent Downloads Viewer** - Toggle between clipboard and recent downloads with one click
+- **File Thumbnails** - Visual previews for images and PDFs right in the file list
+- **Quick Preview** - Hold ⌥ Option while hovering to see larger previews
+- **Zero Background Activity** - No polling or battery drain, only activates on demand
+
+#### User Experience
+
+- **Double-Click to Open** - Quick access to files without leaving the menu
+- **Keyboard Shortcuts** - ESC to close, Space to refresh
+
+#### Design Philosophy
+
+- **Not a clipboard manager** - No history, no database, no complexity
+- **Terminal-first workflow** - Designed to complement terminal usage, not replace it
+- **Minimal but complete** - Every feature serves a specific workflow need
 
 ### Installation
 
@@ -183,18 +197,47 @@ brew install --cask neilberkman/clippy/draggy
 ### Usage
 
 ```bash
-# In terminal:
-clippy *.png              # Copy files with clippy
-curl -sL pic.jpg | clippy # Or pipe downloads
+# Copy files in terminal:
+clippy ~/Downloads/*.pdf    # Copy PDFs with clippy
+curl -sL image.jpg | clippy # Pipe downloads to clipboard
+clippy -r                   # Copy most recent download
 
-# In GUI:
+# Use Draggy GUI:
 # 1. Click Draggy icon in menu bar
 # 2. Drag files to browser upload fields, Slack, etc.
+# 3. Toggle to Recent Downloads view with clock icon
+# 4. Hold ⌥ Option to preview files
+# 5. Double-click to open files
+```
+
+### Workflow Examples
+
+**Upload screenshots to GitHub:**
+
+```bash
+# Take screenshot (macOS saves to Desktop)
+# In terminal: clippy ~/Desktop/Screenshot*.png
+# In Draggy: Drag to GitHub comment box
+```
+
+**Quick file sharing:**
+
+```bash
+# Terminal: clippy ~/Downloads/report.pdf
+# Draggy: Shows thumbnail, drag to Slack or email
+```
+
+**Recent downloads workflow:**
+
+```bash
+# Download file in browser
+# Click Draggy → Click clock icon → See your download
+# Drag where needed or double-click to open
 ```
 
 ### Philosophy
 
-Draggy is intentionally minimal. If you want a full-featured clipboard manager with history, search, and organization, use something else. Draggy is for terminal users who occasionally need to drag a file somewhere and want to get back to their terminal as quickly as possible.
+Draggy is intentionally not a clipboard manager. No history, no search, no database. It's a visual bridge between your terminal clipboard workflow and GUI applications. For terminal users who occasionally need to see what's on their clipboard or drag files somewhere, then get back to work.
 
 ## MCP Server
 

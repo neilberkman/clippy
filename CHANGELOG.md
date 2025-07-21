@@ -5,6 +5,7 @@ Notable changes to clippy.
 ## [1.2.5] - 2025-01-21
 
 ### Fixed
+
 - MCP server panic "Prompt capabilities not enabled"
   - Upgraded mcp-go from accidentally downgraded v0.10.0 back to v0.34.0
   - Restores MCP server functionality for AI/LLM integration
@@ -12,6 +13,7 @@ Notable changes to clippy.
 ## [1.2.2] - 2025-01-20
 
 ### Draggy [0.11.3]
+
 - Fixed auto-switch message behavior
   - X button now only dismisses the message, doesn't switch views
   - Info bar with tips now appears after dismissing message
@@ -22,24 +24,27 @@ Notable changes to clippy.
 ## [1.2.2] - 2025-01-20
 
 ### Fixed
+
 - Recent downloads flags (`-r 3`, `-i 5m`) now work correctly
-  - Fixed argument parsing to support space-separated values 
+  - Fixed argument parsing to support space-separated values
   - Previously required `=` syntax (e.g., `-r=3`)
 - Help text now correctly shows usage examples
 
 ### Draggy [0.11.2]
+
 - Fixed blank "Draggy Settings" window appearing at startup
   - Properly configured SwiftUI App scene to prevent default window
   - Added window closing on app launch as safety measure
   - Only affects release builds (not seen in development)
 - Previous fixes from 0.11.1:
   - Fixed settings window content display
-  - Fixed version display (now shows v0.11.0) 
+  - Fixed version display (now shows v0.11.0)
   - Fixed window title consistency
 
 ## [1.2.1] - 2025-01-20
 
 ### Fixed
+
 - Version information now properly displayed in `--version` output
   - Fixed ldflags in GoReleaser to correctly set version variables
 
