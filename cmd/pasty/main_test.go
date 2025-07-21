@@ -71,7 +71,7 @@ func TestPastyWithTextClipboard(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to clear clipboard: %v", err)
 	}
-	
+
 	// Small delay to ensure clipboard is cleared
 	time.Sleep(100 * time.Millisecond)
 

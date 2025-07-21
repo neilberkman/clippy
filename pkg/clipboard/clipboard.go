@@ -117,12 +117,12 @@ char** getClipboardFiles(int *count) {
     @autoreleasepool {
         [NSApplication sharedApplication]; // Initialize the app context
         NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
-        
+
         NSArray *files = [pasteboard readObjectsForClasses:@[[NSURL class]]
                                                    options:@{NSPasteboardURLReadingFileURLsOnlyKey: @YES}];
 
         *count = (int)[files count];
-        
+
         if (*count == 0) return NULL;
 
         char **paths = (char**)malloc(sizeof(char*) * (*count));

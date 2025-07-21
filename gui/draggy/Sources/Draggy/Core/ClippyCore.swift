@@ -4,6 +4,9 @@ import Foundation
 @_silgen_name("ClippyGetRecentDownloads")
 func ClippyGetRecentDownloads(_ maxCount: CInt, _ durationSecs: CInt, _ outError: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) -> UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
 
+@_silgen_name("ClippyGetRecentDownloadsWithFolders")
+func ClippyGetRecentDownloadsWithFolders(_ maxCount: CInt, _ durationSecs: CInt, _ folders: UnsafeMutablePointer<CChar>, _ outError: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) -> UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+
 @_silgen_name("ClippyFreeStringArray")
 func ClippyFreeStringArray(_ arr: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?)
 
@@ -22,26 +25,49 @@ struct ClippyCore {
 
     // MARK: - Recent Downloads
 
-    static func getRecentDownloads(maxCount: Int = 10, maxAge: TimeInterval? = nil) -> [ClipboardFile] {
+    static func getRecentDownloads(maxCount: Int = 10, maxAge: TimeInterval? = nil, folders: [String]? = nil) -> [ClipboardFile] {
         // Use library default if no maxAge specified (0 means use default)
         let durationSecs = CInt(maxAge ?? 0)
         var errorPtr: UnsafeMutablePointer<CChar>? = nil
 
-        NSLog("DEBUG: Calling ClippyGetRecentDownloads with maxCount=\(maxCount), duration=\(durationSecs)")
-
-        guard let cStrings = ClippyGetRecentDownloads(CInt(maxCount), durationSecs, &errorPtr) else {
-            // Check if there was a specific error
-            if let error = errorPtr {
-                let errorMessage = String(cString: error)
-                NSLog("DEBUG: ClippyGetRecentDownloads returned error: %@", errorMessage)
-                // Free the error string
-                free(error)
-            } else {
-                NSLog("DEBUG: ClippyGetRecentDownloads returned nil (no files found)")
+        // If specific folders are provided, use the folder-specific function
+        if let folders = folders {
+            let folderString = folders.joined(separator: ",")
+            NSLog("DEBUG: Calling ClippyGetRecentDownloadsWithFolders with maxCount=\(maxCount), duration=\(durationSecs), folders=\(folderString)")
+            
+            guard let cStrings = folderString.withCString({ cFolders in
+                ClippyGetRecentDownloadsWithFolders(CInt(maxCount), durationSecs, UnsafeMutablePointer(mutating: cFolders), &errorPtr)
+            }) else {
+                if let error = errorPtr {
+                    let errorMessage = String(cString: error)
+                    NSLog("DEBUG: ClippyGetRecentDownloadsWithFolders returned error: %@", errorMessage)
+                    free(error)
+                }
+                return []
             }
-            return []
-        }
+            
+            return parseFileResults(cStrings: cStrings)
+        } else {
+            NSLog("DEBUG: Calling ClippyGetRecentDownloads with maxCount=\(maxCount), duration=\(durationSecs)")
 
+            guard let cStrings = ClippyGetRecentDownloads(CInt(maxCount), durationSecs, &errorPtr) else {
+                if let error = errorPtr {
+                    let errorMessage = String(cString: error)
+                    NSLog("DEBUG: ClippyGetRecentDownloads returned error: %@", errorMessage)
+                    free(error)
+                } else {
+                    NSLog("DEBUG: ClippyGetRecentDownloads returned nil (no files found)")
+                }
+                return []
+            }
+
+            return parseFileResults(cStrings: cStrings)
+        }
+    }
+    
+    private static func parseFileResults(cStrings: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?) -> [ClipboardFile] {
+        guard let cStrings = cStrings else { return [] }
+        
         NSLog("DEBUG: ClippyGetRecentDownloads returned non-nil")
 
         // Convert C string array to Swift

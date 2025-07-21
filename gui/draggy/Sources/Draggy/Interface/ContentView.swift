@@ -40,36 +40,60 @@ struct HeaderView: View {
     @ObservedObject var viewModel: ClipboardViewModel
     @State private var showToggleTooltip = false
     @State private var showRefreshTooltip = false
+    @State private var showFolderPopover = false
 
     var body: some View {
-        HStack {
-            Text("Draggy")
-                .font(.headline)
-                .help("This is Draggy")
+        VStack(spacing: 0) {
+            // Main header row
+            HStack {
+                Text("Draggy")
+                    .font(.headline)
+                    .help("This is Draggy")
 
-            Spacer()
+                Spacer()
 
-            Text(viewModel.showingRecentDownloads ? "Recent Downloads" : "Clipboard")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                Text(viewModel.showingRecentDownloads ? "Recent Downloads" : "Clipboard")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
 
-            Spacer()
+                Spacer()
 
-            // Toggle between clipboard and recent downloads
-            Button(action: viewModel.toggleRecentMode) {
-                Image(systemName: viewModel.showingRecentDownloads ? "paperclip" : "clock")
+                // Folder filter button (only show in recent downloads mode)
+                if viewModel.showingRecentDownloads {
+                    Button(action: { showFolderPopover = true }) {
+                        Image(systemName: "folder")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Choose folders to search")
+                    .popover(isPresented: $showFolderPopover) {
+                        FolderSelectionView(viewModel: viewModel)
+                    }
+                }
+
+                // Toggle between clipboard and recent downloads
+                Button(action: viewModel.toggleRecentMode) {
+                    Image(systemName: viewModel.showingRecentDownloads ? "paperclip" : "clock")
+                }
+                .buttonStyle(.plain)
+                .help(viewModel.showingRecentDownloads ? "Show clipboard" : "Show recent downloads")
+
+                // Settings gear icon (always visible, rightmost)
+                Button(action: {
+                    // Send the showPreferences action to the AppDelegate
+                    NSApp.sendAction(Selector(("showPreferences")), to: NSApp.delegate, from: nil)
+                }) {
+                    Image(systemName: "gear")
+                }
+                .buttonStyle(.plain)
+                .help("Open Preferences")
             }
-            .buttonStyle(.plain)
-            .help(viewModel.showingRecentDownloads ? "Show clipboard" : "Show recent downloads")
+            .padding()
 
-            Button(action: viewModel.refresh) {
-                Image(systemName: viewModel.isRefreshing ? "arrow.clockwise.circle.fill" : "arrow.clockwise")
+            // Active folders indicator (only show in recent downloads mode)
+            if viewModel.showingRecentDownloads {
+                ActiveFoldersView(viewModel: viewModel)
             }
-            .buttonStyle(.plain)
-            .disabled(viewModel.isRefreshing)
-            .help("Refresh")
         }
-        .padding()
     }
 }
 
@@ -324,6 +348,138 @@ struct OnboardingView: View {
             .shadow(radius: 10)
             .frame(width: 300, height: 400)
             .background(Color.black.opacity(0.3))
+        }
+    }
+}
+
+// MARK: - Folder Selection
+
+struct FolderSelectionView: View {
+    @ObservedObject var viewModel: ClipboardViewModel
+    @AppStorage("searchDownloads") private var searchDownloads: Bool = true
+    @AppStorage("searchDesktop") private var searchDesktop: Bool = true
+    @AppStorage("searchDocuments") private var searchDocuments: Bool = true
+    
+    // Session-only overrides
+    @State private var sessionDownloads: Bool?
+    @State private var sessionDesktop: Bool?
+    @State private var sessionDocuments: Bool?
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Search Folders")
+                .font(.headline)
+            
+            Text("Choose which folders to search in this session")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Toggle("Downloads", isOn: Binding(
+                    get: { sessionDownloads ?? searchDownloads },
+                    set: { 
+                        sessionDownloads = $0
+                        viewModel.sessionFolderOverrides = [
+                            "downloads": sessionDownloads,
+                            "desktop": sessionDesktop,
+                            "documents": sessionDocuments
+                        ]
+                        viewModel.updateFolderSelection() 
+                    }
+                ))
+                
+                Toggle("Desktop", isOn: Binding(
+                    get: { sessionDesktop ?? searchDesktop },
+                    set: { 
+                        sessionDesktop = $0
+                        viewModel.sessionFolderOverrides = [
+                            "downloads": sessionDownloads,
+                            "desktop": sessionDesktop,
+                            "documents": sessionDocuments
+                        ]
+                        viewModel.updateFolderSelection() 
+                    }
+                ))
+                
+                Toggle("Documents", isOn: Binding(
+                    get: { sessionDocuments ?? searchDocuments },
+                    set: { 
+                        sessionDocuments = $0
+                        viewModel.sessionFolderOverrides = [
+                            "downloads": sessionDownloads,
+                            "desktop": sessionDesktop,
+                            "documents": sessionDocuments
+                        ]
+                        viewModel.updateFolderSelection() 
+                    }
+                ))
+            }
+            
+            Divider()
+            
+            HStack {
+                Text("Session only • Change defaults in Preferences")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+            }
+        }
+        .padding()
+        .frame(width: 200)
+        .onAppear {
+            // Initialize session state from existing overrides if available
+            if let existing = viewModel.sessionFolderOverrides {
+                sessionDownloads = existing["downloads"] as? Bool
+                sessionDesktop = existing["desktop"] as? Bool
+                sessionDocuments = existing["documents"] as? Bool
+            }
+            // Store current session state in viewModel
+            viewModel.sessionFolderOverrides = [
+                "downloads": sessionDownloads,
+                "desktop": sessionDesktop,
+                "documents": sessionDocuments
+            ]
+        }
+    }
+}
+
+struct ActiveFoldersView: View {
+    @ObservedObject var viewModel: ClipboardViewModel
+    @AppStorage("searchDownloads") private var searchDownloads: Bool = true
+    @AppStorage("searchDesktop") private var searchDesktop: Bool = true
+    @AppStorage("searchDocuments") private var searchDocuments: Bool = true
+    
+    private var activeFolders: [String] {
+        var folders: [String] = []
+        
+        let effectiveDownloads = viewModel.sessionFolderOverrides?["downloads"] as? Bool ?? searchDownloads
+        let effectiveDesktop = viewModel.sessionFolderOverrides?["desktop"] as? Bool ?? searchDesktop
+        let effectiveDocuments = viewModel.sessionFolderOverrides?["documents"] as? Bool ?? searchDocuments
+        
+        if effectiveDownloads { folders.append("Downloads") }
+        if effectiveDesktop { folders.append("Desktop") }
+        if effectiveDocuments { folders.append("Documents") }
+        
+        return folders
+    }
+    
+    var body: some View {
+        // Only show if not searching all folders (don't show redundant info)
+        if activeFolders.count < 3 && !activeFolders.isEmpty {
+            HStack(spacing: 4) {
+                Image(systemName: "folder")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                
+                Text(activeFolders.joined(separator: " • "))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 2)
         }
     }
 }

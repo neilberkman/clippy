@@ -4,6 +4,9 @@ package main
 import "C"
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 	"unsafe"
 
@@ -47,6 +50,69 @@ func ClippyGetRecentDownloads(maxCount C.int, durationSecs C.int, outError **C.c
 		cStrings[i] = C.CString(str)
 	}
 	cStrings[len(files)] = nil // Null-terminate the array
+
+	return (**C.char)(cArray)
+}
+
+// ClippyGetRecentDownloadsWithFolders finds recent files from specific folders
+//
+//export ClippyGetRecentDownloadsWithFolders
+func ClippyGetRecentDownloadsWithFolders(maxCount C.int, durationSecs C.int, folders *C.char, outError **C.char) **C.char {
+	// Parse folder preferences
+	folderStr := C.GoString(folders)
+	var customDirs []string
+
+	if folderStr != "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			*outError = C.CString(fmt.Sprintf("Error getting home directory: %v", err))
+			return nil
+		}
+
+		folderNames := strings.Split(folderStr, ",")
+		for _, folder := range folderNames {
+			folder = strings.ToLower(strings.TrimSpace(folder))
+			switch folder {
+			case "downloads", "download":
+				customDirs = append(customDirs, filepath.Join(homeDir, "Downloads"))
+			case "desktop":
+				customDirs = append(customDirs, filepath.Join(homeDir, "Desktop"))
+			case "documents", "docs":
+				customDirs = append(customDirs, filepath.Join(homeDir, "Documents"))
+			}
+		}
+	}
+
+	// Set up options
+	opts := recent.DefaultFindOptions()
+	if durationSecs > 0 {
+		opts.MaxAge = time.Duration(durationSecs) * time.Second
+	}
+	if int(maxCount) > 0 {
+		opts.MaxCount = int(maxCount)
+	}
+
+	// Override directories if custom ones provided
+	if len(customDirs) > 0 {
+		opts.Directories = customDirs
+	}
+
+	// Find files
+	files, err := recent.FindRecentFiles(opts)
+	if err != nil {
+		*outError = C.CString(fmt.Sprintf("Error finding recent files: %v", err))
+		return nil
+	}
+
+	// Convert to C string array
+	cArray := C.malloc(C.size_t((len(files) + 1)) * C.size_t(unsafe.Sizeof(uintptr(0))))
+	cStrings := (*[1<<30 - 1]*C.char)(cArray)
+
+	for i, file := range files {
+		str := fmt.Sprintf("%s|%s|%d", file.Path, file.Name, file.Modified.Unix())
+		cStrings[i] = C.CString(str)
+	}
+	cStrings[len(files)] = nil
 
 	return (**C.char)(cArray)
 }

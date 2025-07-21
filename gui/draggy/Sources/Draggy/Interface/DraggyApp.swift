@@ -50,7 +50,7 @@ struct DraggyApp: App {
     }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
     private var eventMonitor: EventMonitor?
@@ -71,6 +71,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         setupPopover()
         setupEventMonitor()
         // Don't check for updates on launch - wait until user actually opens popover
+    }
+    
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        return false  // Don't quit when preferences window closes - we're a menu bar app
     }
 
     private func setupStatusItem() {
@@ -197,13 +201,31 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 defer: false
             )
             window.title = "Draggy Settings"
-            window.contentView = NSHostingView(rootView: PreferencesView())
+            window.contentView = NSHostingView(rootView: PreferencesView(onDone: { [weak self] in
+                self?.closePreferences()
+            }))
             window.center()
+            window.delegate = self  // Set delegate to handle window events
             preferencesWindow = window
         }
 
+        preferencesWindow?.level = .floating  // Same level as popover
         preferencesWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+    
+    private func closePreferences() {
+        print("DEBUG: closePreferences called")
+        preferencesWindow?.orderOut(nil)  // Hide instead of close
+        print("DEBUG: closePreferences completed")
+    }
+    
+    // MARK: - NSWindowDelegate
+    
+    func windowWillClose(_ notification: Notification) {
+        if let window = notification.object as? NSWindow, window == preferencesWindow {
+            preferencesWindow = nil  // Clear reference when user closes with X button
+        }
     }
 
     @objc private func showAbout() {

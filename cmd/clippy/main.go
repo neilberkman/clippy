@@ -29,13 +29,15 @@ var (
 	absoluteTime    bool
 	textMode        bool
 	clearFlag       bool
+	foldersFlag     []string
+	defaultFolders  []string
 	logger          *log.Logger
 )
 
 func main() {
 	// Preprocess args to convert "-r 3" to "-r=3" for Cobra compatibility
 	os.Args = preprocessArgs(os.Args)
-	
+
 	var rootCmd = &cobra.Command{
 		Use:   "clippy [files...]",
 		Short: "Smart clipboard tool for macOS",
@@ -63,13 +65,17 @@ Examples:
   # Copy from curl
   curl -s https://example.com/image.jpg | clippy
 
-  # Copy most recent download(s)
-  clippy -r            # copy the most recent download
-  clippy -r 3          # copy the 3 most recent downloads
-  clippy -r 5m         # copy all downloads from last 5 minutes
-  clippy -r 1h         # copy all downloads from last hour
+  # Copy most recent file(s) from Downloads/Desktop/Documents
+  clippy -r            # copy the most recent file
+  clippy -r 3          # copy the 3 most recent files
+  clippy -r 5m         # copy all recent files from last 5 minutes
+  clippy -r 1h         # copy all recent files from last hour
 
-  # Interactive picker for recent downloads
+  # Limit search to specific folders
+  clippy -r --folders downloads        # only search Downloads
+  clippy -r --folders downloads,desktop # search Downloads and Desktop only
+
+  # Interactive picker for recent files
   clippy -i            # show interactive picker with recent files
   clippy -i 3          # show picker with 3 most recent files
   clippy -i 5m         # show picker for files from last 5 minutes
@@ -92,7 +98,8 @@ Configuration:
     verbose = true        # Always show verbose output
     cleanup = false       # Disable automatic temp file cleanup
     temp_dir = /path      # Custom directory for temporary files
-    absolute_time = true  # Show absolute timestamps in picker (default: relative)`,
+    absolute_time = true  # Show absolute timestamps in picker (default: relative)
+    default_folders = downloads,desktop,documents  # Default folders to search (defaults to all three)`,
 		Version: fmt.Sprintf("%s (%s) built on %s", common.Version, common.Commit, common.Date),
 		Run: func(cmd *cobra.Command, args []string) {
 			// Load config file
@@ -163,17 +170,18 @@ Configuration:
 	common.AddCommonFlags(rootCmd, &verbose, &debug)
 
 	// Recent flag with optional value
-	rootCmd.PersistentFlags().StringVarP(&recentFlag, "recent", "r", "", "Copy most recent file(s) from Downloads (defaults to 1, or specify number/duration like 3, 5m, 1h)")
+	rootCmd.PersistentFlags().StringVarP(&recentFlag, "recent", "r", "", "Copy most recent file(s) from Downloads, Desktop, and Documents (defaults to 1, or specify number/duration like 3, 5m, 1h)")
 	rootCmd.PersistentFlags().Lookup("recent").NoOptDefVal = " " // Allow -r without value
 
 	// Interactive flag with optional value
-	rootCmd.PersistentFlags().StringVarP(&interactiveFlag, "interactive", "i", "", "Show interactive picker for recent files (optional: number/duration like 3, 5m, 1h)")
+	rootCmd.PersistentFlags().StringVarP(&interactiveFlag, "interactive", "i", "", "Show interactive picker for recent files from Downloads, Desktop, and Documents (optional: number/duration like 3, 5m, 1h)")
 	rootCmd.PersistentFlags().Lookup("interactive").NoOptDefVal = " " // Allow -i without value
 
 	rootCmd.PersistentFlags().BoolVar(&paste, "paste", false, "Also paste copied files to current directory")
 	rootCmd.PersistentFlags().BoolVar(&cleanup, "cleanup", true, "Enable automatic temp file cleanup")
 	rootCmd.PersistentFlags().BoolVarP(&textMode, "text", "t", false, "Copy text files as content instead of file reference")
 	rootCmd.PersistentFlags().BoolVar(&clearFlag, "clear", false, "Clear the clipboard")
+	rootCmd.PersistentFlags().StringSliceVar(&foldersFlag, "folders", nil, "Specific folders to search (e.g., --folders downloads,desktop). Options: downloads, desktop, documents")
 
 	// Add MCP server subcommand
 	var mcpCmd = &cobra.Command{
@@ -243,7 +251,21 @@ func handleRecentMode(timeStr string, interactiveMode bool) {
 		maxFiles = 20 // Default for interactive picker
 	}
 
-	files, err := recent.GetRecentDownloads(config, maxFiles)
+	// Handle folder selection if specified
+	var searchDirs []string
+	if len(foldersFlag) > 0 {
+		searchDirs = mapFoldersToDirectories(foldersFlag)
+		if len(searchDirs) == 0 {
+			logger.Error("Invalid folder selection. Use: downloads, desktop, documents")
+			os.Exit(1)
+		}
+	} else if len(defaultFolders) > 0 {
+		// Use config defaults if no command line folders specified
+		searchDirs = mapFoldersToDirectories(defaultFolders)
+		logger.Debug("Using default folders from config: %v", searchDirs)
+	}
+
+	files, err := getRecentDownloadsWithDirs(config, maxFiles, searchDirs)
 	if err != nil {
 		logger.Error("Failed to find recent files: %v", err)
 		os.Exit(1)
@@ -356,6 +378,8 @@ func loadConfig() {
 			if value == "true" || value == "1" {
 				absoluteTime = true
 			}
+		case "default_folders":
+			defaultFolders = strings.Split(value, ",")
 		}
 	}
 }
@@ -494,4 +518,54 @@ func preprocessArgs(args []string) []string {
 		result = append(result, arg)
 	}
 	return result
+}
+
+// mapFoldersToDirectories converts folder names to actual directory paths
+func mapFoldersToDirectories(folders []string) []string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+
+	var dirs []string
+	for _, folder := range folders {
+		switch strings.ToLower(strings.TrimSpace(folder)) {
+		case "downloads", "download":
+			dirs = append(dirs, filepath.Join(homeDir, "Downloads"))
+		case "desktop":
+			dirs = append(dirs, filepath.Join(homeDir, "Desktop"))
+		case "documents", "docs":
+			dirs = append(dirs, filepath.Join(homeDir, "Documents"))
+		}
+	}
+	return dirs
+}
+
+// getRecentDownloadsWithDirs gets recent downloads with custom directory list
+func getRecentDownloadsWithDirs(config recent.PickerConfig, maxFiles int, customDirs []string) ([]recent.FileInfo, error) {
+	opts := recent.DefaultFindOptions()
+	if config.MaxAge != 0 {
+		opts.MaxAge = config.MaxAge
+	}
+	if maxFiles > 0 {
+		opts.MaxCount = maxFiles
+	} else {
+		opts.MaxCount = 20 // Default to 20 if not specified
+	}
+
+	// Override directories if custom ones are provided
+	if len(customDirs) > 0 {
+		opts.Directories = customDirs
+	}
+
+	files, err := recent.FindRecentFiles(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no recent files found")
+	}
+
+	return files, nil
 }
