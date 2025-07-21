@@ -4,11 +4,7 @@ set -e
 echo "Building clippy C library..."
 
 # Build for macOS (darwin) on arm64 (Apple Silicon)
-# Set deployment target to match Swift package minimum
-CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
-CGO_CFLAGS="-mmacosx-version-min=14.0" \
-CGO_LDFLAGS="-mmacosx-version-min=14.0" \
-go build \
+CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build \
     -buildmode=c-archive \
     -o gui/draggy/libclippy.a \
     ./cbridge
