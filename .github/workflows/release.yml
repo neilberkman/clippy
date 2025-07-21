@@ -32,7 +32,9 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Run tests
-        run: go test -v ./...
+        run: |
+          # Run tests sequentially to avoid clipboard conflicts
+          go test -v -p 1 ./...
 
       - name: Run linter
         uses: golangci/golangci-lint-action@v3

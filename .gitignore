@@ -69,3 +69,15 @@ Package.resolved
 *.lib
 libclippy.h
 libclippy.a
+
+# Test binaries and artifacts
+**/clippy_test
+**/pasty_test
+cmd/pasty/*.png
+cmd/pasty/*.gif
+cmd/pasty/*.pdf
+cmd/pasty/*.txt
+cmd/clippy/*.png
+cmd/clippy/*.gif
+cmd/clippy/*.pdf
+cmd/clippy/*.txt
