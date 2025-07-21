@@ -118,15 +118,10 @@ char** getClipboardFiles(int *count) {
         [NSApplication sharedApplication]; // Initialize the app context
         NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
         
-        // Debug: print available types
-        NSArray *types = [pasteboard types];
-        NSLog(@"DEBUG: Clipboard types: %@", types);
-        
         NSArray *files = [pasteboard readObjectsForClasses:@[[NSURL class]]
                                                    options:@{NSPasteboardURLReadingFileURLsOnlyKey: @YES}];
 
         *count = (int)[files count];
-        NSLog(@"DEBUG: Found %d files using readObjectsForClasses", *count);
         
         if (*count == 0) return NULL;
 
@@ -135,7 +130,6 @@ char** getClipboardFiles(int *count) {
             NSURL *url = files[i];
             const char *path = [[url path] UTF8String];
             paths[i] = strdup(path);
-            NSLog(@"DEBUG: File %d: %s", i, path);
         }
 
         return paths;
