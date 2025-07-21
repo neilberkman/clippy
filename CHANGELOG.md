@@ -2,6 +2,13 @@
 
 Notable changes to clippy.
 
+## [1.2.5] - 2025-01-21
+
+### Fixed
+- MCP server panic "Prompt capabilities not enabled"
+  - Upgraded mcp-go from accidentally downgraded v0.10.0 back to v0.34.0
+  - Restores MCP server functionality for AI/LLM integration
+
 ## [1.2.2] - 2025-01-20
 
 ### Draggy [0.11.3]
