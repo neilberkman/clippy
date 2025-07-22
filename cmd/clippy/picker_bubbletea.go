@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/neilberkman/clippy/pkg/recent"
+	"github.com/neilberkman/mimedescription"
 )
 
 // pickerModel represents the state of our file picker
@@ -32,7 +33,8 @@ type pickerItem struct {
 
 // Initialize the model
 func (m pickerModel) Init() tea.Cmd {
-	return nil
+	// Request initial window size
+	return tea.WindowSize()
 }
 
 // Update handles messages
@@ -128,8 +130,8 @@ func (m pickerModel) renderItem(item pickerItem) string {
 	focusedStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
 	selectedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
 	checkboxStyle := lipgloss.NewStyle().Width(3)
-	nameStyle := lipgloss.NewStyle().Width(30)
 	ageStyle := lipgloss.NewStyle().Faint(true)
+	extStyle := lipgloss.NewStyle().Faint(true).Foreground(lipgloss.Color("243"))
 
 	// Checkbox
 	checkbox := "[ ]"
@@ -154,10 +156,28 @@ func (m pickerModel) renderItem(item pickerItem) string {
 		}
 	}
 
+	// Get file type display
+	fileType := getFileTypeDisplay(item.file.MimeType)
+
+	// Calculate available width for filename
+	// Account for: checkbox(3) + spaces(2) + age(~10) + file type + padding
+	availableWidth := 50 // default
+	if m.terminalWidth > 0 {
+		// Leave room for: "▶ " or "  " (2), checkbox (3), spaces (3), age (~10), file type, and some padding
+		availableWidth = m.terminalWidth - 25 - len(ageStr) - len(fileType)
+		if availableWidth < 20 {
+			availableWidth = 20
+		}
+	}
+
+	// Truncate filename using middle truncation
+	displayName := truncateMiddle(item.file.Name, availableWidth)
+
 	// Build the line
-	line := fmt.Sprintf("%s %s (%s)",
+	line := fmt.Sprintf("%s %s [%s] (%s)",
 		checkboxStyle.Render(checkbox),
-		nameStyle.Render(truncateString(item.file.Name, 30)),
+		displayName,
+		extStyle.Render(fileType),
 		ageStyle.Render(ageStr),
 	)
 
@@ -199,9 +219,11 @@ func (m pickerModel) renderDetails(file recent.FileInfo) string {
 	}
 
 	details := fmt.Sprintf(
-		"%s %s\n%s %s\n%s %s\n%s %s",
+		"%s %s\n%s %s\n%s %s\n%s %s\n%s %s",
 		labelStyle.Render("Name:"),
 		valueStyle.Render(file.Name),
+		labelStyle.Render("Type:"),
+		valueStyle.Render(getFileTypeDisplay(file.MimeType)),
 		labelStyle.Render("Size:"),
 		valueStyle.Render(sizeStr),
 		labelStyle.Render("Modified:"),
@@ -222,6 +244,42 @@ func truncateString(s string, maxLen int) string {
 		return s[:maxLen]
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// truncateMiddle truncates a string in the middle, preserving start and end
+func truncateMiddle(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	if maxLen <= 5 {
+		return truncateString(s, maxLen)
+	}
+
+	// Calculate how much to show from each end
+	startLen := (maxLen - 3) / 2
+	endLen := maxLen - 3 - startLen
+
+	return s[:startLen] + "..." + s[len(s)-endLen:]
+}
+
+// getFileTypeDisplay returns a human-readable file type based on MIME type
+func getFileTypeDisplay(mimeType string) string {
+	if mimeType == "" {
+		return ""
+	}
+
+	// Use the mimedescription library
+	if desc, found := mimedescription.Get(mimeType); found {
+		return desc
+	}
+
+	// Fallback to a simple extraction from MIME type
+	parts := strings.Split(mimeType, "/")
+	if len(parts) > 1 && parts[1] != "octet-stream" {
+		// Just return the main type capitalized
+		return strings.Title(parts[0])
+	}
+	return "File"
 }
 
 // showBubbleTeaPickerWithResult shows an interactive picker and returns the full result

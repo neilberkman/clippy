@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gabriel-vasile/mimetype"
 )
 
 // FileInfo represents a file with its metadata
@@ -18,6 +20,7 @@ type FileInfo struct {
 	Size     int64
 	Modified time.Time
 	IsDir    bool
+	MimeType string // MIME type of the file (empty for directories)
 }
 
 // FindOptions controls how recent files are discovered
@@ -224,12 +227,20 @@ func findFilesInDir(dir string, cutoff time.Time, opts FindOptions) ([]FileInfo,
 			}
 		}
 
+		// Detect MIME type
+		mtype, _ := mimetype.DetectFile(path)
+		mimeType := ""
+		if mtype != nil {
+			mimeType = mtype.String()
+		}
+
 		files = append(files, FileInfo{
 			Path:     path,
 			Name:     info.Name(),
 			Size:     info.Size(),
 			Modified: info.ModTime(),
 			IsDir:    false,
+			MimeType: mimeType,
 		})
 
 		return nil
@@ -609,12 +620,22 @@ func getDirectoryContents(dirPath string) ([]FileInfo, error) {
 			return nil
 		}
 
+		// Detect MIME type for files
+		mimeType := ""
+		if !info.IsDir() {
+			mtype, _ := mimetype.DetectFile(path)
+			if mtype != nil {
+				mimeType = mtype.String()
+			}
+		}
+
 		contents = append(contents, FileInfo{
 			Path:     path,
 			Name:     info.Name(),
 			Size:     info.Size(),
 			Modified: info.ModTime(),
 			IsDir:    info.IsDir(),
+			MimeType: mimeType,
 		})
 
 		return nil

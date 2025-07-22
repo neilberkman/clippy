@@ -41,12 +41,12 @@ func ClippyGetRecentDownloads(maxCount C.int, durationSecs C.int, outError **C.c
 	// Core layer already handled the limiting
 
 	// Convert to C string array
-	// Format: path|name|unix_timestamp
+	// Format: path|name|unix_timestamp|mime_type
 	cArray := C.malloc(C.size_t((len(files) + 1)) * C.size_t(unsafe.Sizeof(uintptr(0))))
 	cStrings := (*[1<<30 - 1]*C.char)(cArray)
 
 	for i, file := range files {
-		str := fmt.Sprintf("%s|%s|%d", file.Path, file.Name, file.Modified.Unix())
+		str := fmt.Sprintf("%s|%s|%d|%s", file.Path, file.Name, file.Modified.Unix(), file.MimeType)
 		cStrings[i] = C.CString(str)
 	}
 	cStrings[len(files)] = nil // Null-terminate the array
@@ -109,7 +109,7 @@ func ClippyGetRecentDownloadsWithFolders(maxCount C.int, durationSecs C.int, fol
 	cStrings := (*[1<<30 - 1]*C.char)(cArray)
 
 	for i, file := range files {
-		str := fmt.Sprintf("%s|%s|%d", file.Path, file.Name, file.Modified.Unix())
+		str := fmt.Sprintf("%s|%s|%d|%s", file.Path, file.Name, file.Modified.Unix(), file.MimeType)
 		cStrings[i] = C.CString(str)
 	}
 	cStrings[len(files)] = nil

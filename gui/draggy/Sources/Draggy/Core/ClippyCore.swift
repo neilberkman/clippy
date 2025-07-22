@@ -77,14 +77,15 @@ struct ClippyCore {
         while let cStr = ptr.pointee {
             let str = String(cString: cStr)
 
-            // Parse format: path|name|unix_timestamp
-            let parts = str.split(separator: "|", maxSplits: 2)
+            // Parse format: path|name|unix_timestamp|mime_type
+            let parts = str.split(separator: "|")
             if parts.count >= 3 {
                 let path = String(parts[0])
                 let timestamp = TimeInterval(parts[2]) ?? 0
                 let modified = Date(timeIntervalSince1970: timestamp)
+                let mimeType = parts.count >= 4 ? String(parts[3]) : nil
 
-                files.append(ClipboardFile(path: path, modified: modified))
+                files.append(ClipboardFile(path: path, modified: modified, mimeType: mimeType))
             }
 
             ptr = ptr.advanced(by: 1)

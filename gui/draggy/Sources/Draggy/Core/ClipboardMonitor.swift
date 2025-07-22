@@ -8,13 +8,15 @@ struct ClipboardFile {
     let name: String
     let directory: String
     let modified: Date?
+    let mimeType: String?
 
-    init(path: String, modified: Date? = nil) {
+    init(path: String, modified: Date? = nil, mimeType: String? = nil) {
         self.path = path
         let url = URL(fileURLWithPath: path)
         self.name = url.lastPathComponent
         self.directory = url.deletingLastPathComponent().path
         self.modified = modified
+        self.mimeType = mimeType
     }
 }
 

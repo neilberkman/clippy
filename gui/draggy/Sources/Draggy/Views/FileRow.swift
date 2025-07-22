@@ -170,7 +170,7 @@ struct FileRow: View {
                 showingPreview = isOptionPressed && showThumbnails && thumbnail != nil
             }
         }
-        .onChange(of: showingPreview) { newValue in
+        .onChange(of: showingPreview) { _, newValue in
             if newValue, let thumbnail = thumbnail {
                 showPreviewWindow(thumbnail: thumbnail)
             } else {
@@ -260,6 +260,10 @@ struct FileRow: View {
         let padding: CGFloat = 40
         windowWidth += padding
         windowHeight += padding
+        
+        // Add space for metadata bar
+        let metadataHeight: CGFloat = 60
+        windowHeight += metadataHeight
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight),
@@ -299,11 +303,68 @@ struct FileRow: View {
 
         containerView.addSubview(visualEffect)
 
-        let previewView = NSImageView(frame: NSRect(x: 20, y: 20, width: windowWidth - 40, height: windowHeight - 40))
+        // Image preview - adjust height to leave room for metadata
+        let previewView = NSImageView(frame: NSRect(x: 20, y: 80, width: windowWidth - 40, height: windowHeight - 120))
         previewView.image = thumbnail
         previewView.imageScaling = .scaleProportionallyUpOrDown
 
         visualEffect.addSubview(previewView)
+        
+        // Metadata container with background
+        let metadataContainer = NSView(frame: NSRect(x: 0, y: 0, width: windowWidth, height: 70))
+        metadataContainer.wantsLayer = true
+        
+        // Create a subtle separator line
+        let separator = NSView(frame: NSRect(x: 20, y: 69, width: windowWidth - 40, height: 1))
+        separator.wantsLayer = true
+        separator.layer?.backgroundColor = NSColor.separatorColor.cgColor
+        metadataContainer.addSubview(separator)
+        
+        // Stack view for better layout
+        let stackView = NSStackView(frame: NSRect(x: 20, y: 10, width: windowWidth - 40, height: 50))
+        stackView.orientation = .vertical
+        stackView.alignment = .leading
+        stackView.spacing = 4
+        
+        // File name with better styling
+        let nameLabel = NSTextField(labelWithString: file.name)
+        nameLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        nameLabel.textColor = NSColor.labelColor
+        nameLabel.lineBreakMode = .byTruncatingMiddle
+        nameLabel.maximumNumberOfLines = 1
+        
+        // Format metadata with better visual hierarchy
+        var metadataComponents: [String] = []
+        
+        // File type with icon-like prefix
+        let fileType = MimeDescription.getDescription(for: file.mimeType)
+        metadataComponents.append(fileType)
+        
+        // File size
+        metadataComponents.append(byteCount)
+        
+        // Folder location
+        metadataComponents.append(folderSource)
+        
+        // Time with better formatting
+        if let modified = file.modified {
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .abbreviated
+            let relativeTime = formatter.localizedString(for: modified, relativeTo: Date())
+            metadataComponents.append(relativeTime)
+        }
+        
+        let metadataText = metadataComponents.joined(separator: " • ")
+        let metadataLabel = NSTextField(labelWithString: metadataText)
+        metadataLabel.font = NSFont.systemFont(ofSize: 11, weight: .regular)
+        metadataLabel.textColor = NSColor.secondaryLabelColor
+        
+        stackView.addArrangedSubview(nameLabel)
+        stackView.addArrangedSubview(metadataLabel)
+        
+        metadataContainer.addSubview(stackView)
+        visualEffect.addSubview(metadataContainer)
+        
         window.contentView = containerView
 
         // Position window next to Draggy
