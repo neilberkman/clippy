@@ -277,7 +277,10 @@ func getFileTypeDisplay(mimeType string) string {
 	parts := strings.Split(mimeType, "/")
 	if len(parts) > 1 && parts[1] != "octet-stream" {
 		// Just return the main type capitalized
-		return strings.Title(parts[0])
+		mainType := parts[0]
+		if len(mainType) > 0 {
+			return strings.ToUpper(mainType[:1]) + mainType[1:]
+		}
 	}
 	return "File"
 }
