@@ -16,6 +16,10 @@ Notable changes to clippy.
 
 - Fixed macOS version mismatch warnings during build
 - Set deployment target to macOS 14.0 for both Go and Swift
+- Fixed critical bug where Option key previews would trigger anywhere on screen when popover was closed
+  - Properly cleanup timers when popover closes
+  - Stop monitoring modifier keys when app loses focus
+  - Clear view models on popover dismissal
 
 ## [1.3.0] - 2025-01-22
 

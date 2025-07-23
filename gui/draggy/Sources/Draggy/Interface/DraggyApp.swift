@@ -188,6 +188,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSWindowD
     }
 
     private func closePopover(_ sender: AnyObject?) {
+        // Clean up view model to ensure all timers are stopped
+        viewModel = nil
         popover?.performClose(sender)
         eventMonitor?.stop()
     }
@@ -244,6 +246,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSWindowD
         print("DEBUG AppDelegate: popoverDidClose called")
         print("DEBUG AppDelegate: Resetting behavior to .transient")
         popover?.behavior = .transient
+        
+        // Clean up view model to ensure all timers and observers are stopped
+        viewModel = nil
+        
+        // Clear the content view controller to ensure proper cleanup
+        popover?.contentViewController = nil
     }
 
 }

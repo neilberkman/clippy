@@ -125,7 +125,13 @@ struct FileRow: View {
             if hovering {
                 NSCursor.pointingHand.push()
                 // Start timer to check modifier state while hovering
+                timer?.invalidate() // Ensure any existing timer is cleaned up
                 timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+                    // Check if still hovering before processing
+                    guard isHovering else {
+                        return
+                    }
+                    
                     let optionDown = NSEvent.modifierFlags.contains(.option)
 
                     if optionDown != isOptionPressed {
@@ -169,6 +175,14 @@ struct FileRow: View {
                 isOptionPressed = NSEvent.modifierFlags.contains(.option)
                 showingPreview = isOptionPressed && showThumbnails && thumbnail != nil
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
+            // Clean up when app loses focus
+            timer?.invalidate()
+            timer = nil
+            showingPreview = false
+            isOptionPressed = false
+            hidePreviewWindow()
         }
         .onChange(of: showingPreview) { _, newValue in
             if newValue, let thumbnail = thumbnail {
