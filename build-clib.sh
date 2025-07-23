@@ -3,6 +3,9 @@ set -e
 
 echo "Building clippy C library..."
 
+# Set macOS deployment target to match Swift package (14.0)
+export MACOSX_DEPLOYMENT_TARGET=14.0
+
 # Build for macOS (darwin) on arm64 (Apple Silicon)
 CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build \
     -buildmode=c-archive \

@@ -24,6 +24,8 @@ cd "$DRAGGY_DIR"
 
 # Rebuild if requested
 if [ "$1" == "--build" ]; then
+    echo "  → Building Go library..."
+    cd ../.. && ./build-clib.sh && cd gui/draggy
     echo "  → Building Draggy..."
     ./build-app.sh
 fi

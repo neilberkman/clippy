@@ -26,6 +26,13 @@ struct ContentView: View {
             if viewModel.showOnboarding {
                 OnboardingView(viewModel: viewModel)
             }
+            
+            // Toast notification for auto-switch message
+            if viewModel.showAutoSwitchMessage {
+                ToastView(message: "Nothing in clipboard, showing recent downloads", viewModel: viewModel)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .animation(.easeInOut(duration: 0.3), value: viewModel.showAutoSwitchMessage)
+            }
         }
         .onAppear {
             // Check for updates when view appears
@@ -107,19 +114,13 @@ struct FileListView: View {
             if files.isEmpty && hasCheckedOnce {
                 EmptyStateView(showingRecentDownloads: viewModel.showingRecentDownloads, viewModel: viewModel)
             } else if !files.isEmpty {
-                VStack(spacing: 0) {
-
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 8) {
-                            ForEach(files, id: \.path) { file in
-                                FileRow(file: file, onDragStarted: viewModel.onDragStarted)
-                            }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(files, id: \.path) { file in
+                            FileRow(file: file, onDragStarted: viewModel.onDragStarted)
                         }
-                        .padding()
                     }
-                    .safeAreaInset(edge: .bottom) {
-                        InfoBar(viewModel: viewModel)
-                    }
+                    .padding()
                 }
             } else {
                 // Loading state - show nothing initially
@@ -176,60 +177,7 @@ struct EmptyStateView: View {
     }
 }
 
-struct InfoBar: View {
-    @ObservedObject var viewModel: ClipboardViewModel
-    @AppStorage("showInfoBar") private var showInfoBar: Bool = true
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Auto-switch message
-            if viewModel.showAutoSwitchMessage {
-                HStack {
-                    Image(systemName: "info.circle")
-                        .foregroundColor(.blue)
-                    Text("Nothing in clipboard, showing recent downloads")
-                        .font(.caption)
-                        .foregroundColor(.primary)
-                    Spacer()
-                    Button(action: {
-                        viewModel.showAutoSwitchMessage = false
-                        showInfoBar = true  // Show info bar after dismissing auto-switch message
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(Color(NSColor.windowBackgroundColor).opacity(0.9))
-                Divider()
-            }
-
-            // Regular info bar - only show if auto-switch message is not showing
-            if showInfoBar && !viewModel.showAutoSwitchMessage {
-                HStack {
-                    Image(systemName: "info.circle")
-                        .foregroundColor(.secondary)
-                    Text("Hold ⌥ Option while hovering to preview • Drag files to other apps")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Button(action: { showInfoBar = false }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(Color(NSColor.windowBackgroundColor).opacity(0.9))
-            }
-        }
-    }
-}
+// InfoBar removed - functionality moved to FooterView
 
 struct FooterView: View {
     let fileCount: Int
@@ -253,10 +201,35 @@ struct FooterView: View {
             }
 
             HStack {
-                Text("\(fileCount) file\(fileCount == 1 ? "" : "s")")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                // Show "No files" when count is 0
+                if fileCount == 0 {
+                    Text("No files")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("\(fileCount) file\(fileCount == 1 ? "" : "s")")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                // Show info hint about Option key on the right with better styling
                 Spacer()
+                
+                HStack(spacing: 4) {
+                    Image(systemName: "option")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                    Text("Hold to preview")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                .foregroundColor(.accentColor)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.accentColor.opacity(0.1))
+                )
             }
         }
         .padding(.horizontal)
@@ -480,6 +453,46 @@ struct ActiveFoldersView: View {
             }
             .padding(.horizontal)
             .padding(.bottom, 2)
+        }
+    }
+}
+
+// MARK: - Toast View
+
+struct ToastView: View {
+    let message: String
+    @ObservedObject var viewModel: ClipboardViewModel
+    
+    var body: some View {
+        VStack {
+            HStack {
+                Image(systemName: "info.circle")
+                    .foregroundColor(.blue)
+                Text(message)
+                    .font(.caption)
+                    .foregroundColor(.primary)
+                Spacer()
+                Button(action: {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        viewModel.showAutoSwitchMessage = false
+                    }
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(NSColor.controlBackgroundColor))
+                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+            )
+            .padding(.top, 16)
+            
+            Spacer()
         }
     }
 }

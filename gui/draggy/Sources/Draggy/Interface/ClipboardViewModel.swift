@@ -135,6 +135,13 @@ class ClipboardViewModel: ObservableObject {
         DispatchQueue.main.async {
             self.loadRecentDownloads()
         }
+        
+        // Auto-dismiss the toast after 2 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            withAnimation(.easeOut(duration: 0.3)) {
+                self?.showAutoSwitchMessage = false
+            }
+        }
     }
 
     func loadRecentDownloads() {
