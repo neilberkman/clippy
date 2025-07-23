@@ -2,6 +2,21 @@
 
 Notable changes to clippy.
 
+## Draggy [0.13.1] - 2025-01-23
+
+### Changed
+
+- **Improved UI polish**:
+  - Removed redundant info bar, keeping only footer hint
+  - Shows "No files" instead of "0 files" when empty
+  - Option key hint styled as blue badge for better visibility
+  - Auto-switch toast now has dismissible X button
+
+### Fixed
+
+- Fixed macOS version mismatch warnings during build
+- Set deployment target to macOS 14.0 for both Go and Swift
+
 ## [1.3.0] - 2025-01-22
 
 ### Added
