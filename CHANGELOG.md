@@ -2,6 +2,36 @@
 
 Notable changes to clippy.
 
+## [1.3.0] - 2025-01-22
+
+### Added
+
+- **MIME type detection for all files**: Files now have their MIME types detected
+  - Uses gabriel-vasile/mimetype library for accurate detection
+  - MIME types passed through C bridge to Draggy
+  
+- **Human-friendly file type display**: Shows readable types instead of technical MIME
+  - Integrated neilberkman/mimedescription library for type descriptions
+  - Shows "PDF document", "Word document", "PNG image" etc.
+  - Smart fallback for unknown types
+
+### Changed
+
+- **Enhanced clippy picker display**:
+  - Shows file type next to each file (e.g., [PDF], [PNG], [Word])
+  - Dynamic terminal width adjustment for better layout
+  - Middle truncation for long filenames (shows start and end)
+  - Improved spacing calculations
+
+### Draggy [0.13.0]
+
+- **File type information in preview**: Hold Option to see complete file details
+  - Preview window now shows filename, file type, size, folder, and time
+  - Improved metadata layout with visual separator
+  - Better typography and spacing for readability
+- **Updated data format**: Now parses MIME types from bridge
+- **Fixed deprecation warning**: Updated onChange handler for macOS 14+
+
 ## [1.2.6] - 2025-01-21
 
 ### Added
