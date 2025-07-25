@@ -2,6 +2,14 @@
 
 Notable changes to clippy.
 
+## [1.3.1] - 2025-01-24
+
+### Fixed
+
+- Fixed `-t`/`--text` flag not working with non-standard text files (e.g., .exs files)
+  - Now falls through to MIME detection when UTI is not recognized as text
+  - Ensures all text files can have their content copied with `-t` flag
+
 ## Draggy [0.13.1] - 2025-01-23
 
 ### Changed
