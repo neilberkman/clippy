@@ -2,6 +2,14 @@
 
 Notable changes to clippy.
 
+## Draggy [0.13.2] - 2025-01-24
+
+### Fixed
+
+- Folders are no longer shown in recent files list
+  - Only actual files are displayed, not directories
+  - Improves usability since folders can't be meaningfully copied/pasted
+
 ## [1.3.1] - 2025-01-24
 
 ### Fixed
