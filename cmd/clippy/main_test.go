@@ -34,6 +34,8 @@ func TestFileMode(t *testing.T) {
 	}{
 		{"text file default", "../../test-files/sample.txt", []string{"--verbose"}, false},
 		{"text file with -t flag", "../../test-files/sample.txt", []string{"--verbose", "-t"}, true},
+		{"elixir file default", "../../test-files/code.exs", []string{"--verbose"}, false},
+		{"elixir file with -t flag", "../../test-files/code.exs", []string{"--verbose", "-t"}, true},
 		{"pdf file", "../../test-files/test.pdf", []string{"--verbose"}, false},
 		{"png file", "../../test-files/minimal.png", []string{"--verbose"}, false},
 	}

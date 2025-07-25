@@ -96,8 +96,8 @@ func CopyWithResultAndMode(path string, forceTextMode bool) (*CopyResult, error)
 				AsText:   true,
 				FilePath: absPath,
 			}, nil
-		} else {
-			// Non-text UTI but text mode forced - still copy as file
+		} else if !forceTextMode {
+			// Non-text UTI and text mode not forced - copy as file
 			if err := clipboard.CopyFile(absPath); err != nil {
 				return nil, fmt.Errorf("could not copy file to clipboard: %w", err)
 			}
@@ -108,6 +108,7 @@ func CopyWithResultAndMode(path string, forceTextMode bool) (*CopyResult, error)
 				FilePath: absPath,
 			}, nil
 		}
+		// Non-text UTI but text mode forced - fall through to MIME detection
 	}
 
 	// Fallback to MIME type detection
