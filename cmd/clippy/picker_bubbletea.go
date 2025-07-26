@@ -144,7 +144,7 @@ func (m pickerModel) renderItem(item pickerItem) string {
 	if m.absoluteTime {
 		ageStr = item.file.Modified.Format("Jan 2 15:04")
 	} else {
-		age := time.Since(item.file.Modified)
+		age := item.file.Age()
 		if age < time.Minute {
 			ageStr = fmt.Sprintf("%ds ago", int(age.Seconds()))
 		} else if age < time.Hour {

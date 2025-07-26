@@ -301,13 +301,13 @@ func handleRecentMode(timeStr string, interactiveMode bool) {
 
 		// Handle selected files
 		if len(result.Files) == 1 {
-			logger.Verbose("Selected: %s (modified %s ago)", result.Files[0].Path, time.Since(result.Files[0].Modified).Round(time.Second))
+			logger.Verbose("Selected: %s (modified %s ago)", result.Files[0].Path, result.Files[0].Age().Round(time.Second))
 			handleFileMode(result.Files[0].Path)
 		} else {
 			logger.Verbose("Selected %d files:", len(result.Files))
 			var paths []string
 			for _, file := range result.Files {
-				logger.Verbose("  - %s (modified %s ago)", file.Path, time.Since(file.Modified).Round(time.Second))
+				logger.Verbose("  - %s (modified %s ago)", file.Path, file.Age().Round(time.Second))
 				paths = append(paths, file.Path)
 			}
 			handleMultipleFiles(paths)
@@ -316,13 +316,13 @@ func handleRecentMode(timeStr string, interactiveMode bool) {
 		// Non-interactive mode: files are already limited by Core layer
 		if len(files) == 1 {
 			logger.Verbose("Copying most recent file: %s (modified %s ago)",
-				files[0].Name, time.Since(files[0].Modified).Round(time.Second))
+				files[0].Name, files[0].Age().Round(time.Second))
 			handleFileMode(files[0].Path)
 		} else {
 			logger.Verbose("Copying %d most recent files:", len(files))
 			var paths []string
 			for _, file := range files {
-				logger.Verbose("  - %s (modified %s ago)", file.Name, time.Since(file.Modified).Round(time.Second))
+				logger.Verbose("  - %s (modified %s ago)", file.Name, file.Age().Round(time.Second))
 				paths = append(paths, file.Path)
 			}
 			handleMultipleFiles(paths)

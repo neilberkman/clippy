@@ -23,6 +23,11 @@ type FileInfo struct {
 	MimeType string // MIME type of the file (empty for directories)
 }
 
+// Age returns the age of the file as a duration from now (always positive)
+func (f *FileInfo) Age() time.Duration {
+	return time.Now().UTC().Sub(f.Modified.UTC())
+}
+
 // FindOptions controls how recent files are discovered
 type FindOptions struct {
 	MaxAge         time.Duration
@@ -583,7 +588,7 @@ func detectAutoUnarchived(dir *FileInfo) *ArchiveInfo {
 
 		// Check if this looks like an auto-unarchived folder
 		// (created recently, contains files, name suggests archive origin)
-		if time.Since(dir.Modified) < 10*time.Minute {
+		if dir.Age() < 10*time.Minute {
 			contents, err := getDirectoryContents(dir.Path)
 			if err == nil && len(contents) > 0 {
 				return &ArchiveInfo{
