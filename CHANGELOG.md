@@ -2,6 +2,15 @@
 
 Notable changes to clippy.
 
+## [1.3.2] - 2025-01-25
+
+### Fixed
+
+- Fixed timezone handling in recent files
+  - File ages now calculated using UTC to avoid timezone confusion
+  - Prevents negative durations when files have future timestamps in local timezone
+  - Added comprehensive timezone tests
+
 ## Draggy [0.13.2] - 2025-01-24
 
 ### Fixed
