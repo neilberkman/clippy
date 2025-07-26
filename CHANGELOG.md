@@ -11,6 +11,14 @@ Notable changes to clippy.
   - Prevents negative durations when files have future timestamps in local timezone
   - Added comprehensive timezone tests
 
+## Draggy [0.13.3] - 2025-01-25
+
+### Fixed
+
+- Fixed timezone handling in recent downloads (uses shared core library)
+  - File ages now calculated using UTC to avoid timezone confusion
+  - Prevents negative durations when files have future timestamps in local timezone
+
 ## Draggy [0.13.2] - 2025-01-24
 
 ### Fixed
