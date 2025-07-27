@@ -47,17 +47,33 @@ class UpdateChecker: ObservableObject {
         do {
             // GitHub API endpoint for latest release
             let url = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases/latest")!
-            let (data, _) = try await URLSession.shared.data(from: url)
+            
+            // Create request with proper headers
+            var request = URLRequest(url: url)
+            request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+            request.setValue("Draggy/\(currentVersion)", forHTTPHeaderField: "User-Agent")
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            // Check for rate limiting
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 403 {
+                    // Rate limited, fail silently
+                    print("GitHub API rate limited")
+                    return
+                } else if httpResponse.statusCode >= 300 && httpResponse.statusCode < 400 {
+                    // Handle redirects if needed (URLSession usually handles these automatically)
+                    print("Redirect response: \(httpResponse.statusCode)")
+                }
+            }
 
             // Parse the JSON response
             if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let tagName = json["tag_name"] as? String,
                let assets = json["assets"] as? [[String: Any]] {
 
-                // Extract version from tag (e.g., "draggy-v0.10.1" -> "0.10.1")
-                let latestVersion = tagName
-                    .replacingOccurrences(of: "draggy-v", with: "")
-                    .replacingOccurrences(of: "v", with: "")
+                // Extract version from tag with more robust parsing
+                let latestVersion = extractVersion(from: tagName)
 
                 // Check if update is available
                 if isNewerVersion(latestVersion, than: currentVersion) {
@@ -100,13 +116,7 @@ class UpdateChecker: ObservableObject {
     var updateMessage: String {
         // Check if installed via Homebrew
         if isInstalledViaHomebrew() {
-            if let brewPath = findBrewPath() {
-                // Use the actual brew path found
-                return "Run '\(URL(fileURLWithPath: brewPath).lastPathComponent) upgrade clippy' to update"
-            } else {
-                // Homebrew installed but not in PATH
-                return "Update via Homebrew (brew upgrade clippy)"
-            }
+            return "Run '\(getBrewUpdateCommand())' to update"
         } else {
             return "Download version \(latestVersion ?? "") from GitHub"
         }
@@ -176,6 +186,38 @@ class UpdateChecker: ObservableObject {
         return nil
     }
 
+    // Extract version from various tag formats
+    private func extractVersion(from tag: String) -> String {
+        // Try different patterns:
+        // - "draggy-v0.10.1" -> "0.10.1"
+        // - "v0.10.1" -> "0.10.1"
+        // - "0.10.1" -> "0.10.1"
+        // - "draggy-0.10.1" -> "0.10.1"
+        
+        let patterns = [
+            "draggy-v", "draggy-", "v"
+        ]
+        
+        var version = tag
+        
+        // Remove known prefixes
+        for pattern in patterns {
+            if version.hasPrefix(pattern) {
+                version = String(version.dropFirst(pattern.count))
+                break
+            }
+        }
+        
+        // Validate that what remains looks like a version
+        let versionComponents = version.split(separator: ".")
+        if versionComponents.count >= 2 && versionComponents.allSatisfy({ Int($0) != nil }) {
+            return version
+        }
+        
+        // If validation fails, return the original tag
+        return tag
+    }
+    
     // Simple version comparison (assumes semantic versioning)
     private func isNewerVersion(_ new: String, than current: String) -> Bool {
         let newComponents = new.split(separator: ".").compactMap { Int($0) }

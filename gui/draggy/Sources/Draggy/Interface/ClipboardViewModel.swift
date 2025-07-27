@@ -9,6 +9,8 @@ class ClipboardViewModel: ObservableObject {
     @Published var showingRecentDownloads = false
     @Published var showOnboarding = false
     @Published var showAutoSwitchMessage = false
+    @Published var showPermissionAlert = false
+    @Published var permissionNeededFolders: [String] = []
 
     // User preferences (interface concern)
     @AppStorage("maxFilesShown") var maxFilesShown: Int = 20
@@ -35,6 +37,14 @@ class ClipboardViewModel: ObservableObject {
         }
 
         monitor.startMonitoring()
+        
+        // Listen for permission errors
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePermissionError),
+            name: NSNotification.Name("ClippyNeedsPermission"),
+            object: nil
+        )
 
         // Immediately sync with monitor's current state
         if !monitor.files.isEmpty {
@@ -212,6 +222,40 @@ class ClipboardViewModel: ObservableObject {
         if showingRecentDownloads {
             loadRecentDownloads()
         }
+    }
+    
+    @objc private func handlePermissionError(_ notification: Notification) {
+        if let errorMessage = notification.userInfo?["error"] as? String {
+            // Extract folder paths from error message if possible
+            let folders = extractFoldersFromError(errorMessage)
+            
+            DispatchQueue.main.async {
+                self.permissionNeededFolders = folders
+                self.showPermissionAlert = true
+            }
+        }
+    }
+    
+    private func extractFoldersFromError(_ error: String) -> [String] {
+        // Try to extract folder paths from the error message
+        var folders: [String] = []
+        
+        if error.contains("Downloads") {
+            folders.append("~/Downloads")
+        }
+        if error.contains("Desktop") {
+            folders.append("~/Desktop")
+        }
+        if error.contains("Documents") {
+            folders.append("~/Documents")
+        }
+        
+        // If no specific folders found, show general folders
+        if folders.isEmpty {
+            folders = ["~/Downloads", "~/Desktop", "~/Documents"]
+        }
+        
+        return folders
     }
 
 }

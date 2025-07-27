@@ -70,7 +70,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSWindowD
         setupStatusItem()
         setupPopover()
         setupEventMonitor()
-        // Don't check for updates on launch - wait until user actually opens popover
+        
+        // Initialize update checker
+        updateChecker = UpdateChecker()
+        updateChecker?.checkForUpdatesIfNeeded()
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

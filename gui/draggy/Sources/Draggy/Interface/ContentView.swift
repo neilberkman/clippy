@@ -38,6 +38,12 @@ struct ContentView: View {
             // Check for updates when view appears
             updateChecker.checkForUpdatesIfNeeded()
         }
+        .sheet(isPresented: $viewModel.showPermissionAlert) {
+            PermissionView(
+                folders: viewModel.permissionNeededFolders,
+                isPresented: $viewModel.showPermissionAlert
+            )
+        }
     }
 }
 

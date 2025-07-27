@@ -41,6 +41,7 @@ struct ClippyCore {
                 if let error = errorPtr {
                     let errorMessage = String(cString: error)
                     NSLog("DEBUG: ClippyGetRecentDownloadsWithFolders returned error: %@", errorMessage)
+                    handlePermissionError(errorMessage)
                     free(error)
                 }
                 return []
@@ -54,6 +55,7 @@ struct ClippyCore {
                 if let error = errorPtr {
                     let errorMessage = String(cString: error)
                     NSLog("DEBUG: ClippyGetRecentDownloads returned error: %@", errorMessage)
+                    handlePermissionError(errorMessage)
                     free(error)
                 } else {
                     NSLog("DEBUG: ClippyGetRecentDownloads returned nil (no files found)")
@@ -164,5 +166,40 @@ struct ClippyCore {
         }
 
         return result
+    }
+    
+    // MARK: - Permission Handling
+    
+    private static func handlePermissionError(_ errorMessage: String) {
+        // Check for common permission error patterns
+        if errorMessage.lowercased().contains("permission denied") ||
+           errorMessage.lowercased().contains("operation not permitted") ||
+           errorMessage.lowercased().contains("unauthorized") {
+            
+            NSLog("Permission error detected: %@", errorMessage)
+            
+            // Post notification that permission is needed
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("ClippyNeedsPermission"),
+                    object: nil,
+                    userInfo: ["error": errorMessage]
+                )
+            }
+        }
+    }
+    
+    static func checkFolderAccess(_ path: String) -> Bool {
+        let url = URL(fileURLWithPath: path)
+        
+        // Check if we can read the directory
+        do {
+            let _ = try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)
+            return true
+        } catch {
+            NSLog("Cannot access folder %@: %@", path, error.localizedDescription)
+            handlePermissionError(error.localizedDescription)
+            return false
+        }
     }
 }
