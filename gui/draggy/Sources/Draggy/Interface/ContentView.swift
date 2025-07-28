@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @ObservedObject var viewModel: ClipboardViewModel
-    @StateObject private var updateChecker = UpdateChecker()
+    @ObservedObject var updateChecker: UpdateChecker
 
     var body: some View {
         ZStack {
@@ -33,10 +33,6 @@ struct ContentView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .animation(.easeInOut(duration: 0.3), value: viewModel.showAutoSwitchMessage)
             }
-        }
-        .onAppear {
-            // Check for updates when view appears
-            updateChecker.checkForUpdatesIfNeeded()
         }
         .sheet(isPresented: $viewModel.showPermissionAlert) {
             PermissionView(

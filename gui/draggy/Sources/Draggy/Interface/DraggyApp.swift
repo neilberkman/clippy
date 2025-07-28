@@ -164,7 +164,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSWindowD
             viewModel = ClipboardViewModel(monitor: clipboardMonitor, onDragStarted: onDragStarted)
 
             // Use EscapableHostingController for ESC key support
-            let hostingController = EscapableHostingController(rootView: ContentView(viewModel: viewModel!))
+            let hostingController = EscapableHostingController(rootView: ContentView(viewModel: viewModel!, updateChecker: updateChecker!))
             hostingController.onClose = { [weak self] in
                 self?.closePopover(nil)
             }

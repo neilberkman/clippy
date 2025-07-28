@@ -158,8 +158,23 @@ class UpdateChecker: ObservableObject {
     }
 
     private func findBrewPath() -> String? {
-        // Use /usr/bin/env which to find brew in the user's PATH
-        // This respects the user's shell environment
+        // First, check common Homebrew installation locations directly
+        // This is important because GUI apps on macOS have limited PATH
+        let commonBrewPaths = [
+            "/opt/homebrew/bin/brew",     // Apple Silicon Macs
+            "/usr/local/bin/brew",         // Intel Macs
+            "/usr/bin/brew",               // Unusual but possible
+            "/home/linuxbrew/.linuxbrew/bin/brew" // Linux (just in case)
+        ]
+        
+        for path in commonBrewPaths {
+            if FileManager.default.fileExists(atPath: path) {
+                return path
+            }
+        }
+        
+        // Fallback: Use /usr/bin/env which to find brew in the user's PATH
+        // This might work if the app was launched from Terminal
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         task.arguments = ["which", "brew"]
@@ -180,7 +195,7 @@ class UpdateChecker: ObservableObject {
                 }
             }
         } catch {
-            print("Error finding brew: \(error)")
+            print("Error finding brew using which: \(error)")
         }
 
         return nil
