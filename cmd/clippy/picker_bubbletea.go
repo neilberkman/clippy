@@ -45,18 +45,36 @@ func (m pickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "esc", "q":
+		switch msg.Type {
+		case tea.KeyCtrlC, tea.KeyEsc:
 			m.cancelled = true
 			m.done = true
 			return m, tea.Quit
 
-		case "up", "k":
+		case tea.KeyUp:
 			if m.cursor > 0 {
 				m.cursor--
 			}
 
-		case "down", "j":
+		case tea.KeyDown:
+			if m.cursor < len(m.files)-1 {
+				m.cursor++
+			}
+		}
+
+		// Also handle string-based keys
+		switch msg.String() {
+		case "q":
+			m.cancelled = true
+			m.done = true
+			return m, tea.Quit
+
+		case "k":
+			if m.cursor > 0 {
+				m.cursor--
+			}
+
+		case "j":
 			if m.cursor < len(m.files)-1 {
 				m.cursor++
 			}

@@ -247,8 +247,8 @@ func handleRecentMode(timeStr string, interactiveMode bool) {
 	// Pass count to Core layer for proper limiting
 	// If interactive mode, get more files for the picker to show
 	maxFiles := count
-	if interactiveMode && count == 0 {
-		maxFiles = 20 // Default for interactive picker
+	if interactiveMode && (count == 0 || count == 1) {
+		maxFiles = 20 // Default for interactive picker when no specific count given
 	}
 
 	// Handle folder selection if specified
