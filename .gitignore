@@ -81,3 +81,6 @@ cmd/clippy/*.png
 cmd/clippy/*.gif
 cmd/clippy/*.pdf
 cmd/clippy/*.txt
+.mcpregistry_*
+mcp-publisher
+mcp-registry-temp/

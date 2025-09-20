@@ -1,0 +1,106 @@
+{
+  "name": "io.github.neilberkman/clippy",
+  "title": "Clippy - Smart macOS Clipboard Tool",
+  "description": "Copy AI-generated content to macOS clipboard. Handles text, code, files & recent downloads.",
+  "vendor": "neilberkman",
+  "sourceUrl": "https://github.com/neilberkman/clippy",
+  "licenseUrl": "https://github.com/neilberkman/clippy/blob/main/LICENSE",
+  "categories": ["productivity", "system", "utilities"],
+  "requirements": {
+    "mcp": ">=1.0.0",
+    "platform": "darwin"
+  },
+  "runtime": {
+    "type": "binary",
+    "command": "clippy",
+    "args": ["mcp-server"]
+  },
+  "tools": [
+    {
+      "name": "clipboard_copy",
+      "description": "Copy text or files to clipboard. Use 'text' parameter for generated content (code, emails, docs). Use 'file' parameter only for existing files that need to be attached/uploaded.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Text content to copy - use for all generated content"
+          },
+          "file": {
+            "type": "string",
+            "description": "File path to copy as file reference - only for existing files"
+          },
+          "force_text": {
+            "type": "string",
+            "description": "Set to 'true' to force copying file content as text"
+          }
+        }
+      }
+    },
+    {
+      "name": "clipboard_paste",
+      "description": "Paste clipboard content to file or directory. Intelligently handles both text content and file references from clipboard.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "destination": {
+            "type": "string",
+            "description": "Destination directory (defaults to current directory)"
+          }
+        }
+      }
+    },
+    {
+      "name": "get_recent_downloads",
+      "description": "Get list of recently added files from Downloads, Desktop, and Documents folders.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number",
+            "description": "Number of files to return (default: 10)"
+          },
+          "duration": {
+            "type": "string",
+            "description": "Time duration to look back (e.g. 5m, 1h)"
+          }
+        }
+      }
+    }
+  ],
+  "prompts": [
+    {
+      "name": "copy-recent-download",
+      "description": "Copy the most recent download to clipboard",
+      "arguments": [
+        {
+          "name": "count",
+          "description": "Number of recent downloads to copy",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "paste-here",
+      "description": "Paste clipboard content to current directory"
+    }
+  ],
+  "examples": [
+    {
+      "prompt": "Write a Python script to process CSV files and copy it to my clipboard",
+      "description": "Generate code and put it directly on your clipboard"
+    },
+    {
+      "prompt": "Draft an email about the meeting and put it on my clipboard",
+      "description": "Create formatted text ready to paste into any email client"
+    },
+    {
+      "prompt": "Copy my most recent download to the clipboard",
+      "description": "Quickly grab recently downloaded files"
+    }
+  ],
+  "installation": {
+    "type": "homebrew",
+    "instructions": "brew install neilberkman/clippy/clippy"
+  }
+}
