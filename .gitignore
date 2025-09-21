@@ -47,7 +47,6 @@ debug.log
 *.temp
 
 # Claude AI context file
-CLAUDE.md
 
 # Development notes
 IDEAS.md
