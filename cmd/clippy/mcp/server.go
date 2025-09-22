@@ -65,10 +65,10 @@ func StartServer() error {
 	// Define copy tool
 	copyTool := mcp.NewTool(
 		"clipboard_copy",
-		mcp.WithDescription("Copy text or file to clipboard. CRITICAL: Use 'text' parameter for ANY generated content, code, messages, or text that will be pasted. Use 'file' parameter ONLY for existing files that need to be attached/uploaded. DEFAULT TO 'text' FOR ALL GENERATED CONTENT."),
+		mcp.WithDescription("Copy text or file to clipboard. CRITICAL: Use 'text' parameter for ANY generated content, code, messages, or text that will be pasted. Use 'file' parameter ONLY for existing files that need to be attached/uploaded. DEFAULT TO 'text' FOR ALL GENERATED CONTENT. PRO TIP: For iterative editing, write to a temp file then use file + force_text='true' to avoid regenerating full content each time."),
 		mcp.WithString("text", mcp.Description("Text content to copy - USE THIS for all generated content, code snippets, messages, emails, documentation, or any text that will be pasted")),
-		mcp.WithString("file", mcp.Description("File path to copy as file reference - ONLY use this for existing files on disk that need to be dragged/attached, NOT for generated content")),
-		mcp.WithString("force_text", mcp.Description("Set to 'true' to force copying file content as text (only with 'file' parameter)")),
+		mcp.WithString("file", mcp.Description("File path to copy as file reference - ONLY use this for existing files on disk that need to be dragged/attached, NOT for generated content. PRO TIP: Use with force_text='true' for efficient iterative editing of temp files.")),
+		mcp.WithString("force_text", mcp.Description("Set to 'true' to force copying file content as text (only with 'file' parameter). USEFUL PATTERN: Write code to /tmp/script.ext, edit incrementally with Edit tool, then copy with file='/tmp/script.ext' force_text='true' for efficient iterative development without regenerating full text.")),
 	)
 
 	// Add copy tool handler
