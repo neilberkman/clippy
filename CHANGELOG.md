@@ -2,6 +2,23 @@
 
 Notable changes to clippy.
 
+## [1.3.4] - 2025-09-22
+
+### Enhanced
+
+- Improved MCP server tool descriptions to advertise the efficient `force_text` pattern
+  - Added PRO TIPS explaining how to use temp files with `force_text='true'` for iterative editing
+  - Helps LLMs discover this pattern for more efficient code editing workflows
+  - Particularly useful for production debugging scenarios
+
+## [1.3.3] - 2025-01-26
+
+### Fixed
+
+- Fixed interactive picker issues (#6)
+  - Resolved picker UI problems
+  - Improved interaction handling
+
 ## [1.3.2] - 2025-01-25
 
 ### Fixed
@@ -61,7 +78,6 @@ Notable changes to clippy.
 - **MIME type detection for all files**: Files now have their MIME types detected
   - Uses gabriel-vasile/mimetype library for accurate detection
   - MIME types passed through C bridge to Draggy
-  
 - **Human-friendly file type display**: Shows readable types instead of technical MIME
   - Integrated neilberkman/mimedescription library for type descriptions
   - Shows "PDF document", "Word document", "PNG image" etc.
