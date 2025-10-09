@@ -69,32 +69,55 @@
     },
     {
       "name": "buffer_copy",
-      "description": "Copy text or file to agent's private buffer. Solves LLM 'remember and re-emit' problem - guarantees byte-for-byte identical paste. Avoids system clipboard interference.",
+      "description": "Copy file bytes to agent's private buffer. Reads actual file bytes (no token generation). Supports line ranges for precise refactoring. Agent never touches or regenerates the copied content.",
       "parameters": {
         "type": "object",
         "properties": {
-          "text": {
-            "type": "string",
-            "description": "Text content to copy to agent buffer"
-          },
           "file": {
             "type": "string",
-            "description": "File path to copy to agent buffer (stores the path, not file content)"
+            "description": "File path to copy from (required)"
+          },
+          "start_line": {
+            "type": "number",
+            "description": "Starting line number (1-indexed, omit for entire file)"
+          },
+          "end_line": {
+            "type": "number",
+            "description": "Ending line number (inclusive, omit for entire file)"
           }
-        }
+        },
+        "required": ["file"]
       }
     },
     {
       "name": "buffer_paste",
-      "description": "Paste from agent's buffer. Returns exact content from buffer_copy (no regeneration/hallucination). Essential for reliable refactoring.",
+      "description": "Paste file bytes from agent's buffer to file. Writes exact bytes without agent token generation. Supports append/insert/replace modes for surgical refactoring.",
       "parameters": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "Target file path (required)"
+          },
+          "mode": {
+            "type": "string",
+            "description": "Paste mode: 'append' (default), 'insert', or 'replace'"
+          },
+          "at_line": {
+            "type": "number",
+            "description": "Line number for insert/replace mode (1-indexed)"
+          },
+          "to_line": {
+            "type": "number",
+            "description": "End line for replace mode (inclusive, required for replace)"
+          }
+        },
+        "required": ["file"]
       }
     },
     {
       "name": "buffer_list",
-      "description": "Show what's currently in the agent's private clipboard buffer. Useful for checking buffer contents before pasting.",
+      "description": "Show what's currently in the agent's buffer (metadata only, not content).",
       "parameters": {
         "type": "object",
         "properties": {}
