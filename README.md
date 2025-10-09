@@ -268,11 +268,19 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 
 ### Available Tools
 
-- **clipboard_copy** - Copy text or files to clipboard
+#### System Clipboard Tools
+
+- **clipboard_copy** - Copy text or files to system clipboard
 - **clipboard_paste** - Paste clipboard content to files/directories
 - **get_recent_downloads** - List recently downloaded files
 
-Claude can generate content and put it directly on your clipboard, ready to paste wherever you need it.
+#### Agent Buffer Tools
+
+- **buffer_copy** - Copy text/files to agent's private buffer (doesn't touch system clipboard)
+- **buffer_paste** - Paste exact content from buffer (no regeneration/hallucination)
+- **buffer_list** - Show current buffer contents
+
+**Why buffer tools?** Solves the LLM "remember and re-emit" problem - agents can now copy/paste code with byte-for-byte accuracy during refactoring, without interfering with your system clipboard.
 
 ## Library
 

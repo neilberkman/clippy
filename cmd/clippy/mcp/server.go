@@ -54,6 +54,28 @@ type RecentFile struct {
 	Modified string `json:"modified"`
 }
 
+// AgentBuffer represents an in-memory clipboard buffer for agent use
+// This allows agents to copy/paste without touching the system clipboard
+type AgentBuffer struct {
+	Type    string   `json:"type"`              // "text", "file", or "empty"
+	Text    string   `json:"text,omitempty"`    // Text content if Type is "text"
+	Files   []string `json:"files,omitempty"`   // File paths if Type is "file"
+	Message string   `json:"message,omitempty"` // Description of what's in the buffer
+}
+
+// BufferCopyArgs defines arguments for buffer_copy tool
+type BufferCopyArgs struct {
+	Text string `json:"text,omitempty" jsonschema:"description=Text content to copy to agent buffer"`
+	File string `json:"file,omitempty" jsonschema:"description=File path to copy to agent buffer"`
+}
+
+// BufferResult defines the result of buffer operations
+type BufferResult struct {
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
+	Buffer  AgentBuffer `json:"buffer,omitempty"`
+}
+
 // StartServer starts the MCP server
 func StartServer() error {
 	// Create MCP server
@@ -61,6 +83,11 @@ func StartServer() error {
 		"Clippy MCP Server",
 		"1.0.0",
 	)
+
+	// Create agent clipboard buffer (persists for the session)
+	agentBuffer := &AgentBuffer{
+		Type: "empty",
+	}
 
 	// Define copy tool
 	copyTool := mcp.NewTool(
@@ -274,6 +301,128 @@ func StartServer() error {
 		}
 
 		resultJSON, _ := json.Marshal(recentFiles)
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{mcp.TextContent{
+				Type: "text",
+				Text: string(resultJSON),
+			}},
+		}, nil
+	})
+
+	// Define buffer_copy tool
+	bufferCopyTool := mcp.NewTool(
+		"buffer_copy",
+		mcp.WithDescription("Copy text or file to agent's private buffer. Solves LLM 'remember and re-emit' problem - guarantees byte-for-byte identical content when pasted. Avoids touching system clipboard."),
+		mcp.WithString("text", mcp.Description("Text content to copy to agent buffer")),
+		mcp.WithString("file", mcp.Description("File path to copy to agent buffer (stores the path, not file content)")),
+	)
+
+	// Add buffer_copy tool handler
+	s.AddTool(bufferCopyTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		var args BufferCopyArgs
+		argsBytes, _ := json.Marshal(request.Params.Arguments)
+		if err := json.Unmarshal(argsBytes, &args); err != nil {
+			return nil, fmt.Errorf("invalid arguments: %w", err)
+		}
+
+		// Validate that only one of text or file is provided
+		if args.Text != "" && args.File != "" {
+			return nil, fmt.Errorf("provide either text or file, not both")
+		}
+
+		if args.Text == "" && args.File == "" {
+			return nil, fmt.Errorf("provide either text or file to copy")
+		}
+
+		var result BufferResult
+
+		if args.Text != "" {
+			// Copy text to buffer
+			agentBuffer.Type = "text"
+			agentBuffer.Text = args.Text
+			agentBuffer.Files = nil
+			agentBuffer.Message = fmt.Sprintf("Text (%d chars)", len(args.Text))
+
+			result = BufferResult{
+				Success: true,
+				Message: fmt.Sprintf("Copied %d characters to agent buffer", len(args.Text)),
+				Buffer:  *agentBuffer,
+			}
+		} else {
+			// Copy file path to buffer
+			absPath, err := filepath.Abs(args.File)
+			if err != nil {
+				return nil, fmt.Errorf("invalid file path: %w", err)
+			}
+
+			// Check if file exists
+			if _, err := os.Stat(absPath); os.IsNotExist(err) {
+				return nil, fmt.Errorf("file not found: %s", absPath)
+			}
+
+			agentBuffer.Type = "file"
+			agentBuffer.Text = ""
+			agentBuffer.Files = []string{absPath}
+			agentBuffer.Message = fmt.Sprintf("File: %s", filepath.Base(absPath))
+
+			result = BufferResult{
+				Success: true,
+				Message: fmt.Sprintf("Copied file path to agent buffer: %s", filepath.Base(absPath)),
+				Buffer:  *agentBuffer,
+			}
+		}
+
+		resultJSON, _ := json.Marshal(result)
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{mcp.TextContent{
+				Type: "text",
+				Text: string(resultJSON),
+			}},
+		}, nil
+	})
+
+	// Define buffer_paste tool
+	bufferPasteTool := mcp.NewTool(
+		"buffer_paste",
+		mcp.WithDescription("Paste from agent's private buffer. Returns exact content from buffer_copy (no regeneration/hallucination). Essential for reliable refactoring."),
+	)
+
+	// Add buffer_paste tool handler
+	s.AddTool(bufferPasteTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		if agentBuffer.Type == "empty" {
+			return nil, fmt.Errorf("agent buffer is empty - use buffer_copy first")
+		}
+
+		result := BufferResult{
+			Success: true,
+			Message: fmt.Sprintf("Pasted from agent buffer: %s", agentBuffer.Message),
+			Buffer:  *agentBuffer,
+		}
+
+		resultJSON, _ := json.Marshal(result)
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{mcp.TextContent{
+				Type: "text",
+				Text: string(resultJSON),
+			}},
+		}, nil
+	})
+
+	// Define buffer_list tool
+	bufferListTool := mcp.NewTool(
+		"buffer_list",
+		mcp.WithDescription("Show what's currently in the agent's private clipboard buffer. Useful for checking buffer contents before pasting."),
+	)
+
+	// Add buffer_list tool handler
+	s.AddTool(bufferListTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		result := BufferResult{
+			Success: true,
+			Message: fmt.Sprintf("Buffer status: %s", agentBuffer.Type),
+			Buffer:  *agentBuffer,
+		}
+
+		resultJSON, _ := json.Marshal(result)
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{mcp.TextContent{
 				Type: "text",
