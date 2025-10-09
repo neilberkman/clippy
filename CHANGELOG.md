@@ -2,16 +2,30 @@
 
 Notable changes to clippy.
 
-## [1.4.0] - 2025-10-09
+## [1.5.0] - 2025-10-09
 
 ### Added
 
-- Agent clipboard buffer tools for MCP server
-  - `buffer_copy` - Copy text/files to agent's private buffer (doesn't touch system clipboard)
-  - `buffer_paste` - Paste exact content from buffer (no regeneration/hallucination)
-  - `buffer_list` - Show current buffer contents
-  - Solves the LLM "remember and re-emit" problem for byte-for-byte accurate refactoring
-  - Enables true copy/paste semantics without interfering with user's system clipboard
+- **BREAKING**: Complete rewrite of agent buffer tools for true byte-level copy/paste
+  - `buffer_copy` - Copy file bytes (line ranges supported) to agent's private buffer
+  - `buffer_paste` - Paste bytes to file with append/insert/replace modes
+  - `buffer_list` - Show buffer metadata (lines, source file, range)
+  - **Key improvement**: MCP server reads/writes file bytes directly - agent never generates tokens for copied content
+  - Solves the LLM "remember and re-emit" problem with actual file manipulation, not token generation
+  - Enables surgical refactoring: copy lines 17-32, paste to replace lines 5-8, etc.
+  - No system clipboard interference
+
+### Breaking Changes
+
+- `buffer_copy` now requires `file` parameter (no longer accepts `text`)
+- `buffer_paste` now requires `file` and `mode` parameters
+- Buffer stores raw bytes, not text strings
+
+## [1.4.0] - 2025-10-09
+
+### Deprecated
+
+- Initial agent buffer tools (replaced in 1.5.0 with file-based byte manipulation)
 
 ## [1.3.4] - 2025-09-22
 
