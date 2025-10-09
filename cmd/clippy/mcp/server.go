@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -55,25 +56,36 @@ type RecentFile struct {
 }
 
 // AgentBuffer represents an in-memory clipboard buffer for agent use
-// This allows agents to copy/paste without touching the system clipboard
+// Stores actual file bytes, not generated tokens
 type AgentBuffer struct {
-	Type    string   `json:"type"`              // "text", "file", or "empty"
-	Text    string   `json:"text,omitempty"`    // Text content if Type is "text"
-	Files   []string `json:"files,omitempty"`   // File paths if Type is "file"
-	Message string   `json:"message,omitempty"` // Description of what's in the buffer
+	Content     []byte `json:"-"`                 // Raw bytes from file
+	Lines       int    `json:"lines,omitempty"`   // Number of lines copied
+	SourceFile  string `json:"source_file,omitempty"`
+	SourceRange string `json:"source_range,omitempty"` // e.g. "17-23" or "all"
 }
 
 // BufferCopyArgs defines arguments for buffer_copy tool
 type BufferCopyArgs struct {
-	Text string `json:"text,omitempty" jsonschema:"description=Text content to copy to agent buffer"`
-	File string `json:"file,omitempty" jsonschema:"description=File path to copy to agent buffer"`
+	File      string `json:"file" jsonschema:"description=File path to copy from (required)"`
+	StartLine int    `json:"start_line,omitempty" jsonschema:"description=Starting line number (1-indexed, omit for entire file)"`
+	EndLine   int    `json:"end_line,omitempty" jsonschema:"description=Ending line number (inclusive, omit for entire file)"`
+}
+
+// BufferPasteArgs defines arguments for buffer_paste tool
+type BufferPasteArgs struct {
+	File   string `json:"file" jsonschema:"description=Target file path (required)"`
+	Mode   string `json:"mode,omitempty" jsonschema:"description=Paste mode: 'append' (default), 'insert', or 'replace'"`
+	AtLine int    `json:"at_line,omitempty" jsonschema:"description=Line number for insert/replace mode (1-indexed)"`
+	ToLine int    `json:"to_line,omitempty" jsonschema:"description=End line for replace mode (inclusive, required for replace)"`
 }
 
 // BufferResult defines the result of buffer operations
 type BufferResult struct {
-	Success bool   `json:"success"`
-	Message string `json:"message,omitempty"`
-	Buffer  AgentBuffer `json:"buffer,omitempty"`
+	Success     bool   `json:"success"`
+	Message     string `json:"message,omitempty"`
+	Lines       int    `json:"lines,omitempty"`
+	SourceFile  string `json:"source_file,omitempty"`
+	SourceRange string `json:"source_range,omitempty"`
 }
 
 // StartServer starts the MCP server
@@ -85,8 +97,9 @@ func StartServer() error {
 	)
 
 	// Create agent clipboard buffer (persists for the session)
+	// Stores raw file bytes for true copy/paste without token regeneration
 	agentBuffer := &AgentBuffer{
-		Type: "empty",
+		Content: []byte{},
 	}
 
 	// Define copy tool
@@ -312,9 +325,10 @@ func StartServer() error {
 	// Define buffer_copy tool
 	bufferCopyTool := mcp.NewTool(
 		"buffer_copy",
-		mcp.WithDescription("Copy text or file to agent's private buffer. Solves LLM 'remember and re-emit' problem - guarantees byte-for-byte identical content when pasted. Avoids touching system clipboard."),
-		mcp.WithString("text", mcp.Description("Text content to copy to agent buffer")),
-		mcp.WithString("file", mcp.Description("File path to copy to agent buffer (stores the path, not file content)")),
+		mcp.WithDescription("Copy file bytes to agent's private buffer. Reads actual file bytes (no token generation). Supports line ranges for precise refactoring. Agent never touches or regenerates the copied content."),
+		mcp.WithString("file", mcp.Description("File path to copy from (required)"), mcp.Required()),
+		mcp.WithNumber("start_line", mcp.Description("Starting line number (1-indexed, omit for entire file)")),
+		mcp.WithNumber("end_line", mcp.Description("Ending line number (inclusive, omit for entire file)")),
 	)
 
 	// Add buffer_copy tool handler
@@ -325,51 +339,60 @@ func StartServer() error {
 			return nil, fmt.Errorf("invalid arguments: %w", err)
 		}
 
-		// Validate that only one of text or file is provided
-		if args.Text != "" && args.File != "" {
-			return nil, fmt.Errorf("provide either text or file, not both")
+		if args.File == "" {
+			return nil, fmt.Errorf("file parameter is required")
 		}
 
-		if args.Text == "" && args.File == "" {
-			return nil, fmt.Errorf("provide either text or file to copy")
+		absPath, err := filepath.Abs(args.File)
+		if err != nil {
+			return nil, fmt.Errorf("invalid file path: %w", err)
 		}
 
-		var result BufferResult
+		// Read the entire file
+		content, err := os.ReadFile(absPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read file: %w", err)
+		}
 
-		if args.Text != "" {
-			// Copy text to buffer
-			agentBuffer.Type = "text"
-			agentBuffer.Text = args.Text
-			agentBuffer.Files = nil
-			agentBuffer.Message = fmt.Sprintf("Text (%d chars)", len(args.Text))
+		lines := strings.Split(string(content), "\n")
+		var rangeStr string
+		var linesToCopy []string
 
-			result = BufferResult{
-				Success: true,
-				Message: fmt.Sprintf("Copied %d characters to agent buffer", len(args.Text)),
-				Buffer:  *agentBuffer,
+		// Handle line range
+		if args.StartLine > 0 || args.EndLine > 0 {
+			start := args.StartLine
+			end := args.EndLine
+
+			if start < 1 {
+				start = 1
 			}
+			if end < 1 || end > len(lines) {
+				end = len(lines)
+			}
+			if start > end {
+				return nil, fmt.Errorf("start_line (%d) cannot be greater than end_line (%d)", start, end)
+			}
+
+			linesToCopy = lines[start-1 : end]
+			rangeStr = fmt.Sprintf("%d-%d", start, end)
 		} else {
-			// Copy file path to buffer
-			absPath, err := filepath.Abs(args.File)
-			if err != nil {
-				return nil, fmt.Errorf("invalid file path: %w", err)
-			}
+			linesToCopy = lines
+			rangeStr = "all"
+		}
 
-			// Check if file exists
-			if _, err := os.Stat(absPath); os.IsNotExist(err) {
-				return nil, fmt.Errorf("file not found: %s", absPath)
-			}
+		// Store raw bytes in buffer
+		copiedContent := []byte(strings.Join(linesToCopy, "\n"))
+		agentBuffer.Content = copiedContent
+		agentBuffer.Lines = len(linesToCopy)
+		agentBuffer.SourceFile = filepath.Base(absPath)
+		agentBuffer.SourceRange = rangeStr
 
-			agentBuffer.Type = "file"
-			agentBuffer.Text = ""
-			agentBuffer.Files = []string{absPath}
-			agentBuffer.Message = fmt.Sprintf("File: %s", filepath.Base(absPath))
-
-			result = BufferResult{
-				Success: true,
-				Message: fmt.Sprintf("Copied file path to agent buffer: %s", filepath.Base(absPath)),
-				Buffer:  *agentBuffer,
-			}
+		result := BufferResult{
+			Success:     true,
+			Message:     fmt.Sprintf("Copied %d lines from %s (lines %s)", len(linesToCopy), filepath.Base(absPath), rangeStr),
+			Lines:       len(linesToCopy),
+			SourceFile:  filepath.Base(absPath),
+			SourceRange: rangeStr,
 		}
 
 		resultJSON, _ := json.Marshal(result)
@@ -384,19 +407,108 @@ func StartServer() error {
 	// Define buffer_paste tool
 	bufferPasteTool := mcp.NewTool(
 		"buffer_paste",
-		mcp.WithDescription("Paste from agent's private buffer. Returns exact content from buffer_copy (no regeneration/hallucination). Essential for reliable refactoring."),
+		mcp.WithDescription("Paste file bytes from agent's buffer to file. Writes exact bytes without agent token generation. Supports append/insert/replace modes for surgical refactoring."),
+		mcp.WithString("file", mcp.Description("Target file path (required)"), mcp.Required()),
+		mcp.WithString("mode", mcp.Description("Paste mode: 'append' (default), 'insert', or 'replace'")),
+		mcp.WithNumber("at_line", mcp.Description("Line number for insert/replace mode (1-indexed)")),
+		mcp.WithNumber("to_line", mcp.Description("End line for replace mode (inclusive, required for replace)")),
 	)
 
 	// Add buffer_paste tool handler
 	s.AddTool(bufferPasteTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		if agentBuffer.Type == "empty" {
-			return nil, fmt.Errorf("agent buffer is empty - use buffer_copy first")
+		var args BufferPasteArgs
+		argsBytes, _ := json.Marshal(request.Params.Arguments)
+		if err := json.Unmarshal(argsBytes, &args); err != nil {
+			return nil, fmt.Errorf("invalid arguments: %w", err)
+		}
+
+		if len(agentBuffer.Content) == 0 {
+			return nil, fmt.Errorf("buffer is empty - use buffer_copy first")
+		}
+
+		if args.File == "" {
+			return nil, fmt.Errorf("file parameter is required")
+		}
+
+		absPath, err := filepath.Abs(args.File)
+		if err != nil {
+			return nil, fmt.Errorf("invalid file path: %w", err)
+		}
+
+		mode := args.Mode
+		if mode == "" {
+			mode = "append"
+		}
+
+		// Read target file if it exists
+		var targetLines []string
+		existingContent, err := os.ReadFile(absPath)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return nil, fmt.Errorf("failed to read target file: %w", err)
+			}
+			// File doesn't exist, create it
+			targetLines = []string{}
+		} else {
+			targetLines = strings.Split(string(existingContent), "\n")
+		}
+
+		bufferLines := strings.Split(string(agentBuffer.Content), "\n")
+		var newLines []string
+
+		switch mode {
+		case "append":
+			// Append buffer content to end of file
+			newLines = append(targetLines, bufferLines...)
+
+		case "insert":
+			if args.AtLine < 1 {
+				return nil, fmt.Errorf("at_line is required for insert mode")
+			}
+			insertAt := args.AtLine - 1
+			if insertAt > len(targetLines) {
+				insertAt = len(targetLines)
+			}
+			// Insert buffer content at specified line
+			newLines = make([]string, 0, len(targetLines)+len(bufferLines))
+			newLines = append(newLines, targetLines[:insertAt]...)
+			newLines = append(newLines, bufferLines...)
+			newLines = append(newLines, targetLines[insertAt:]...)
+
+		case "replace":
+			if args.AtLine < 1 || args.ToLine < 1 {
+				return nil, fmt.Errorf("at_line and to_line are required for replace mode")
+			}
+			replaceFrom := args.AtLine - 1
+			replaceTo := args.ToLine
+			if replaceFrom >= len(targetLines) {
+				return nil, fmt.Errorf("at_line %d is beyond file length %d", args.AtLine, len(targetLines))
+			}
+			if replaceTo > len(targetLines) {
+				replaceTo = len(targetLines)
+			}
+			// Replace lines [from, to] with buffer content
+			newLines = make([]string, 0)
+			newLines = append(newLines, targetLines[:replaceFrom]...)
+			newLines = append(newLines, bufferLines...)
+			newLines = append(newLines, targetLines[replaceTo:]...)
+
+		default:
+			return nil, fmt.Errorf("invalid mode %q: must be 'append', 'insert', or 'replace'", mode)
+		}
+
+		// Write the new content
+		newContent := []byte(strings.Join(newLines, "\n"))
+		if err := os.WriteFile(absPath, newContent, 0644); err != nil {
+			return nil, fmt.Errorf("failed to write file: %w", err)
 		}
 
 		result := BufferResult{
-			Success: true,
-			Message: fmt.Sprintf("Pasted from agent buffer: %s", agentBuffer.Message),
-			Buffer:  *agentBuffer,
+			Success:     true,
+			Message:     fmt.Sprintf("Pasted %d lines to %s (mode: %s)", agentBuffer.Lines, filepath.Base(absPath), mode),
+			Lines:       agentBuffer.Lines,
+			SourceFile:  agentBuffer.SourceFile,
+			SourceRange: agentBuffer.SourceRange,
 		}
 
 		resultJSON, _ := json.Marshal(result)
@@ -411,15 +523,31 @@ func StartServer() error {
 	// Define buffer_list tool
 	bufferListTool := mcp.NewTool(
 		"buffer_list",
-		mcp.WithDescription("Show what's currently in the agent's private clipboard buffer. Useful for checking buffer contents before pasting."),
+		mcp.WithDescription("Show what's currently in the agent's buffer (metadata only, not content)."),
 	)
 
 	// Add buffer_list tool handler
 	s.AddTool(bufferListTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		if len(agentBuffer.Content) == 0 {
+			result := BufferResult{
+				Success: true,
+				Message: "Buffer is empty",
+			}
+			resultJSON, _ := json.Marshal(result)
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{mcp.TextContent{
+					Type: "text",
+					Text: string(resultJSON),
+				}},
+			}, nil
+		}
+
 		result := BufferResult{
-			Success: true,
-			Message: fmt.Sprintf("Buffer status: %s", agentBuffer.Type),
-			Buffer:  *agentBuffer,
+			Success:     true,
+			Message:     fmt.Sprintf("Buffer contains %d lines from %s (lines %s)", agentBuffer.Lines, agentBuffer.SourceFile, agentBuffer.SourceRange),
+			Lines:       agentBuffer.Lines,
+			SourceFile:  agentBuffer.SourceFile,
+			SourceRange: agentBuffer.SourceRange,
 		}
 
 		resultJSON, _ := json.Marshal(result)
