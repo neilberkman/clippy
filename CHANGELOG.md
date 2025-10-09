@@ -2,6 +2,17 @@
 
 Notable changes to clippy.
 
+## [1.4.0] - 2025-10-09
+
+### Added
+
+- Agent clipboard buffer tools for MCP server
+  - `buffer_copy` - Copy text/files to agent's private buffer (doesn't touch system clipboard)
+  - `buffer_paste` - Paste exact content from buffer (no regeneration/hallucination)
+  - `buffer_list` - Show current buffer contents
+  - Solves the LLM "remember and re-emit" problem for byte-for-byte accurate refactoring
+  - Enables true copy/paste semantics without interfering with user's system clipboard
+
 ## [1.3.4] - 2025-09-22
 
 ### Enhanced

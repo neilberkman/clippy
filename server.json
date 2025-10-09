@@ -66,6 +66,39 @@
           }
         }
       }
+    },
+    {
+      "name": "buffer_copy",
+      "description": "Copy text or file to agent's private buffer. Solves LLM 'remember and re-emit' problem - guarantees byte-for-byte identical paste. Avoids system clipboard interference.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Text content to copy to agent buffer"
+          },
+          "file": {
+            "type": "string",
+            "description": "File path to copy to agent buffer (stores the path, not file content)"
+          }
+        }
+      }
+    },
+    {
+      "name": "buffer_paste",
+      "description": "Paste from agent's buffer. Returns exact content from buffer_copy (no regeneration/hallucination). Essential for reliable refactoring.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "buffer_list",
+      "description": "Show what's currently in the agent's private clipboard buffer. Useful for checking buffer contents before pasting.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
     }
   ],
   "prompts": [
@@ -97,6 +130,10 @@
     {
       "prompt": "Copy my most recent download to the clipboard",
       "description": "Quickly grab recently downloaded files"
+    },
+    {
+      "prompt": "Refactor the processData function into a separate file",
+      "description": "Use buffer_copy and buffer_paste to move code without touching system clipboard"
     }
   ],
   "installation": {
