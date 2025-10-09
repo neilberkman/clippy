@@ -276,11 +276,11 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 
 #### Agent Buffer Tools
 
-- **buffer_copy** - Copy text/files to agent's private buffer (doesn't touch system clipboard)
-- **buffer_paste** - Paste exact content from buffer (no regeneration/hallucination)
-- **buffer_list** - Show current buffer contents
+- **buffer_copy** - Copy file bytes (with optional line ranges) to agent's private buffer
+- **buffer_paste** - Paste bytes to file with append/insert/replace modes
+- **buffer_list** - Show buffer metadata (lines, source file, range)
 
-**Why buffer tools?** Solves the LLM "remember and re-emit" problem - agents can now copy/paste code with byte-for-byte accuracy during refactoring, without interfering with your system clipboard.
+**Why buffer tools?** Solves the LLM "remember and re-emit" problem. The MCP server reads/writes file bytes directly - agents never generate tokens for copied content. Enables surgical refactoring (copy lines 17-32, paste to replace lines 5-8) with byte-for-byte accuracy, without touching your system clipboard.
 
 ## Library
 

@@ -2,6 +2,13 @@
 
 Notable changes to clippy.
 
+## [1.5.1] - 2025-10-09
+
+### Fixed
+
+- Updated server.json tool descriptions to accurately reflect byte-level file manipulation
+- Clarified buffer tool parameters and modes for better LLM understanding
+
 ## [1.5.0] - 2025-10-09
 
 ### Added
