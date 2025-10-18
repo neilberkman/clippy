@@ -2,7 +2,7 @@
 
 Notable changes to clippy.
 
-## [Unreleased]
+## [1.5.2] - 2025-10-18
 
 ### Added
 
