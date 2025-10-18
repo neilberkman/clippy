@@ -115,6 +115,18 @@ No more manual selecting and copying from the chat interface.
 
 ### Setup
 
+**Claude Code:**
+
+```bash
+# Install for all your projects (recommended)
+claude mcp add --scope user clippy $(which clippy) mcp-server
+
+# Or for current project only
+claude mcp add clippy $(which clippy) mcp-server
+```
+
+Note: `$(which clippy)` finds the clippy binary on your system. On Apple Silicon Macs this is typically `/opt/homebrew/bin/clippy`, on Intel Macs it's `/usr/local/bin/clippy`.
+
 **Claude Desktop:**
 
 Add to your config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
@@ -130,18 +142,6 @@ Add to your config (`~/Library/Application Support/Claude/claude_desktop_config.
 }
 ```
 
-**Claude Code:**
-
-```bash
-# Install for all your projects (recommended)
-claude mcp add --scope user clippy $(which clippy) mcp-server
-
-# Or for current project only
-claude mcp add clippy $(which clippy) mcp-server
-```
-
-Note: `$(which clippy)` finds the clippy binary on your system. On Apple Silicon Macs this is typically `/opt/homebrew/bin/clippy`, on Intel Macs it's `/usr/local/bin/clippy`.
-
 ### Available Tools
 
 #### System Clipboard Tools
@@ -153,6 +153,7 @@ Note: `$(which clippy)` finds the clippy binary on your system. On Apple Silicon
 #### Agent Buffer Tools
 
 - **buffer_copy** - Copy file bytes (with optional line ranges) to agent's private buffer
+- **buffer_cut** - Cut lines from file to buffer (copy and delete from source)
 - **buffer_paste** - Paste bytes to file with append/insert/replace modes
 - **buffer_list** - Show buffer metadata (lines, source file, range)
 
