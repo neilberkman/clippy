@@ -26,6 +26,13 @@ type PasteArgs struct {
 	Destination string `json:"destination,omitempty" jsonschema:"description=Directory to paste files to (defaults to current directory)"`
 }
 
+// BufferCutArgs defines arguments for buffer_cut tool
+type BufferCutArgs struct {
+	File      string `json:"file" jsonschema:"description=File path to cut from (required)"`
+	StartLine int    `json:"start_line,omitempty" jsonschema:"description=Starting line number (1-indexed, omit for entire file)"`
+	EndLine   int    `json:"end_line,omitempty" jsonschema:"description=Ending line number (inclusive, omit for entire file)"`
+}
+
 // RecentDownloadsArgs defines arguments for the recent downloads tool
 type RecentDownloadsArgs struct {
 	Count    int    `json:"count,omitempty" jsonschema:"description=Number of recent files to return (default: 10)"`
@@ -325,7 +332,7 @@ func StartServer() error {
 	// Define buffer_copy tool
 	bufferCopyTool := mcp.NewTool(
 		"buffer_copy",
-		mcp.WithDescription("Copy file bytes to agent's private buffer. Reads actual file bytes (no token generation). Supports line ranges for precise refactoring. Agent never touches or regenerates the copied content."),
+		mcp.WithDescription("Copy file bytes (with optional line ranges) to agent's private buffer for refactoring. Server reads bytes directly - no token generation. Use when moving code between files or reorganizing large sections. Better than Edit for large blocks since content isn't regenerated."),
 		mcp.WithString("file", mcp.Description("File path to copy from (required)"), mcp.Required()),
 		mcp.WithNumber("start_line", mcp.Description("Starting line number (1-indexed, omit for entire file)")),
 		mcp.WithNumber("end_line", mcp.Description("Ending line number (inclusive, omit for entire file)")),
@@ -407,7 +414,7 @@ func StartServer() error {
 	// Define buffer_paste tool
 	bufferPasteTool := mcp.NewTool(
 		"buffer_paste",
-		mcp.WithDescription("Paste file bytes from agent's buffer to file. Writes exact bytes without agent token generation. Supports append/insert/replace modes for surgical refactoring."),
+		mcp.WithDescription("Paste buffered bytes to file with append/insert/replace modes. Use after buffer_copy to complete refactoring. Writes exact bytes without token generation. append=add to end, insert=inject at line, replace=overwrite range. Byte-perfect, no content regeneration."),
 		mcp.WithString("file", mcp.Description("Target file path (required)"), mcp.Required()),
 		mcp.WithString("mode", mcp.Description("Paste mode: 'append' (default), 'insert', or 'replace'")),
 		mcp.WithNumber("at_line", mcp.Description("Line number for insert/replace mode (1-indexed)")),
@@ -520,10 +527,107 @@ func StartServer() error {
 		}, nil
 	})
 
+	// Define buffer_cut tool
+	bufferCutTool := mcp.NewTool(
+		"buffer_cut",
+		mcp.WithDescription("Cut lines from file to buffer - copies to buffer then deletes from source. Like buffer_copy but removes the lines after copying. Use for moving code sections without manual deletion. Atomic operation - only deletes if copy succeeds."),
+		mcp.WithString("file", mcp.Description("File path to cut from (required)"), mcp.Required()),
+		mcp.WithNumber("start_line", mcp.Description("Starting line number (1-indexed, omit for entire file)")),
+		mcp.WithNumber("end_line", mcp.Description("Ending line number (inclusive, omit for entire file)")),
+	)
+
+	// Add buffer_cut tool handler
+	s.AddTool(bufferCutTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		var args BufferCutArgs
+		argsBytes, _ := json.Marshal(request.Params.Arguments)
+		if err := json.Unmarshal(argsBytes, &args); err != nil {
+			return nil, fmt.Errorf("invalid arguments: %w", err)
+		}
+
+		if args.File == "" {
+			return nil, fmt.Errorf("file parameter is required")
+		}
+
+		absPath, err := filepath.Abs(args.File)
+		if err != nil {
+			return nil, fmt.Errorf("invalid file path: %w", err)
+		}
+
+		// Read the entire file
+		content, err := os.ReadFile(absPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read file: %w", err)
+		}
+
+		lines := strings.Split(string(content), "\n")
+		var rangeStr string
+		var linesToCut []string
+		var remainingLines []string
+
+		// Handle line range
+		if args.StartLine > 0 || args.EndLine > 0 {
+			start := args.StartLine
+			end := args.EndLine
+
+			if start < 1 {
+				start = 1
+			}
+			if end < 1 || end > len(lines) {
+				end = len(lines)
+			}
+			if start > end {
+				return nil, fmt.Errorf("start_line (%d) cannot be greater than end_line (%d)", start, end)
+			}
+
+			// Lines to cut
+			linesToCut = lines[start-1 : end]
+
+			// Remaining lines (everything except what we cut)
+			remainingLines = append([]string{}, lines[:start-1]...)
+			remainingLines = append(remainingLines, lines[end:]...)
+
+			rangeStr = fmt.Sprintf("%d-%d", start, end)
+		} else {
+			// Cut entire file
+			linesToCut = lines
+			remainingLines = []string{}
+			rangeStr = "all"
+		}
+
+		// Store cut content in buffer first (atomic - only delete if this succeeds)
+		cutContent := []byte(strings.Join(linesToCut, "\n"))
+		agentBuffer.Content = cutContent
+		agentBuffer.Lines = len(linesToCut)
+		agentBuffer.SourceFile = filepath.Base(absPath)
+		agentBuffer.SourceRange = rangeStr
+
+		// Now write back the file without the cut lines
+		newContent := []byte(strings.Join(remainingLines, "\n"))
+		if err := os.WriteFile(absPath, newContent, 0644); err != nil {
+			return nil, fmt.Errorf("failed to write file after cut: %w", err)
+		}
+
+		result := BufferResult{
+			Success:     true,
+			Message:     fmt.Sprintf("Cut %d lines from %s (lines %s) to buffer and removed from file", len(linesToCut), filepath.Base(absPath), rangeStr),
+			Lines:       len(linesToCut),
+			SourceFile:  filepath.Base(absPath),
+			SourceRange: rangeStr,
+		}
+
+		resultJSON, _ := json.Marshal(result)
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{mcp.TextContent{
+				Type: "text",
+				Text: string(resultJSON),
+			}},
+		}, nil
+	})
+
 	// Define buffer_list tool
 	bufferListTool := mcp.NewTool(
 		"buffer_list",
-		mcp.WithDescription("Show what's currently in the agent's buffer (metadata only, not content)."),
+		mcp.WithDescription("Show buffer metadata (lines, source file, range). Use to verify buffer contents before pasting. Returns metadata only, not actual content."),
 	)
 
 	// Add buffer_list tool handler

@@ -2,6 +2,18 @@
 
 Notable changes to clippy.
 
+## [1.5.2] - 2025-10-18
+
+### Added
+
+- buffer_cut tool for atomic cut operations (copy to buffer + delete from source)
+- MCP server installation instructions in --help output
+
+### Changed
+
+- Optimized MCP tool descriptions for token efficiency
+- README reorganized to promote MCP server section
+
 ## [1.5.1] - 2025-10-09
 
 ### Fixed

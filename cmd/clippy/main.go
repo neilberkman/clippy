@@ -99,7 +99,13 @@ Configuration:
     cleanup = false       # Disable automatic temp file cleanup
     temp_dir = /path      # Custom directory for temporary files
     absolute_time = true  # Show absolute timestamps in picker (default: relative)
-    default_folders = downloads,desktop,documents  # Default folders to search (defaults to all three)`,
+    default_folders = downloads,desktop,documents  # Default folders to search (defaults to all three)
+
+MCP Server:
+  Install clippy as an MCP server for Claude Code:
+    claude mcp add --scope user clippy $(which clippy) mcp-server
+
+  For more info: clippy mcp-server --help`,
 		Version: fmt.Sprintf("%s (%s) built on %s", common.Version, common.Commit, common.Date),
 		Run: func(cmd *cobra.Command, args []string) {
 			// Load config file
