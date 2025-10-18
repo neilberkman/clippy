@@ -38,7 +38,7 @@ Stay in your terminal. Copy anything. Paste anywhere.
 ### Homebrew (Recommended)
 
 ```bash
-brew install neilberkman/clippy/clippy
+brew install clippy
 ```
 
 ### Build from Source
@@ -147,7 +147,7 @@ pasty notes.txt          # Saves the file's text content to notes.txt
 
 ```bash
 # Install via Homebrew
-brew install neilberkman/clippy/clippy
+brew install clippy
 
 # Or build from source
 go install github.com/neilberkman/clippy/cmd/clippy@latest

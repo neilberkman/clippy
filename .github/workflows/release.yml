@@ -65,18 +65,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
 
-  notify:
+  homebrew:
     needs: release
     runs-on: ubuntu-latest
-    if: always()
     steps:
-      - name: Notify release status
-        run: |
-          if [ "${{ needs.release.result }}" == "success" ]; then
-            echo "✅ Release completed successfully!"
-            echo "📦 Packages published to:"
-            echo "  - GitHub Releases"
-            echo "  - Homebrew Tap (if configured)"
-          else
-            echo "❌ Release failed!"
-          fi
+      - name: Update Homebrew formula
+        uses: dawidd6/action-homebrew-bump-formula@v5
+        with:
+          token: ${{ secrets.HOMEBREW_TOKEN }}
+          formula: clippy
+          tap: Homebrew/homebrew-core
