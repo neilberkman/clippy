@@ -29,30 +29,13 @@ clippy -i 5m            # Show picker for last 5 minutes only
 
 Stay in your terminal. Copy anything. Paste anywhere.
 
-**The Terminal-First Clipboard Suite:** [Clippy](#core-features) copies files to clipboard, [Pasty](#pasty---intelligent-clipboard-pasting) pastes them intelligently, and [Draggy](#draggy---visual-clipboard-companion) (optional GUI) bridges drag-and-drop workflows. Use as a [Go library](#library) for custom integrations. All designed to minimize context switching from your terminal.
-
-💡 **Bonus:** Clippy includes an [MCP server](#mcp-server) for AI assistants like Claude to copy generated content directly to your clipboard.
-
-## Installation
-
-### Homebrew (Recommended)
+**Installation:**
 
 ```bash
 brew install clippy
 ```
 
-### Build from Source
-
-```bash
-# Clone and build
-git clone https://github.com/neilberkman/clippy.git
-cd clippy
-go build -o clippy ./cmd/clippy
-sudo mv clippy /usr/local/bin/
-
-# Or use go install
-go install github.com/neilberkman/clippy/cmd/clippy@latest
-```
+**The Terminal-First Clipboard Suite:** [Clippy](#core-features) copies files to clipboard, includes an [MCP server](#mcp-server) for AI assistants, [Pasty](#pasty---intelligent-clipboard-pasting) pastes intelligently, and [Draggy](#draggy---visual-clipboard-companion) (optional GUI) bridges drag-and-drop workflows. Use as a [Go library](#library) for custom integrations. All designed to minimize context switching from your terminal.
 
 ## Core Features
 
@@ -118,6 +101,65 @@ Because it's a helpful clipboard assistant that knows what you want to do! 📎
 
 ---
 
+## MCP Server
+
+Clippy includes a built-in MCP (Model Context Protocol) server that lets AI assistants copy generated content directly to your clipboard.
+
+Ask Claude to generate any text - code, emails, documents - and have it instantly available to paste anywhere:
+
+- "Write a Python script to process CSV files and copy it to my clipboard"
+- "Draft an email about the meeting and put it on my clipboard"
+- "Generate that regex and copy it so I can paste into my editor"
+
+No more manual selecting and copying from the chat interface.
+
+### Setup
+
+**Claude Desktop:**
+
+Add to your config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "clippy": {
+      "command": "clippy",
+      "args": ["mcp-server"]
+    }
+  }
+}
+```
+
+**Claude Code:**
+
+```bash
+# Install for all your projects (recommended)
+claude mcp add --scope user clippy $(which clippy) mcp-server
+
+# Or for current project only
+claude mcp add clippy $(which clippy) mcp-server
+```
+
+Note: `$(which clippy)` finds the clippy binary on your system. On Apple Silicon Macs this is typically `/opt/homebrew/bin/clippy`, on Intel Macs it's `/usr/local/bin/clippy`.
+
+### Available Tools
+
+#### System Clipboard Tools
+
+- **clipboard_copy** - Copy text or files to system clipboard
+- **clipboard_paste** - Paste clipboard content to files/directories
+- **get_recent_downloads** - List recently downloaded files
+
+#### Agent Buffer Tools
+
+- **buffer_copy** - Copy file bytes (with optional line ranges) to agent's private buffer
+- **buffer_paste** - Paste bytes to file with append/insert/replace modes
+- **buffer_list** - Show buffer metadata (lines, source file, range)
+
+**Why buffer tools?** Solves the LLM "remember and re-emit" problem. The MCP server reads/writes file bytes directly - agents never generate tokens for copied content. Enables surgical refactoring (copy lines 17-32, paste to replace lines 5-8) with byte-for-byte accuracy, without touching your system clipboard.
+
+---
+
 ## Pasty - Intelligent Clipboard Pasting
 
 When you copy a file in Finder and press ⌘V in terminal, you just get the filename as text. Pasty actually copies the file itself to your current directory.
@@ -142,17 +184,6 @@ pasty notes.txt          # Saves the file's text content to notes.txt
 ```
 
 ---
-
-## Install & Use
-
-```bash
-# Install via Homebrew
-brew install clippy
-
-# Or build from source
-go install github.com/neilberkman/clippy/cmd/clippy@latest
-go install github.com/neilberkman/clippy/cmd/pasty@latest
-```
 
 ## Draggy - Visual Clipboard Companion
 
@@ -239,48 +270,22 @@ clippy -r                   # Copy most recent download
 
 Draggy is intentionally not a clipboard manager. No history, no search, no database. It's a visual bridge between your terminal clipboard workflow and GUI applications. For terminal users who occasionally need to see what's on their clipboard or drag files somewhere, then get back to work.
 
-## MCP Server
+---
 
-Clippy includes a built-in MCP (Model Context Protocol) server that lets AI assistants copy generated content directly to your clipboard.
+## Build from Source
 
-Ask Claude to generate any text - code, emails, documents - and have it instantly available to paste anywhere:
+```bash
+# Clone and build
+git clone https://github.com/neilberkman/clippy.git
+cd clippy
+go build -o clippy ./cmd/clippy
+go build -o pasty ./cmd/pasty
+sudo mv clippy pasty /usr/local/bin/
 
-- "Write a Python script to process CSV files and copy it to my clipboard"
-- "Draft an email about the meeting and put it on my clipboard"
-- "Generate that regex and copy it so I can paste into my editor"
-
-No more manual selecting and copying from the chat interface.
-
-### Setup
-
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "clippy": {
-      "command": "clippy",
-      "args": ["mcp-server"]
-    }
-  }
-}
+# Or use go install
+go install github.com/neilberkman/clippy/cmd/clippy@latest
+go install github.com/neilberkman/clippy/cmd/pasty@latest
 ```
-
-### Available Tools
-
-#### System Clipboard Tools
-
-- **clipboard_copy** - Copy text or files to system clipboard
-- **clipboard_paste** - Paste clipboard content to files/directories
-- **get_recent_downloads** - List recently downloaded files
-
-#### Agent Buffer Tools
-
-- **buffer_copy** - Copy file bytes (with optional line ranges) to agent's private buffer
-- **buffer_paste** - Paste bytes to file with append/insert/replace modes
-- **buffer_list** - Show buffer metadata (lines, source file, range)
-
-**Why buffer tools?** Solves the LLM "remember and re-emit" problem. The MCP server reads/writes file bytes directly - agents never generate tokens for copied content. Enables surgical refactoring (copy lines 17-32, paste to replace lines 5-8) with byte-for-byte accuracy, without touching your system clipboard.
 
 ## Library
 
