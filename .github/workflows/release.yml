@@ -74,3 +74,4 @@ jobs:
         with:
           token: ${{ secrets.HOMEBREW_TOKEN }}
           formula: clippy
+          force: true
