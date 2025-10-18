@@ -74,4 +74,3 @@ jobs:
         with:
           token: ${{ secrets.HOMEBREW_TOKEN }}
           formula: clippy
-          tap: Homebrew/homebrew-core
