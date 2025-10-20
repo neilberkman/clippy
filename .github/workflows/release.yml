@@ -36,11 +36,12 @@ jobs:
           # Run tests sequentially to avoid clipboard conflicts
           go test -v -p 1 ./...
 
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.5.0
+
       - name: Run linter
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          args: --timeout=5m
+        run: golangci-lint run --timeout=5m
 
   release:
     needs: test

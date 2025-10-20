@@ -37,11 +37,12 @@ jobs:
       - name: Run tests
         run: go test -v ./...
 
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.5.0
+
       - name: Run linter
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          args: --timeout=5m
+        run: golangci-lint run --timeout=5m
 
       - name: Build clippy
         run: go build -o clippy ./cmd/clippy
