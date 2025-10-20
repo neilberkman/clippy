@@ -55,9 +55,8 @@ func TestGetUTIForFile(t *testing.T) {
 				t.Errorf("GetUTIForFile(%s) returned empty UTI but should exist", tt.filePath)
 			}
 
-			if tt.shouldExist && tt.expectedUTI != "" && uti != tt.expectedUTI {
-				t.Logf("GetUTIForFile(%s) = %s, expected %s (may be system-dependent)", tt.filePath, uti, tt.expectedUTI)
-			}
+			// Skip UTI comparison for system-dependent types (like .exs files)
+			// These may return dynamic UTIs on different systems
 		})
 	}
 }
