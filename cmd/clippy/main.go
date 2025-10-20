@@ -66,15 +66,6 @@ Examples:
   # Copy from curl
   curl -s https://example.com/image.jpg | clippy
 
-  # Smart content type detection (new!)
-  echo '{"key": "value"}' | clippy     # Auto-detects as JSON
-  clippy -t page.html                  # Auto-detects as HTML
-  clippy -t data.xml                   # Auto-detects as XML
-
-  # Manual MIME type override
-  echo "Custom data" | clippy --mime text/html     # Force as HTML
-  clippy -t file.txt --mime application/json       # Treat text file as JSON
-
   # Copy most recent file(s) from Downloads/Desktop/Documents
   clippy -r            # copy the most recent file
   clippy -r 3          # copy the 3 most recent files
@@ -102,6 +93,11 @@ Examples:
   # Clear clipboard
   clippy --clear               # empty the clipboard
   echo -n | clippy             # also clears the clipboard
+
+  # Content type detection (auto-detects JSON, HTML, XML)
+  echo '{"key": "value"}' | clippy     # Recognized as JSON
+  clippy -t page.html                  # Recognized as HTML
+  clippy -t file.txt --mime text/html  # Override type when needed
 
 Configuration:
   Create ~/.clippy.conf with:
