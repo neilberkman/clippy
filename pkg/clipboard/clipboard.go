@@ -112,6 +112,41 @@ int copyText(const char *text) {
     }
 }
 
+// Function to copy text with a specific UTI/type to the clipboard
+int copyTextWithType(const char *text, const char *typeIdentifier) {
+    @autoreleasepool {
+        [NSApplication sharedApplication]; // Initialize the app context
+        NSString *nsText = [NSString stringWithUTF8String:text];
+        NSString *nsType = [NSString stringWithUTF8String:typeIdentifier];
+        NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+
+        // Get the current changeCount before operation
+        NSInteger initialChangeCount = [pasteboard changeCount];
+
+        // Perform the write operation
+        [pasteboard clearContents];
+
+        // Set both the specific type and plain text for compatibility
+        // Many apps expect plain text as a fallback
+        BOOL success = [pasteboard setString:nsText forType:nsType];
+        if (success) {
+            // Also add plain text representation
+            [pasteboard setString:nsText forType:NSPasteboardTypeString];
+        }
+
+        if (!success) {
+            return -1; // Write operation failed to start
+        }
+
+        // Wait for pasteboard to complete
+        if (waitForPasteboardChange(pasteboard, initialChangeCount) != 0) {
+            return -2; // Timed out
+        }
+
+        return 0; // Success
+    }
+}
+
 // Get current clipboard file paths if any
 char** getClipboardFiles(int *count) {
     @autoreleasepool {
@@ -358,6 +393,27 @@ func CopyText(text string) error {
 	cText := C.CString(text)
 	defer C.free(unsafe.Pointer(cText))
 	result := C.copyText(cText)
+
+	switch result {
+	case 0:
+		return nil
+	case -1:
+		return fmt.Errorf("failed to write to clipboard")
+	case -2:
+		return fmt.Errorf("clipboard operation timed out")
+	default:
+		return fmt.Errorf("unknown clipboard error: %d", result)
+	}
+}
+
+// CopyTextWithType copies text with a specific UTI type to clipboard
+// Common types: "public.html", "public.json", "public.xml", "public.plain-text"
+func CopyTextWithType(text string, typeIdentifier string) error {
+	cText := C.CString(text)
+	defer C.free(unsafe.Pointer(cText))
+	cType := C.CString(typeIdentifier)
+	defer C.free(unsafe.Pointer(cType))
+	result := C.copyTextWithType(cText, cType)
 
 	switch result {
 	case 0:

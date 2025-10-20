@@ -31,6 +31,7 @@ var (
 	clearFlag       bool
 	foldersFlag     []string
 	defaultFolders  []string
+	mimeType        string
 	logger          *log.Logger
 )
 
@@ -64,6 +65,15 @@ Examples:
 
   # Copy from curl
   curl -s https://example.com/image.jpg | clippy
+
+  # Smart content type detection (new!)
+  echo '{"key": "value"}' | clippy     # Auto-detects as JSON
+  clippy -t page.html                  # Auto-detects as HTML
+  clippy -t data.xml                   # Auto-detects as XML
+
+  # Manual MIME type override
+  echo "Custom data" | clippy --mime text/html     # Force as HTML
+  clippy -t file.txt --mime application/json       # Treat text file as JSON
 
   # Copy most recent file(s) from Downloads/Desktop/Documents
   clippy -r            # copy the most recent file
@@ -188,6 +198,7 @@ MCP Server:
 	rootCmd.PersistentFlags().BoolVarP(&textMode, "text", "t", false, "Copy text files as content instead of file reference")
 	rootCmd.PersistentFlags().BoolVar(&clearFlag, "clear", false, "Clear the clipboard")
 	rootCmd.PersistentFlags().StringSliceVar(&foldersFlag, "folders", nil, "Specific folders to search (e.g., --folders downloads,desktop). Options: downloads, desktop, documents")
+	rootCmd.PersistentFlags().StringVarP(&mimeType, "mime", "m", "", "Manually specify MIME type for clipboard (e.g., text/html, application/json, text/xml)")
 
 	// Add MCP server subcommand
 	var mcpCmd = &cobra.Command{
@@ -394,24 +405,44 @@ func loadConfig() {
 func handleFileMode(filePath string) {
 	logger.Debug("handleFileMode called with path: %s", filePath)
 
-	// Use the library function for smart copying with result info
-	logger.Debug("Calling clippy.CopyWithResultAndMode for: %s (textMode=%v)", filePath, textMode)
-	result, err := clippy.CopyWithResultAndMode(filePath, textMode)
-	if err != nil {
-		logger.Error("Could not copy file %s: %v", filePath, err)
-		os.Exit(1)
-	}
-	logger.Debug("clippy.CopyWithResultAndMode returned successfully")
+	// If mime type is specified, use it directly
+	if mimeType != "" && textMode {
+		logger.Debug("Using manual MIME type: %s", mimeType)
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			logger.Error("Could not read file %s: %v", filePath, err)
+			os.Exit(1)
+		}
 
-	// Show user-friendly verbose output
-	if result.AsText {
-		logger.Verbose("✅ Copied text content from '%s'", filepath.Base(filePath))
+		// Use the specified MIME type
+		err = clippy.CopyTextWithType(string(content), mimeType)
+		if err != nil {
+			logger.Error("Could not copy with MIME type %s: %v", mimeType, err)
+			os.Exit(1)
+		}
+
+		logger.Verbose("✅ Copied text content from '%s' as %s", filepath.Base(filePath), mimeType)
+		logger.Debug("Manual MIME type: %s", mimeType)
 	} else {
-		logger.Verbose("✅ Copied file reference for '%s'", filepath.Base(filePath))
-	}
+		// Use auto-detection as before
+		logger.Debug("Calling clippy.CopyWithResultAndMode for: %s (textMode=%v)", filePath, textMode)
+		result, err := clippy.CopyWithResultAndMode(filePath, textMode)
+		if err != nil {
+			logger.Error("Could not copy file %s: %v", filePath, err)
+			os.Exit(1)
+		}
+		logger.Debug("clippy.CopyWithResultAndMode returned successfully")
 
-	// Show technical details in debug mode
-	logger.Debug("Detection method: %s, Type: %s, AsText: %v", result.Method, result.Type, result.AsText)
+		// Show user-friendly verbose output
+		if result.AsText {
+			logger.Verbose("✅ Copied text content from '%s'", filepath.Base(filePath))
+		} else {
+			logger.Verbose("✅ Copied file reference for '%s'", filepath.Base(filePath))
+		}
+
+		// Show technical details in debug mode
+		logger.Debug("Detection method: %s, Type: %s, AsText: %v", result.Method, result.Type, result.AsText)
+	}
 
 	// Handle paste flag
 	logger.Debug("Paste flag is: %v", paste)
@@ -469,12 +500,24 @@ func handleStreamMode() {
 			logger.Verbose("✅ Clipboard cleared (empty input)")
 		} else {
 			// Non-empty input - copy to clipboard
-			err := clippy.CopyDataWithTempDir(&buf, tempDir)
-			if err != nil {
-				logger.Error("Could not copy from stdin: %v", err)
-				os.Exit(1)
+			if mimeType != "" {
+				// Manual MIME type specified
+				logger.Debug("Using manual MIME type for stream: %s", mimeType)
+				err := clippy.CopyTextWithType(buf.String(), mimeType)
+				if err != nil {
+					logger.Error("Could not copy with MIME type %s: %v", mimeType, err)
+					os.Exit(1)
+				}
+				logger.Verbose("✅ Copied content from stream as %s", mimeType)
+			} else {
+				// Auto-detection
+				err := clippy.CopyDataWithTempDir(&buf, tempDir)
+				if err != nil {
+					logger.Error("Could not copy from stdin: %v", err)
+					os.Exit(1)
+				}
+				logger.Verbose("✅ Copied content from stream using smart detection")
 			}
-			logger.Verbose("✅ Copied content from stream using smart detection")
 		}
 	} else {
 		// No stdin data and no arguments - show usage

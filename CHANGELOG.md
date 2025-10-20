@@ -2,6 +2,27 @@
 
 Notable changes to clippy.
 
+## [1.5.3] - 2025-10-20
+
+### Added
+
+- **Smart content type detection**: Clippy now automatically detects and sets proper clipboard types for structured text formats
+  - JSON content → sets `public.json` type
+  - HTML content → sets `public.html` type
+  - XML content → sets `public.xml` type
+  - Many other text formats are properly detected
+  - Receiving apps now handle content correctly (syntax highlighting, rendering, etc.)
+- **Manual MIME type override** with `--mime` flag
+  - `echo "data" | clippy --mime text/html` - force content as HTML
+  - `clippy -t file.txt --mime application/json` - treat file as JSON
+  - Accepts standard MIME types (text/html, application/json) or macOS UTIs
+- **Major advantage over pbcopy**: Unlike pbcopy which only sets plain text, clippy now provides rich type information
+
+### Changed
+
+- Text copying now uses auto-detection by default to set appropriate clipboard types
+- Added comprehensive list of textual MIME types for better content detection
+
 ## [1.5.2] - 2025-10-18
 
 ### Added

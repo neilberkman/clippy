@@ -87,7 +87,8 @@ func CopyWithResultAndMode(path string, forceTextMode bool) (*CopyResult, error)
 			if err != nil {
 				return nil, fmt.Errorf("could not read file content %s: %w", absPath, err)
 			}
-			if err := clipboard.CopyText(string(content)); err != nil {
+			// Use auto-detection for proper clipboard type
+			if err := CopyTextWithAutoDetection(string(content)); err != nil {
 				return nil, fmt.Errorf("could not copy text to clipboard: %w", err)
 			}
 			return &CopyResult{
@@ -118,12 +119,13 @@ func CopyWithResultAndMode(path string, forceTextMode bool) (*CopyResult, error)
 	}
 
 	// Text files with force text mode: copy content
-	if forceTextMode && strings.HasPrefix(mtype.String(), "text/") {
+	if forceTextMode && isTextualMimeType(mtype.String()) {
 		content, err := os.ReadFile(absPath)
 		if err != nil {
 			return nil, fmt.Errorf("could not read file content %s: %w", absPath, err)
 		}
-		if err := clipboard.CopyText(string(content)); err != nil {
+		// Use auto-detection for proper clipboard type
+		if err := CopyTextWithAutoDetection(string(content)); err != nil {
 			return nil, fmt.Errorf("could not copy text to clipboard: %w", err)
 		}
 		return &CopyResult{
@@ -175,7 +177,113 @@ func CopyMultiple(paths []string) error {
 
 // CopyText copies text content to clipboard.
 func CopyText(text string) error {
-	return clipboard.CopyText(text)
+	return CopyTextWithAutoDetection(text)
+}
+
+// CopyTextWithAutoDetection copies text with auto-detected type
+func CopyTextWithAutoDetection(text string) error {
+	// Try to detect the content type
+	mtype := mimetype.Detect([]byte(text))
+	mimeStr := mtype.String()
+
+	// Map common MIME types to UTI types for better macOS integration
+	var utiType string
+	switch {
+	case strings.HasPrefix(mimeStr, "text/html"):
+		utiType = "public.html"
+	case mimeStr == "application/json":
+		utiType = "public.json"
+	case strings.HasPrefix(mimeStr, "text/xml") || mimeStr == "application/xml":
+		utiType = "public.xml"
+	case strings.HasPrefix(mimeStr, "text/markdown"):
+		// Note: macOS doesn't have a standard markdown UTI, but some apps recognize this
+		utiType = "net.daringfireball.markdown"
+	case strings.HasPrefix(mimeStr, "text/rtf") || mimeStr == "application/rtf":
+		utiType = "public.rtf"
+	default:
+		// Fall back to plain text for other text types
+		return clipboard.CopyText(text)
+	}
+
+	// Use the detected type
+	return clipboard.CopyTextWithType(text, utiType)
+}
+
+// CopyTextWithType copies text with a specific MIME type or UTI
+func CopyTextWithType(text string, typeIdentifier string) error {
+	// If it looks like a MIME type, try to convert to UTI
+	if strings.Contains(typeIdentifier, "/") {
+		typeIdentifier = mimeToUTI(typeIdentifier)
+	}
+	return clipboard.CopyTextWithType(text, typeIdentifier)
+}
+
+// mimeToUTI converts common MIME types to macOS UTI
+func mimeToUTI(mime string) string {
+	switch mime {
+	case "text/html":
+		return "public.html"
+	case "application/json":
+		return "public.json"
+	case "text/xml", "application/xml":
+		return "public.xml"
+	case "text/plain":
+		return "public.plain-text"
+	case "text/rtf", "application/rtf":
+		return "public.rtf"
+	case "text/markdown":
+		return "net.daringfireball.markdown"
+	default:
+		// Return as-is if we don't have a mapping
+		return mime
+	}
+}
+
+// isTextualMimeType checks if a MIME type represents textual content
+// that should be copied as text rather than binary
+func isTextualMimeType(mimeType string) bool {
+	// All text/* types are textual
+	if strings.HasPrefix(mimeType, "text/") {
+		return true
+	}
+
+	// Common application/* types that are actually text
+	textualApplicationTypes := []string{
+		"application/json",
+		"application/ld+json",     // JSON-LD
+		"application/xml",
+		"application/xhtml+xml",
+		"application/javascript",
+		"application/typescript",
+		"application/ecmascript",
+		"application/x-httpd-php",
+		"application/x-sh",         // Shell scripts
+		"application/x-csh",
+		"application/x-python",
+		"application/x-ruby",
+		"application/x-perl",
+		"application/sql",
+		"application/graphql",
+		"application/x-yaml",
+		"application/toml",
+		"application/x-tex",
+		"application/x-latex",
+		"application/rtf",
+		"application/csv",
+	}
+
+	for _, appType := range textualApplicationTypes {
+		if mimeType == appType {
+			return true
+		}
+	}
+
+	// Check for +xml or +json suffix (like application/atom+xml)
+	if strings.HasSuffix(mimeType, "+xml") || strings.HasSuffix(mimeType, "+json") {
+		return true
+	}
+
+	return false
 }
 
 // CopyData copies data from a reader to clipboard.
@@ -199,10 +307,12 @@ func CopyDataWithTempDir(reader io.Reader, tempDir string) error {
 
 	// Detect MIME type from content
 	mtype := mimetype.Detect(data)
+	mimeStr := mtype.String()
 
-	// Text data: copy as text
-	if strings.HasPrefix(mtype.String(), "text/") {
-		if err := clipboard.CopyText(string(data)); err != nil {
+	// Text data: copy as text with proper type
+	if isTextualMimeType(mimeStr) {
+		// Use our auto-detection to set proper clipboard type
+		if err := CopyTextWithAutoDetection(string(data)); err != nil {
 			return fmt.Errorf("could not copy text to clipboard: %w", err)
 		}
 		return nil
