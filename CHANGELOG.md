@@ -2,6 +2,12 @@
 
 Notable changes to clippy.
 
+## [Unreleased]
+
+### Added
+
+- README badges for Homebrew version, GitHub release, CI status, Go version, and license
+
 ## [1.5.3] - 2025-10-20
 
 ### Added
