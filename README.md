@@ -8,7 +8,9 @@ Copy files from your terminal that actually paste into GUI apps. No more switchi
 
 `pbcopy` copies file _contents_, but GUI apps need file _references_. When you `pbcopy < image.png`, you can't paste it into Slack or email - those apps expect files, not raw bytes.
 
-Clippy bridges this gap by detecting what you want and using the right clipboard format:
+Clippy bridges this gap by detecting what you want and using the right clipboard format.
+
+**Plus:** Unlike `pbcopy` which only sets plain text, clippy auto-detects content types (HTML, JSON, XML) so receiving apps handle them properly:
 
 ```bash
 # Copy files as references (paste into any GUI app)
@@ -17,6 +19,10 @@ clippy *.jpg             # Multiple files at once
 
 # Pipe data as files
 curl -sL https://picsum.photos/300 | clippy  # Download → clipboard as file
+
+# Smart content type detection (pbcopy can't do this!)
+echo '{"key": "value"}' | clippy    # Auto-detects as JSON
+clippy -t page.html                 # Auto-detects as HTML
 
 # Copy your most recent download (immediate)
 clippy -r                # Grabs the file you just downloaded
@@ -88,7 +94,24 @@ clippy --clear         # Empty the clipboard
 echo -n | clippy       # Also clears the clipboard
 ```
 
-### 6. Helpful Flags
+### 6. Smart Content Type Detection
+
+Unlike `pbcopy` which only handles plain text, clippy automatically detects and sets proper content types:
+
+```bash
+# Auto-detection (receiving apps will recognize the format)
+echo '{"key": "value"}' | clippy          # Sets as JSON
+echo '<html>...</html>' | clippy          # Sets as HTML
+clippy -t data.xml                        # Sets as XML
+
+# Manual override with --mime flag
+echo "Plain text" | clippy --mime text/html        # Force as HTML
+clippy -t file.txt --mime application/json         # Treat as JSON
+```
+
+This means when you paste into apps that support rich content, they'll handle it correctly - JSON viewers will syntax highlight, HTML will render, etc.
+
+### 7. Helpful Flags
 
 ```bash
 clippy -v file.txt     # Show what happened
