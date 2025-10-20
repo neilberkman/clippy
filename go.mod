@@ -1,6 +1,6 @@
 module github.com/neilberkman/clippy
 
-go 1.25.3
+go 1.25
 
 require (
 	github.com/charmbracelet/bubbletea v1.3.10
