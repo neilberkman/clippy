@@ -218,6 +218,26 @@ func CopyTextWithType(text string, typeIdentifier string) error {
 	return clipboard.CopyTextWithType(text, typeIdentifier)
 }
 
+// CopyFileAsTextWithType copies a file's text content with a specific MIME type or UTI.
+// This is a core function that handles file I/O - interface layer should not read files directly.
+func CopyFileAsTextWithType(path string, typeIdentifier string) error {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("invalid path %s: %w", path, err)
+	}
+
+	if _, err := os.Stat(absPath); os.IsNotExist(err) {
+		return fmt.Errorf("file not found: %s", absPath)
+	}
+
+	content, err := os.ReadFile(absPath)
+	if err != nil {
+		return fmt.Errorf("could not read file %s: %w", absPath, err)
+	}
+
+	return CopyTextWithType(string(content), typeIdentifier)
+}
+
 // mimeToUTI converts common MIME types to macOS UTI
 func mimeToUTI(mime string) string {
 	switch mime {

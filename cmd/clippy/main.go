@@ -404,16 +404,10 @@ func handleFileMode(filePath string) {
 	// If mime type is specified, use it directly
 	if mimeType != "" && textMode {
 		logger.Debug("Using manual MIME type: %s", mimeType)
-		content, err := os.ReadFile(filePath)
+		// Core handles file I/O - interface just passes path and type
+		err := clippy.CopyFileAsTextWithType(filePath, mimeType)
 		if err != nil {
-			logger.Error("Could not read file %s: %v", filePath, err)
-			os.Exit(1)
-		}
-
-		// Use the specified MIME type
-		err = clippy.CopyTextWithType(string(content), mimeType)
-		if err != nil {
-			logger.Error("Could not copy with MIME type %s: %v", mimeType, err)
+			logger.Error("Could not copy file with MIME type %s: %v", mimeType, err)
 			os.Exit(1)
 		}
 
