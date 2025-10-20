@@ -1,5 +1,11 @@
 # Clippy 📎
 
+[![Homebrew](https://img.shields.io/homebrew/v/clippy?color=FBB040)](https://formulae.brew.sh/formula/clippy)
+[![Release](https://img.shields.io/github/v/release/neilberkman/clippy)](https://github.com/neilberkman/clippy/releases)
+[![CI](https://github.com/neilberkman/clippy/actions/workflows/release.yml/badge.svg)](https://github.com/neilberkman/clippy/actions/workflows/release.yml)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/neilberkman/clippy)](https://go.dev/)
+[![License](https://img.shields.io/github/license/neilberkman/clippy)](https://github.com/neilberkman/clippy/blob/main/LICENSE)
+
 Copy files from your terminal that actually paste into GUI apps. No more switching to Finder.
 
 **macOS only** - built specifically for the Mac clipboard system.
