@@ -618,29 +618,68 @@ func pasteTextContent(text string, destination string) (*PasteResult, error) {
 	}, nil
 }
 
+// findAvailableFilename returns a filename that doesn't exist, using Finder's naming convention.
+// If the file exists, tries "basename 2.ext", "basename 3.ext", etc.
+// Format follows macOS Finder: "photo.png" → "photo 2.png" → "photo 3.png"
+func findAvailableFilename(path string) string {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return path
+	}
+
+	dir := filepath.Dir(path)
+	base := filepath.Base(path)
+	ext := filepath.Ext(base)
+
+	var nameWithoutExt string
+	if ext != "" {
+		nameWithoutExt = base[:len(base)-len(ext)]
+	} else {
+		nameWithoutExt = base
+	}
+
+	for i := 2; i < 10000; i++ {
+		var candidate string
+		if ext != "" {
+			candidate = filepath.Join(dir, fmt.Sprintf("%s %d%s", nameWithoutExt, i, ext))
+		} else {
+			candidate = filepath.Join(dir, fmt.Sprintf("%s %d", nameWithoutExt, i))
+		}
+
+		if _, err := os.Stat(candidate); os.IsNotExist(err) {
+			return candidate
+		}
+	}
+
+	return path
+}
+
 // resolveDestinationPath determines the final file path for pasting content
 // If destination is a directory or looks like one, joins it with defaultFilename
 // If allowNoExtension is true, treats paths without extensions as directories
+// Uses Finder-style duplicate naming if file exists.
 func resolveDestinationPath(destination string, defaultFilename string, allowNoExtension bool) string {
 	destInfo, err := os.Stat(destination)
 
 	// Existing directory
 	if err == nil && destInfo.IsDir() {
-		return filepath.Join(destination, defaultFilename)
+		path := filepath.Join(destination, defaultFilename)
+		return findAvailableFilename(path)
 	}
 
 	// Path ends with /
 	if strings.HasSuffix(destination, "/") {
-		return filepath.Join(destination, defaultFilename)
+		path := filepath.Join(destination, defaultFilename)
+		return findAvailableFilename(path)
 	}
 
 	// Path doesn't exist and has no extension (for image data)
 	if allowNoExtension && err != nil && !strings.Contains(filepath.Base(destination), ".") {
-		return filepath.Join(destination, defaultFilename)
+		path := filepath.Join(destination, defaultFilename)
+		return findAvailableFilename(path)
 	}
 
-	// Use destination as-is (it's a file path)
-	return destination
+	// Use destination as-is (it's a file path) - check for duplicates
+	return findAvailableFilename(destination)
 }
 
 // copyFilesToDestination copies files from clipboard to destination
@@ -675,6 +714,8 @@ func copyFilesToDestination(files []string, destination string) (int, error) {
 		} else {
 			destFile = destination
 		}
+
+		destFile = findAvailableFilename(destFile)
 
 		if err := recent.CopyFile(srcFile, destFile); err != nil {
 			return filesRead, fmt.Errorf("could not copy %s to %s: %w", srcFile, destFile, err)
