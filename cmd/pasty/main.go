@@ -95,6 +95,8 @@ Description:
 						logger.Verbose("Pasted text content to '%s'", destination)
 					case "image":
 						logger.Verbose("Saved image data to '%s'", result.Files[0])
+					case "rtfd":
+						logger.Verbose("Saved rich text with embedded images to '%s'", result.Files[0])
 					case "files":
 						logger.Verbose("Copied %d files to '%s'", result.FilesRead, destination)
 						if verbose {

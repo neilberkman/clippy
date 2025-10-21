@@ -532,6 +532,11 @@ func pasteFileReferences(files []string, destination string) (*PasteResult, erro
 
 // pasteImageData saves image/rich content data from clipboard to file
 func pasteImageData(content *clipboard.ClipboardContent, destination string, opts PasteOptions) (*PasteResult, error) {
+	// Special handling for RTFD (rich text with embedded images)
+	if content.Type == "com.apple.flat-rtfd" {
+		return pasteRTFDData(content, destination)
+	}
+
 	ext := getFileExtensionFromUTI(content.Type)
 	if ext == "" {
 		ext = ".dat"
@@ -558,6 +563,27 @@ func pasteImageData(content *clipboard.ClipboardContent, destination string, opt
 
 	return &PasteResult{
 		Type:  "image",
+		Files: []string{destPath},
+	}, nil
+}
+
+// pasteRTFDData saves RTFD (rich text with embedded images) to .rtfd bundle
+func pasteRTFDData(content *clipboard.ClipboardContent, destination string) (*PasteResult, error) {
+	defaultFilename := fmt.Sprintf("clipboard-%s.rtfd", time.Now().Format("2006-01-02-150405"))
+	destPath := resolveDestinationPath(destination, defaultFilename, true)
+
+	// Ensure the path ends with .rtfd
+	if !strings.HasSuffix(destPath, ".rtfd") {
+		destPath = destPath + ".rtfd"
+	}
+
+	// Use the special RTFD save function
+	if err := clipboard.SaveRTFDToPath(content.Data, destPath); err != nil {
+		return nil, fmt.Errorf("could not save RTFD to %s: %w", destPath, err)
+	}
+
+	return &PasteResult{
+		Type:  "rtfd",
 		Files: []string{destPath},
 	}, nil
 }
