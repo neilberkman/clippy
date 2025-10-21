@@ -12,6 +12,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/neilberkman/clippy"
 	"github.com/neilberkman/clippy/pkg/recent"
+	"github.com/neilberkman/clippy/pkg/transform"
 )
 
 // CopyArgs defines arguments for the copy tool
@@ -652,6 +653,90 @@ func StartServer() error {
 			Lines:       agentBuffer.Lines,
 			SourceFile:  agentBuffer.SourceFile,
 			SourceRange: agentBuffer.SourceRange,
+		}
+
+		resultJSON, _ := json.Marshal(result)
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{mcp.TextContent{
+				Type: "text",
+				Text: string(resultJSON),
+			}},
+		}, nil
+	})
+
+	// Define md2rtf tool
+	md2rtfTool := mcp.NewTool(
+		"md2rtf",
+		mcp.WithDescription("Convert markdown text on clipboard to RTF format. Useful for pasting formatted markdown into email clients (Apple Mail, Outlook) without HTML's extra line spacing issues. Reads markdown from clipboard, converts to RTF with proper formatting (bold, italic, headers, lists, code blocks, links), and puts RTF back on clipboard. Perfect for drafting emails in markdown that paste cleanly."),
+	)
+
+	// Add md2rtf tool handler
+	s.AddTool(md2rtfTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Get markdown from clipboard
+		mdText, err := clippy.GetClipboardText()
+		if err != nil {
+			result := CopyResult{
+				Success: false,
+				Message: fmt.Sprintf("Failed to read clipboard: %v", err),
+			}
+			resultJSON, _ := json.Marshal(result)
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{mcp.TextContent{
+					Type: "text",
+					Text: string(resultJSON),
+				}},
+			}, nil
+		}
+
+		if mdText == "" {
+			result := CopyResult{
+				Success: false,
+				Message: "Clipboard is empty",
+			}
+			resultJSON, _ := json.Marshal(result)
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{mcp.TextContent{
+					Type: "text",
+					Text: string(resultJSON),
+				}},
+			}, nil
+		}
+
+		// Convert to RTF
+		rtfData, err := transform.MarkdownToRTF(mdText)
+		if err != nil {
+			result := CopyResult{
+				Success: false,
+				Message: fmt.Sprintf("Failed to convert markdown to RTF: %v", err),
+			}
+			resultJSON, _ := json.Marshal(result)
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{mcp.TextContent{
+					Type: "text",
+					Text: string(resultJSON),
+				}},
+			}, nil
+		}
+
+		// Write RTF to clipboard
+		if err := clippy.CopyRTF(rtfData); err != nil {
+			result := CopyResult{
+				Success: false,
+				Message: fmt.Sprintf("Failed to write RTF to clipboard: %v", err),
+			}
+			resultJSON, _ := json.Marshal(result)
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{mcp.TextContent{
+					Type: "text",
+					Text: string(resultJSON),
+				}},
+			}, nil
+		}
+
+		result := CopyResult{
+			Success: true,
+			Type:    "rtf",
+			Message: "Converted markdown to RTF on clipboard",
 		}
 
 		resultJSON, _ := json.Marshal(result)
