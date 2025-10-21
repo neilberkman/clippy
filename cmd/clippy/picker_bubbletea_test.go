@@ -36,6 +36,7 @@ func TestPickerModel(t *testing.T) {
 		cursor:       0,
 		selected:     make(map[int]bool),
 		absoluteTime: false,
+		refreshFunc:  nil, // No refresh in tests
 	}
 
 	// Test initial state
