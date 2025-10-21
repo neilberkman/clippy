@@ -1,6 +1,7 @@
 package clippy
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -181,5 +182,84 @@ func TestConvertImageFormat(t *testing.T) {
 	_, err = convertImageFormat([]byte("fake image"), ".bmp")
 	if err == nil {
 		t.Error("Expected error for unsupported format")
+	}
+}
+
+func TestFindAvailableFilename(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	tests := []struct {
+		name          string
+		existingFiles []string
+		inputPath     string
+		want          string
+	}{
+		{
+			name:          "no conflict",
+			existingFiles: []string{},
+			inputPath:     tmpDir + "/photo.png",
+			want:          tmpDir + "/photo.png",
+		},
+		{
+			name:          "one conflict with extension",
+			existingFiles: []string{"photo.png"},
+			inputPath:     tmpDir + "/photo.png",
+			want:          tmpDir + "/photo 2.png",
+		},
+		{
+			name:          "two conflicts with extension",
+			existingFiles: []string{"photo.png", "photo 2.png"},
+			inputPath:     tmpDir + "/photo.png",
+			want:          tmpDir + "/photo 3.png",
+		},
+		{
+			name:          "no conflict without extension",
+			existingFiles: []string{},
+			inputPath:     tmpDir + "/README",
+			want:          tmpDir + "/README",
+		},
+		{
+			name:          "one conflict without extension",
+			existingFiles: []string{"README"},
+			inputPath:     tmpDir + "/README",
+			want:          tmpDir + "/README 2",
+		},
+		{
+			name:          "multiple conflicts without extension",
+			existingFiles: []string{"README", "README 2", "README 3"},
+			inputPath:     tmpDir + "/README",
+			want:          tmpDir + "/README 4",
+		},
+		{
+			name:          "multi-part extension",
+			existingFiles: []string{"archive.tar.gz"},
+			inputPath:     tmpDir + "/archive.tar.gz",
+			want:          tmpDir + "/archive.tar 2.gz",
+		},
+		{
+			name:          "gaps in numbering",
+			existingFiles: []string{"file.txt", "file 3.txt"},
+			inputPath:     tmpDir + "/file.txt",
+			want:          tmpDir + "/file 2.txt",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, f := range tt.existingFiles {
+				if err := os.WriteFile(tmpDir+"/"+f, []byte("test"), 0644); err != nil {
+					t.Fatalf("Failed to create test file: %v", err)
+				}
+			}
+
+			got := findAvailableFilename(tt.inputPath)
+			if got != tt.want {
+				t.Errorf("findAvailableFilename(%q)\n  got:  %q\n  want: %q", tt.inputPath, got, tt.want)
+			}
+
+			for _, f := range tt.existingFiles {
+				os.Remove(tmpDir + "/" + f)
+			}
+		})
 	}
 }
