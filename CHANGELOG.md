@@ -4,14 +4,15 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
-### Added
-
-- Pasty saves browser images (auto-converts Safari's TIFF to PNG, 74-84% smaller)
-- Pasty handles rich text with embedded images (RTFD bundles from TextEdit/Notes)
-
 ### Fixed
 
 - Clipboard priority now checks images before text (fixes "Copy Image" saving URL instead of image)
+
+### Added
+
+- Pasty saves browser images (auto-converts Safari's TIFF to PNG, 74-84% smaller)
+- Smart image format conversion: specify target format via file extension (`pasty photo.jpg` converts to JPEG)
+- Pasty handles rich text with embedded images (RTFD bundles from TextEdit/Notes)
 
 ## [1.5.4] - 2025-10-20
 
