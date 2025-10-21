@@ -20,6 +20,7 @@ var (
 	preserveFormat  bool
 	inspect         bool
 	plain           bool
+	force           bool
 	logger          *log.Logger
 )
 
@@ -84,6 +85,7 @@ Description:
 				result, err = clippy.PasteToFileWithOptions(destination, clippy.PasteOptions{
 					PreserveFormat: preserveFormat,
 					PlainTextOnly:  plain,
+					Force:          force,
 				})
 			}
 
@@ -125,6 +127,7 @@ Description:
 	rootCmd.Flags().BoolVar(&preserveFormat, "preserve-format", false, "Preserve original image format (skip TIFF to PNG conversion)")
 	rootCmd.Flags().BoolVar(&inspect, "inspect", false, "Show clipboard contents and types (debug mode)")
 	rootCmd.Flags().BoolVar(&plain, "plain", false, "Force plain text output (strip all formatting)")
+	rootCmd.Flags().BoolVarP(&force, "force", "f", false, "Overwrite existing files without Finder-style duplicate naming")
 
 	// Execute the command
 	if err := rootCmd.Execute(); err != nil {
