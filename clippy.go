@@ -385,6 +385,20 @@ func GetFiles() []string {
 	return clipboard.GetFiles()
 }
 
+// GetClipboardText returns text from clipboard, or error if clipboard is empty
+func GetClipboardText() (string, error) {
+	text, ok := GetText()
+	if !ok {
+		return "", fmt.Errorf("clipboard is empty or contains no text")
+	}
+	return text, nil
+}
+
+// CopyRTF copies RTF data to clipboard
+func CopyRTF(rtfData []byte) error {
+	return clipboard.CopyRTF(rtfData)
+}
+
 // isTextUTI checks if a UTI represents text content using macOS UTI system
 func isTextUTI(uti string) bool {
 	// Use macOS UTI system to check if this UTI conforms to text types

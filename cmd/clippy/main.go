@@ -16,6 +16,7 @@ import (
 	"github.com/neilberkman/clippy/internal/log"
 	"github.com/neilberkman/clippy/pkg/recent"
 	"github.com/neilberkman/clippy/pkg/spotlight"
+	"github.com/neilberkman/clippy/pkg/transform"
 	"github.com/spf13/cobra"
 )
 
@@ -251,6 +252,64 @@ Add to ~/Library/Application Support/Claude/claude_desktop_config.json:
 	}
 
 	rootCmd.AddCommand(mcpCmd)
+
+	// Add md2rtf subcommand
+	var md2rtfCmd = &cobra.Command{
+		Use:   "md2rtf",
+		Short: "Convert markdown on clipboard to RTF",
+		Long: `Convert markdown text on clipboard to rich text (RTF) format.
+
+This is useful for pasting formatted markdown into email clients (Apple Mail, Outlook)
+without the extra line spacing issues that HTML paste causes.
+
+The command reads markdown text from the clipboard, converts it to RTF with proper
+formatting (bold, italic, headers, lists, etc.), and puts the RTF back on the clipboard.
+
+Example workflow:
+  1. Copy markdown text to clipboard (from editor, terminal, etc.)
+  2. Run: clippy md2rtf
+  3. Paste into Apple Mail - formatting is preserved without extra spacing
+
+The RTF output will preserve:
+- Headers (#, ##, ###)
+- Bold (**text**)
+- Italic (*text*)
+- Lists (-, *, numbered)
+- Code blocks
+- Links`,
+		Run: func(cmd *cobra.Command, args []string) {
+			// Read markdown from clipboard
+			mdText, err := clippy.GetClipboardText()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error reading clipboard: %v\n", err)
+				os.Exit(1)
+			}
+
+			if mdText == "" {
+				fmt.Fprintln(os.Stderr, "Clipboard is empty")
+				os.Exit(1)
+			}
+
+			// Convert to RTF
+			rtfData, err := transform.MarkdownToRTF(mdText)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error converting markdown to RTF: %v\n", err)
+				os.Exit(1)
+			}
+
+			// Write RTF to clipboard
+			if err := clippy.CopyRTF(rtfData); err != nil {
+				fmt.Fprintf(os.Stderr, "Error writing RTF to clipboard: %v\n", err)
+				os.Exit(1)
+			}
+
+			if verbose {
+				fmt.Fprintln(os.Stderr, "Converted markdown to RTF on clipboard")
+			}
+		},
+	}
+
+	rootCmd.AddCommand(md2rtfCmd)
 
 	// Execute the command
 	if err := rootCmd.Execute(); err != nil {

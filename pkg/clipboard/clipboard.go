@@ -148,6 +148,33 @@ int copyTextWithType(const char *text, const char *typeIdentifier) {
     }
 }
 
+// Function to copy RTF data to the clipboard
+int copyRTF(const void *rtfData, int length) {
+    @autoreleasepool {
+        [NSApplication sharedApplication]; // Initialize the app context
+        NSData *data = [NSData dataWithBytes:rtfData length:length];
+        NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+
+        // Get the current changeCount before operation
+        NSInteger initialChangeCount = [pasteboard changeCount];
+
+        // Perform the write operation
+        [pasteboard clearContents];
+        BOOL success = [pasteboard setData:data forType:NSPasteboardTypeRTF];
+
+        if (!success) {
+            return -1; // Write operation failed to start
+        }
+
+        // Wait for pasteboard to complete
+        if (waitForPasteboardChange(pasteboard, initialChangeCount) != 0) {
+            return -2; // Timed out
+        }
+
+        return 0; // Success
+    }
+}
+
 // Get current clipboard file paths if any
 char** getClipboardFiles(int *count) {
     @autoreleasepool {
@@ -511,6 +538,26 @@ func CopyTextWithType(text string, typeIdentifier string) error {
 		return nil
 	case -1:
 		return fmt.Errorf("failed to write to clipboard")
+	case -2:
+		return fmt.Errorf("clipboard operation timed out")
+	default:
+		return fmt.Errorf("unknown clipboard error: %d", result)
+	}
+}
+
+// CopyRTF copies RTF data to clipboard
+func CopyRTF(rtfData []byte) error {
+	if len(rtfData) == 0 {
+		return fmt.Errorf("empty RTF data")
+	}
+
+	result := C.copyRTF(unsafe.Pointer(&rtfData[0]), C.int(len(rtfData)))
+
+	switch result {
+	case 0:
+		return nil
+	case -1:
+		return fmt.Errorf("failed to write RTF to clipboard")
 	case -2:
 		return fmt.Errorf("clipboard operation timed out")
 	default:
