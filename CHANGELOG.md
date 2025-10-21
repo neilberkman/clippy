@@ -4,6 +4,8 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+## [1.6.0] - 2025-10-21
+
 ### Fixed
 
 - Clipboard priority now checks images before text (fixes "Copy Image" saving URL instead of image)
