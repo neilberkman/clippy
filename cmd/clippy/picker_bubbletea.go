@@ -82,14 +82,35 @@ func (m pickerModel) Init() tea.Cmd {
 func (m pickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case refreshMsg:
-		// Update files list, preserve cursor position if possible
+		// Preserve cursor by file name, not by index
+		// This prevents accidentally selecting a new file that appears at cursor position
+		var cursorFileName string
+		if m.cursor >= 0 && m.cursor < len(m.files) {
+			cursorFileName = m.files[m.cursor].Name
+		}
+
+		// Update files list
 		m.files = msg.files
+
+		// Try to find the same file by name and restore cursor position
+		if cursorFileName != "" {
+			for i, file := range m.files {
+				if file.Name == cursorFileName {
+					m.cursor = i
+					goto cursorRestored
+				}
+			}
+		}
+
+		// If we couldn't find the file by name, keep cursor in bounds
 		if m.cursor >= len(m.files) {
 			m.cursor = len(m.files) - 1
 		}
 		if m.cursor < 0 {
 			m.cursor = 0
 		}
+
+	cursorRestored:
 		// Continue watching for more events
 		if m.watcher != nil {
 			return m, func() tea.Msg {
