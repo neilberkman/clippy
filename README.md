@@ -192,7 +192,15 @@ pasty
 # File gets copied to your current directory (not just the filename!)
 ```
 
-**2. Save browser images**
+**2. Smart text file handling**
+
+```bash
+# Copy a text file in Finder (⌘C), then:
+pasty                    # Outputs the file's text content to stdout
+pasty notes.txt          # Saves the file's text content to notes.txt
+```
+
+**3. Save browser images**
 
 ```bash
 # Right-click "Copy Image" in any browser, then:
@@ -200,13 +208,7 @@ pasty photo.png          # Saves the image (auto-converts TIFF to PNG)
 pasty --preserve-format  # Keep original format if needed
 ```
 
-**3. Smart text file handling**
-
-```bash
-# Copy a text file in Finder (⌘C), then:
-pasty                    # Outputs the file's text content to stdout
-pasty notes.txt          # Saves the file's text content to notes.txt
-```
+Also handles rich text with embedded images (`.rtfd` bundles from TextEdit/Notes).
 
 ---
 

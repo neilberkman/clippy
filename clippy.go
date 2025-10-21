@@ -7,6 +7,8 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"image/gif"
+	"image/jpeg"
 	"image/png"
 	_ "image/jpeg" // Register JPEG decoder
 	"io"
@@ -542,11 +544,21 @@ func pasteImageData(content *clipboard.ClipboardContent, destination string, opt
 		ext = ".dat"
 	}
 
-	// Auto-convert TIFF to PNG (TIFF is huge and not web-friendly)
-	// unless --preserve-format flag is set
 	data := content.Data
-	if !opts.PreserveFormat && (ext == ".tiff" || ext == ".tif") {
-		if pngData, err := convertTiffToPng(content.Data); err == nil {
+
+	// Check if user specified a target format via file extension
+	destExt := strings.ToLower(filepath.Ext(destination))
+	if destExt == ".jpg" || destExt == ".jpeg" || destExt == ".png" || destExt == ".gif" {
+		// Convert to user-specified format
+		if convertedData, err := convertImageFormat(content.Data, destExt); err == nil {
+			data = convertedData
+			ext = destExt
+		}
+		// If conversion fails, fall back to original data
+	} else if !opts.PreserveFormat && (ext == ".tiff" || ext == ".tif") {
+		// Auto-convert TIFF to PNG (TIFF is huge and not web-friendly)
+		// Only applies when user didn't specify a format
+		if pngData, err := convertImageFormat(content.Data, ".png"); err == nil {
 			data = pngData
 			ext = ".png"
 		}
@@ -686,19 +698,36 @@ func getFileExtensionFromUTI(uti string) string {
 	return ext
 }
 
-// convertTiffToPng converts TIFF image data to PNG format
-// Returns the PNG bytes or an error if conversion fails
-func convertTiffToPng(tiffData []byte) ([]byte, error) {
-	// Decode TIFF image
-	img, _, err := image.Decode(bytes.NewReader(tiffData))
+// convertImageFormat converts image data to the specified format
+// Supports .png, .jpg/.jpeg, .gif
+// Returns the converted bytes or an error if conversion fails
+func convertImageFormat(imageData []byte, targetExt string) ([]byte, error) {
+	// Decode the source image (auto-detects format: TIFF, PNG, JPEG, GIF)
+	img, _, err := image.Decode(bytes.NewReader(imageData))
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode TIFF: %w", err)
+		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
 
-	// Encode as PNG
+	// Encode to target format
 	var buf bytes.Buffer
-	if err := png.Encode(&buf, img); err != nil {
-		return nil, fmt.Errorf("failed to encode PNG: %w", err)
+	targetExt = strings.ToLower(targetExt)
+
+	switch targetExt {
+	case ".png":
+		if err := png.Encode(&buf, img); err != nil {
+			return nil, fmt.Errorf("failed to encode PNG: %w", err)
+		}
+	case ".jpg", ".jpeg":
+		// Use 90% quality for JPEG (good balance of quality/size)
+		if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90}); err != nil {
+			return nil, fmt.Errorf("failed to encode JPEG: %w", err)
+		}
+	case ".gif":
+		if err := gif.Encode(&buf, img, nil); err != nil {
+			return nil, fmt.Errorf("failed to encode GIF: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported target format: %s", targetExt)
 	}
 
 	return buf.Bytes(), nil
