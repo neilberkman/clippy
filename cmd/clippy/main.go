@@ -15,6 +15,7 @@ import (
 	"github.com/neilberkman/clippy/cmd/internal/common"
 	"github.com/neilberkman/clippy/internal/log"
 	"github.com/neilberkman/clippy/pkg/recent"
+	"github.com/neilberkman/clippy/pkg/spotlight"
 	"github.com/spf13/cobra"
 )
 
@@ -25,6 +26,7 @@ var (
 	tempDir         = ""
 	recentFlag      string
 	interactiveFlag string
+	findFlag        string
 	paste           bool
 	absoluteTime    bool
 	textMode        bool
@@ -85,6 +87,13 @@ Examples:
   # - Enter to copy (selected items or current item)
   # - p to copy & paste (selected items or current item)
 
+  # Search for files using Spotlight
+  clippy -f invoice            # search for files matching "invoice"
+  clippy -f screenshot         # search for screenshots
+  clippy -f .pdf               # search for all PDF files (by extension)
+  clippy -f report.xlsx        # search for "report.xlsx" (specific file)
+  # Shows interactive picker with results
+
   # Copy and paste in one step
   clippy file.txt --paste      # copy to clipboard AND paste to current dir
   clippy -r --paste            # copy most recent file and paste here
@@ -127,6 +136,16 @@ MCP Server:
 				} else {
 					handleMultipleFiles(args)
 				}
+				// Run cleanup and return
+				if cleanup {
+					cleanupOldTempFiles()
+				}
+				return
+			}
+
+			// Handle -f flag (Spotlight search)
+			if cmd.Flags().Changed("find") {
+				handleFindMode(findFlag)
 				// Run cleanup and return
 				if cleanup {
 					cleanupOldTempFiles()
@@ -188,6 +207,9 @@ MCP Server:
 	// Interactive flag with optional value
 	rootCmd.PersistentFlags().StringVarP(&interactiveFlag, "interactive", "i", "", "Show interactive picker for recent files from Downloads, Desktop, and Documents (optional: number/duration like 3, 5m, 1h)")
 	rootCmd.PersistentFlags().Lookup("interactive").NoOptDefVal = " " // Allow -i without value
+
+	// Find flag for Spotlight search
+	rootCmd.PersistentFlags().StringVarP(&findFlag, "find", "f", "", "Search for files using Spotlight (e.g., 'invoice', '.pdf', 'report.xlsx')")
 
 	rootCmd.PersistentFlags().BoolVar(&paste, "paste", false, "Also paste copied files to current directory")
 	rootCmd.PersistentFlags().BoolVar(&cleanup, "cleanup", true, "Enable automatic temp file cleanup")
@@ -340,6 +362,85 @@ func handleRecentMode(timeStr string, interactiveMode bool) {
 			}
 			handleMultipleFiles(paths)
 		}
+	}
+}
+
+func handleFindMode(query string) {
+	logger.Debug("Searching for files matching: %s", query)
+
+	// Core business logic: search with metadata
+	// Spotlight doesn't have reliable sorting, so we get results and sort in Go
+	// Limitation: for very broad queries (.pdf), might not get newest files
+	results, err := spotlight.SearchWithMetadata(spotlight.SearchOptions{
+		Query:      query,
+		MaxResults: 1000, // Reasonable limit - sorted by date after fetch
+	})
+
+	if err != nil {
+		logger.Error("Spotlight search failed: %v", err)
+		os.Exit(1)
+	}
+
+	if len(results) == 0 {
+		logger.Error("No files found matching '%s'", query)
+		os.Exit(1)
+	}
+
+	logger.Debug("Found %d files", len(results))
+
+	// Debug: show first few results with dates
+	if debug && len(results) > 0 {
+		logger.Debug("First 10 results (sorted by date, newest first):")
+		limit := 10
+		if len(results) < limit {
+			limit = len(results)
+		}
+		for i := 0; i < limit; i++ {
+			logger.Debug("  [%d] %s (%s)", i+1, results[i].Name, results[i].Modified.Format("2006-01-02 15:04:05"))
+		}
+	}
+
+	// Convert spotlight.FileInfo to recent.FileInfo for picker compatibility
+	var files []recent.FileInfo
+	for _, r := range results {
+		files = append(files, recent.FileInfo{
+			Path:     r.Path,
+			Name:     r.Name,
+			Size:     r.Size,
+			Modified: r.Modified,
+			IsDir:    r.IsDir,
+		})
+	}
+
+	// Show picker with results
+	pickerResult, err := showBubbleTeaPickerWithResult(files, absoluteTime)
+	if err != nil {
+		logger.Error("Picker error: %v", err)
+		os.Exit(1)
+	}
+
+	if len(pickerResult.Files) == 0 {
+		logger.Error("No files selected")
+		os.Exit(1)
+	}
+
+	// Override paste flag if user pressed 'p' in picker
+	if pickerResult.PasteMode {
+		paste = true
+	}
+
+	// Handle selected files
+	if len(pickerResult.Files) == 1 {
+		logger.Verbose("Selected: %s", pickerResult.Files[0].Path)
+		handleFileMode(pickerResult.Files[0].Path)
+	} else {
+		logger.Verbose("Selected %d files:", len(pickerResult.Files))
+		var paths []string
+		for _, file := range pickerResult.Files {
+			logger.Verbose("  - %s", file.Path)
+			paths = append(paths, file.Path)
+		}
+		handleMultipleFiles(paths)
 	}
 }
 
