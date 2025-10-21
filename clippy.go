@@ -492,6 +492,7 @@ func PasteToStdout() (*PasteResult, error) {
 // PasteOptions configures paste behavior
 type PasteOptions struct {
 	PreserveFormat bool // If true, skip image format conversions (e.g., TIFF to PNG)
+	PlainTextOnly  bool // If true, force plain text extraction (strip all formatting)
 }
 
 // PasteToFile pastes clipboard content to a file or directory
@@ -506,9 +507,11 @@ func PasteToFileWithOptions(destination string, opts PasteOptions) (*PasteResult
 		return pasteFileReferences(files, destination)
 	}
 
-	// Priority 2: Image/rich content data
-	if content, err := clipboard.GetClipboardContent(); err == nil && !content.IsText && !content.IsFile && len(content.Data) > 0 {
-		return pasteImageData(content, destination, opts)
+	// Priority 2: Image/rich content data (skip if plain text only)
+	if !opts.PlainTextOnly {
+		if content, err := clipboard.GetClipboardContent(); err == nil && !content.IsText && !content.IsFile && len(content.Data) > 0 {
+			return pasteImageData(content, destination, opts)
+		}
 	}
 
 	// Priority 3: Text content
