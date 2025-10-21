@@ -11,6 +11,11 @@ import (
 	"github.com/neilberkman/mimedescription"
 )
 
+// refreshMsg is sent when files should be refreshed
+type refreshMsg struct {
+	files []recent.FileInfo
+}
+
 // pickerModel represents the state of our file picker
 type pickerModel struct {
 	files          []recent.FileInfo
@@ -22,6 +27,7 @@ type pickerModel struct {
 	absoluteTime   bool
 	terminalWidth  int
 	terminalHeight int
+	refreshFunc    func() ([]recent.FileInfo, error) // Function to call to refresh file list
 }
 
 // pickerItem represents a file item with its display state
@@ -41,6 +47,17 @@ func (m pickerModel) Init() tea.Cmd {
 // Update handles messages
 func (m pickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case refreshMsg:
+		// Update files list, preserve cursor position if possible
+		m.files = msg.files
+		if m.cursor >= len(m.files) {
+			m.cursor = len(m.files) - 1
+		}
+		if m.cursor < 0 {
+			m.cursor = 0
+		}
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.terminalWidth = msg.Width
 		m.terminalHeight = msg.Height
@@ -98,6 +115,19 @@ func (m pickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pasteMode = true
 			m.done = true
 			return m, tea.Quit
+
+		case "r":
+			// Refresh file list
+			if m.refreshFunc != nil {
+				return m, func() tea.Msg {
+					files, err := m.refreshFunc()
+					if err != nil {
+						// On error, return current files
+						return refreshMsg{files: m.files}
+					}
+					return refreshMsg{files: files}
+				}
+			}
 		}
 	}
 
@@ -114,7 +144,7 @@ func (m pickerModel) View() string {
 
 	// Header
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
-	builder.WriteString(headerStyle.Render("Select files (Enter: current item, Space: multi-select, p: copy & paste)"))
+	builder.WriteString(headerStyle.Render("Select files (Enter: current item, Space: multi-select, p: copy & paste, r: refresh)"))
 	builder.WriteString("\n\n")
 
 	// Calculate viewport
@@ -342,12 +372,13 @@ func getFileTypeDisplay(mimeType string) string {
 }
 
 // showBubbleTeaPickerWithResult shows an interactive picker and returns the full result
-func showBubbleTeaPickerWithResult(files []recent.FileInfo, absoluteTime bool) (*recent.PickerResult, error) {
+func showBubbleTeaPickerWithResult(files []recent.FileInfo, absoluteTime bool, refreshFunc func() ([]recent.FileInfo, error)) (*recent.PickerResult, error) {
 	m := pickerModel{
 		files:        files,
 		cursor:       0,
 		selected:     make(map[int]bool),
 		absoluteTime: absoluteTime,
+		refreshFunc:  refreshFunc,
 	}
 
 	// Run the program inline (not fullscreen)
