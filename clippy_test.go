@@ -252,14 +252,30 @@ func TestFindAvailableFilename(t *testing.T) {
 				}
 			}
 
-			got := findAvailableFilename(tt.inputPath)
+			got := findAvailableFilename(tt.inputPath, false)
 			if got != tt.want {
-				t.Errorf("findAvailableFilename(%q)\n  got:  %q\n  want: %q", tt.inputPath, got, tt.want)
+				t.Errorf("findAvailableFilename(%q, false)\n  got:  %q\n  want: %q", tt.inputPath, got, tt.want)
 			}
 
 			for _, f := range tt.existingFiles {
 				os.Remove(tmpDir + "/" + f)
 			}
 		})
+	}
+}
+
+func TestFindAvailableFilenameWithForce(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	if err := os.WriteFile(tmpDir+"/existing.txt", []byte("test"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	path := tmpDir + "/existing.txt"
+	got := findAvailableFilename(path, true)
+	want := path
+
+	if got != want {
+		t.Errorf("findAvailableFilename(%q, true) should return original path when force=true\n  got:  %q\n  want: %q", path, got, want)
 	}
 }

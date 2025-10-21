@@ -492,6 +492,7 @@ func PasteToStdout() (*PasteResult, error) {
 type PasteOptions struct {
 	PreserveFormat bool // If true, skip image format conversions (e.g., TIFF to PNG)
 	PlainTextOnly  bool // If true, force plain text extraction (strip all formatting)
+	Force          bool // If true, overwrite existing files instead of using Finder-style duplicate naming
 }
 
 // PasteToFile pastes clipboard content to a file or directory
@@ -503,7 +504,7 @@ func PasteToFile(destination string) (*PasteResult, error) {
 func PasteToFileWithOptions(destination string, opts PasteOptions) (*PasteResult, error) {
 	// Priority 1: File references
 	if files := GetFiles(); len(files) > 0 {
-		return pasteFileReferences(files, destination)
+		return pasteFileReferences(files, destination, opts)
 	}
 
 	// Priority 2: Image/rich content data (skip if plain text only)
@@ -515,15 +516,15 @@ func PasteToFileWithOptions(destination string, opts PasteOptions) (*PasteResult
 
 	// Priority 3: Text content
 	if text, ok := GetText(); ok {
-		return pasteTextContent(text, destination)
+		return pasteTextContent(text, destination, opts)
 	}
 
 	return nil, fmt.Errorf("no content found on clipboard")
 }
 
 // pasteFileReferences copies file references from clipboard to destination
-func pasteFileReferences(files []string, destination string) (*PasteResult, error) {
-	filesRead, err := copyFilesToDestination(files, destination)
+func pasteFileReferences(files []string, destination string, opts PasteOptions) (*PasteResult, error) {
+	filesRead, err := copyFilesToDestination(files, destination, opts.Force)
 	if err != nil {
 		return nil, err
 	}
@@ -538,7 +539,7 @@ func pasteFileReferences(files []string, destination string) (*PasteResult, erro
 func pasteImageData(content *clipboard.ClipboardContent, destination string, opts PasteOptions) (*PasteResult, error) {
 	// Special handling for RTFD (rich text with embedded images)
 	if content.Type == "com.apple.flat-rtfd" {
-		return pasteRTFDData(content, destination)
+		return pasteRTFDData(content, destination, opts)
 	}
 
 	ext := getFileExtensionFromUTI(content.Type)
@@ -569,7 +570,7 @@ func pasteImageData(content *clipboard.ClipboardContent, destination string, opt
 
 	defaultFilename := fmt.Sprintf("clipboard-%s%s", time.Now().Format("2006-01-02-150405"), ext)
 
-	destPath := resolveDestinationPath(destination, defaultFilename, true)
+	destPath := resolveDestinationPath(destination, defaultFilename, true, opts.Force)
 
 	if err := os.WriteFile(destPath, data, 0644); err != nil {
 		return nil, fmt.Errorf("could not write to file %s: %w", destPath, err)
@@ -582,9 +583,9 @@ func pasteImageData(content *clipboard.ClipboardContent, destination string, opt
 }
 
 // pasteRTFDData saves RTFD (rich text with embedded images) to .rtfd bundle
-func pasteRTFDData(content *clipboard.ClipboardContent, destination string) (*PasteResult, error) {
+func pasteRTFDData(content *clipboard.ClipboardContent, destination string, opts PasteOptions) (*PasteResult, error) {
 	defaultFilename := fmt.Sprintf("clipboard-%s.rtfd", time.Now().Format("2006-01-02-150405"))
-	destPath := resolveDestinationPath(destination, defaultFilename, true)
+	destPath := resolveDestinationPath(destination, defaultFilename, true, opts.Force)
 
 	// Ensure the path ends with .rtfd
 	if !strings.HasSuffix(destPath, ".rtfd") {
@@ -603,9 +604,9 @@ func pasteRTFDData(content *clipboard.ClipboardContent, destination string) (*Pa
 }
 
 // pasteTextContent saves text content from clipboard to file
-func pasteTextContent(text string, destination string) (*PasteResult, error) {
+func pasteTextContent(text string, destination string, opts PasteOptions) (*PasteResult, error) {
 	defaultFilename := fmt.Sprintf("clipboard-%s.txt", time.Now().Format("2006-01-02-150405"))
-	destPath := resolveDestinationPath(destination, defaultFilename, false)
+	destPath := resolveDestinationPath(destination, defaultFilename, false, opts.Force)
 
 	if err := os.WriteFile(destPath, []byte(text), 0644); err != nil {
 		return nil, fmt.Errorf("could not write to file %s: %w", destPath, err)
@@ -621,7 +622,12 @@ func pasteTextContent(text string, destination string) (*PasteResult, error) {
 // findAvailableFilename returns a filename that doesn't exist, using Finder's naming convention.
 // If the file exists, tries "basename 2.ext", "basename 3.ext", etc.
 // Format follows macOS Finder: "photo.png" → "photo 2.png" → "photo 3.png"
-func findAvailableFilename(path string) string {
+// If force is true, returns the path as-is (allows overwriting).
+func findAvailableFilename(path string, force bool) string {
+	if force {
+		return path
+	}
+
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return path
 	}
@@ -656,34 +662,34 @@ func findAvailableFilename(path string) string {
 // resolveDestinationPath determines the final file path for pasting content
 // If destination is a directory or looks like one, joins it with defaultFilename
 // If allowNoExtension is true, treats paths without extensions as directories
-// Uses Finder-style duplicate naming if file exists.
-func resolveDestinationPath(destination string, defaultFilename string, allowNoExtension bool) string {
+// Uses Finder-style duplicate naming if file exists (unless force is true).
+func resolveDestinationPath(destination string, defaultFilename string, allowNoExtension bool, force bool) string {
 	destInfo, err := os.Stat(destination)
 
 	// Existing directory
 	if err == nil && destInfo.IsDir() {
 		path := filepath.Join(destination, defaultFilename)
-		return findAvailableFilename(path)
+		return findAvailableFilename(path, force)
 	}
 
 	// Path ends with /
 	if strings.HasSuffix(destination, "/") {
 		path := filepath.Join(destination, defaultFilename)
-		return findAvailableFilename(path)
+		return findAvailableFilename(path, force)
 	}
 
 	// Path doesn't exist and has no extension (for image data)
 	if allowNoExtension && err != nil && !strings.Contains(filepath.Base(destination), ".") {
 		path := filepath.Join(destination, defaultFilename)
-		return findAvailableFilename(path)
+		return findAvailableFilename(path, force)
 	}
 
 	// Use destination as-is (it's a file path) - check for duplicates
-	return findAvailableFilename(destination)
+	return findAvailableFilename(destination, force)
 }
 
 // copyFilesToDestination copies files from clipboard to destination
-func copyFilesToDestination(files []string, destination string) (int, error) {
+func copyFilesToDestination(files []string, destination string, force bool) (int, error) {
 	if len(files) == 0 {
 		return 0, fmt.Errorf("no files to copy")
 	}
@@ -715,7 +721,7 @@ func copyFilesToDestination(files []string, destination string) (int, error) {
 			destFile = destination
 		}
 
-		destFile = findAvailableFilename(destFile)
+		destFile = findAvailableFilename(destFile, force)
 
 		if err := recent.CopyFile(srcFile, destFile); err != nil {
 			return filesRead, fmt.Errorf("could not copy %s to %s: %w", srcFile, destFile, err)
