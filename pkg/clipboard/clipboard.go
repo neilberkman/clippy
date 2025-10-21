@@ -617,16 +617,9 @@ func GetClipboardContent() (*ClipboardContent, error) {
 		}, nil
 	}
 
-	// Priority 2: Check for text content
-	if text, ok := GetText(); ok {
-		return &ClipboardContent{
-			Type:   "public.utf8-plain-text",
-			Data:   []byte(text),
-			IsText: true,
-		}, nil
-	}
-
-	// Priority 3: Check for rich UTI types on clipboard
+	// Priority 2: Check for rich UTI types on clipboard (images, etc.)
+	// This must come BEFORE text check because browsers put both image data
+	// and URL text on clipboard - we want the image data
 	types := GetClipboardTypes()
 	for _, typeStr := range types {
 		// Look for specific image types first
@@ -650,6 +643,16 @@ func GetClipboardContent() (*ClipboardContent, error) {
 				}, nil
 			}
 		}
+	}
+
+	// Priority 3: Check for text content (fallback)
+	// This comes last so image data takes precedence over accompanying URLs
+	if text, ok := GetText(); ok {
+		return &ClipboardContent{
+			Type:   "public.utf8-plain-text",
+			Data:   []byte(text),
+			IsText: true,
+		}, nil
 	}
 
 	// Priority 4: Check for generic types like public.data
