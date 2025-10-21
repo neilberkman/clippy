@@ -9,6 +9,7 @@ require (
 	github.com/mark3labs/mcp-go v0.41.1
 	github.com/neilberkman/mimedescription v1.0.0
 	github.com/spf13/cobra v1.10.1
+	golang.org/x/image v0.32.0
 )
 
 require (

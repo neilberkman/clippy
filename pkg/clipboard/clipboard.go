@@ -6,6 +6,7 @@ package clipboard
 #import <Foundation/Foundation.h>
 #import <AppKit/NSPasteboard.h>
 #import <AppKit/NSApplication.h>
+#import <AppKit/NSAttributedString.h>
 #import <CoreServices/CoreServices.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
@@ -342,6 +343,96 @@ int utiConformsTo(const char* uti, const char* parentType) {
         return result;
     }
 }
+
+// Get preferred file extension for a UTI from macOS's type database
+char* getPreferredExtensionForUTI(const char* uti) {
+    @autoreleasepool {
+        NSString *utiString = [NSString stringWithUTF8String:uti];
+
+        if (@available(macOS 11.0, *)) {
+            UTType *utType = [UTType typeWithIdentifier:utiString];
+            NSString *ext = utType.preferredFilenameExtension;
+
+            if (ext) {
+                return strdup([ext UTF8String]);
+            }
+        } else {
+            // Fallback to deprecated API
+            #pragma clang diagnostic push
+            #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+            CFStringRef utiRef = CFStringCreateWithCString(NULL, uti, kCFStringEncodingUTF8);
+            CFStringRef extRef = UTTypeCopyPreferredTagWithClass(utiRef, kUTTagClassFilenameExtension);
+
+            if (extRef) {
+                const char *ext = CFStringGetCStringPtr(extRef, kCFStringEncodingUTF8);
+                char *result = ext ? strdup(ext) : NULL;
+                CFRelease(extRef);
+                CFRelease(utiRef);
+                return result;
+            }
+            CFRelease(utiRef);
+            #pragma clang diagnostic pop
+        }
+
+        return NULL;
+    }
+}
+
+// Save RTFD data from clipboard to directory bundle
+// Returns 0 on success, -1 on error
+int saveRTFDToPath(const char* data, int length, const char* path) {
+    @autoreleasepool {
+        // Deserialize the flat-rtfd data
+        NSData *rtfdData = [NSData dataWithBytes:data length:length];
+
+        NSError *error = nil;
+        NSAttributedString *attrString = [[NSAttributedString alloc]
+            initWithData:rtfdData
+            options:@{NSDocumentTypeDocumentOption: NSRTFDTextDocumentType}
+            documentAttributes:nil
+            error:&error];
+
+        if (!attrString || error) {
+            if (error) {
+                NSLog(@"Failed to create attributed string: %@", error);
+            }
+            return -1;
+        }
+
+        // Create the .rtfd bundle directory
+        NSString *rtfdPath = [NSString stringWithUTF8String:path];
+        NSFileManager *fm = [NSFileManager defaultManager];
+
+        // Remove existing if present
+        [fm removeItemAtPath:rtfdPath error:nil];
+
+        // Create the RTFD wrapper directly from the attributed string
+        NSFileWrapper *wrapper = [attrString fileWrapperFromRange:NSMakeRange(0, [attrString length])
+                                              documentAttributes:@{NSDocumentTypeDocumentOption: NSRTFDTextDocumentType}
+                                              error:&error];
+        if (!wrapper || error) {
+            if (error) {
+                NSLog(@"Failed to create file wrapper: %@", error);
+            }
+            return -1;
+        }
+
+        // Write the wrapper to disk
+        BOOL written = [wrapper writeToURL:[NSURL fileURLWithPath:rtfdPath]
+                                   options:0
+                                   originalContentsURL:nil
+                                   error:&error];
+
+        if (!written || error) {
+            if (error) {
+                NSLog(@"Failed to write file wrapper: %@", error);
+            }
+            return -1;
+        }
+
+        return 0;
+    }
+}
 */
 import "C"
 import (
@@ -543,6 +634,44 @@ func UTIConformsTo(uti, parentType string) bool {
 	return C.utiConformsTo(cUTI, cParent) == 1
 }
 
+// GetPreferredExtensionForUTI returns the preferred file extension for a UTI
+// using macOS's canonical type database. Returns empty string if not found.
+// Example: "public.png" -> "png", "public.jpeg" -> "jpg"
+func GetPreferredExtensionForUTI(uti string) string {
+	cUTI := C.CString(uti)
+	defer C.free(unsafe.Pointer(cUTI))
+
+	cExt := C.getPreferredExtensionForUTI(cUTI)
+	if cExt == nil {
+		return ""
+	}
+	defer C.freeString(cExt)
+
+	return C.GoString(cExt)
+}
+
+// SaveRTFDToPath saves RTFD clipboard data to an .rtfd bundle on disk
+// The path should end with .rtfd extension
+// Returns an error if the save fails
+func SaveRTFDToPath(data []byte, path string) error {
+	if len(data) == 0 {
+		return fmt.Errorf("empty RTFD data")
+	}
+
+	cPath := C.CString(path)
+	defer C.free(unsafe.Pointer(cPath))
+
+	cData := (*C.char)(unsafe.Pointer(&data[0]))
+	length := C.int(len(data))
+
+	result := C.saveRTFDToPath(cData, length, cPath)
+	if result != 0 {
+		return fmt.Errorf("failed to save RTFD bundle")
+	}
+
+	return nil
+}
+
 // ClipboardContent represents the content and type information from clipboard
 type ClipboardContent struct {
 	Type     string // UTI or MIME type
@@ -567,16 +696,9 @@ func GetClipboardContent() (*ClipboardContent, error) {
 		}, nil
 	}
 
-	// Priority 2: Check for text content
-	if text, ok := GetText(); ok {
-		return &ClipboardContent{
-			Type:   "public.utf8-plain-text",
-			Data:   []byte(text),
-			IsText: true,
-		}, nil
-	}
-
-	// Priority 3: Check for rich UTI types on clipboard
+	// Priority 2: Check for rich UTI types on clipboard (images, etc.)
+	// This must come BEFORE text check because browsers put both image data
+	// and URL text on clipboard - we want the image data
 	types := GetClipboardTypes()
 	for _, typeStr := range types {
 		// Look for specific image types first
@@ -600,6 +722,16 @@ func GetClipboardContent() (*ClipboardContent, error) {
 				}, nil
 			}
 		}
+	}
+
+	// Priority 3: Check for text content (fallback)
+	// This comes last so image data takes precedence over accompanying URLs
+	if text, ok := GetText(); ok {
+		return &ClipboardContent{
+			Type:   "public.utf8-plain-text",
+			Data:   []byte(text),
+			IsText: true,
+		}, nil
 	}
 
 	// Priority 4: Check for generic types like public.data
@@ -644,8 +776,10 @@ func isImageUTI(uti string) bool {
 // isRichContentUTI checks if a UTI represents rich content
 func isRichContentUTI(uti string) bool {
 	richUTIs := []string{
+		"com.apple.flat-rtfd",          // RTF with embedded images/attachments (priority)
+		"public.rtf",                   // Plain RTF formatting
+		"com.apple.rtfd",               // RTFD bundle
 		"public.pdf",
-		"public.rtf",
 		"public.html",
 		"public.xml",
 		"public.json",

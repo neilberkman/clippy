@@ -10,13 +10,17 @@ import (
 	"github.com/neilberkman/clippy"
 	"github.com/neilberkman/clippy/cmd/internal/common"
 	"github.com/neilberkman/clippy/internal/log"
+	"github.com/neilberkman/clippy/pkg/clipboard"
 	"github.com/spf13/cobra"
 )
 
 var (
-	verbose bool
-	debug   bool
-	logger  *log.Logger
+	verbose         bool
+	debug           bool
+	preserveFormat  bool
+	inspect         bool
+	plain           bool
+	logger          *log.Logger
 )
 
 func main() {
@@ -31,21 +35,31 @@ Examples:
   # Paste clipboard content to stdout
   pasty
 
-  # Paste to a specific file
-  pasty output.txt
+  # Save browser image (auto-converts TIFF to PNG)
+  pasty photo.png
 
-  # Paste and show what was pasted
-  pasty -v
+  # Inspect clipboard contents
+  pasty --inspect
+
+  # Force plain text (strip formatting)
+  pasty --plain notes.txt
 
 Description:
   Pasty intelligently pastes clipboard content:
   - Text content is written directly
+  - Image data is saved (TIFF auto-converts to PNG)
   - File references are copied to destination
   - If no destination specified, outputs to stdout`,
 		Version: fmt.Sprintf("%s (%s) built on %s", common.Version, common.Commit, common.Date),
 		Run: func(cmd *cobra.Command, args []string) {
 			// Initialize logger
 			logger = common.SetupLogger(verbose, debug)
+
+			// Handle --inspect flag
+			if inspect {
+				inspectClipboard()
+				return
+			}
 
 			// Get destination from args
 			var destination string
@@ -67,7 +81,10 @@ Description:
 			if destination == "" {
 				result, err = clippy.PasteToStdout()
 			} else {
-				result, err = clippy.PasteToFile(destination)
+				result, err = clippy.PasteToFileWithOptions(destination, clippy.PasteOptions{
+					PreserveFormat: preserveFormat,
+					PlainTextOnly:  plain,
+				})
 			}
 
 			if err != nil {
@@ -78,15 +95,20 @@ Description:
 			if result != nil {
 				if destination == "" {
 					if result.Type == "text" {
-						logger.Verbose("✅ Pasted text content to stdout")
+						logger.Verbose("Pasted text content to stdout")
 					} else {
-						logger.Verbose("✅ Listed %d file references from clipboard", len(result.Files))
+						logger.Verbose("Listed %d file references from clipboard", len(result.Files))
 					}
 				} else {
-					if result.Type == "text" {
-						logger.Verbose("✅ Pasted text content to '%s'", destination)
-					} else {
-						logger.Verbose("✅ Copied %d files to '%s'", result.FilesRead, destination)
+					switch result.Type {
+					case "text":
+						logger.Verbose("Pasted text content to '%s'", destination)
+					case "image":
+						logger.Verbose("Saved image data to '%s'", result.Files[0])
+					case "rtfd":
+						logger.Verbose("Saved rich text with embedded images to '%s'", result.Files[0])
+					case "files":
+						logger.Verbose("Copied %d files to '%s'", result.FilesRead, destination)
 						if verbose {
 							for _, file := range result.Files {
 								fmt.Fprintf(os.Stderr, "  - %s\n", filepath.Base(file))
@@ -100,10 +122,48 @@ Description:
 
 	// Add flags
 	common.AddCommonFlags(rootCmd, &verbose, &debug)
+	rootCmd.Flags().BoolVar(&preserveFormat, "preserve-format", false, "Preserve original image format (skip TIFF to PNG conversion)")
+	rootCmd.Flags().BoolVar(&inspect, "inspect", false, "Show clipboard contents and types (debug mode)")
+	rootCmd.Flags().BoolVar(&plain, "plain", false, "Force plain text output (strip all formatting)")
 
 	// Execute the command
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
+	}
+}
+
+func inspectClipboard() {
+	types := clipboard.GetClipboardTypes()
+
+	fmt.Println("Clipboard Types:")
+	for i, t := range types {
+		fmt.Printf("  %d. %s\n", i+1, t)
+
+		// Get size for each type
+		if data, ok := clipboard.GetClipboardDataForType(t); ok {
+			size := len(data)
+			if size > 1024*1024 {
+				fmt.Printf("     Size: %.1f MB\n", float64(size)/(1024*1024))
+			} else if size > 1024 {
+				fmt.Printf("     Size: %.1f KB\n", float64(size)/1024)
+			} else {
+				fmt.Printf("     Size: %d bytes\n", size)
+			}
+		}
+	}
+
+	// Show what pasty would use
+	fmt.Println("\nPriority (what pasty will use):")
+	if files := clippy.GetFiles(); len(files) > 0 {
+		fmt.Printf("  → File references (%d files)\n", len(files))
+	} else if content, err := clipboard.GetClipboardContent(); err == nil {
+		if content.IsText {
+			fmt.Printf("  → Text content (%d bytes)\n", len(content.Data))
+		} else {
+			fmt.Printf("  → %s (%d bytes)\n", content.Type, len(content.Data))
+		}
+	} else {
+		fmt.Println("  → No supported content found")
 	}
 }

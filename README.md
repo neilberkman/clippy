@@ -200,6 +200,23 @@ pasty                    # Outputs the file's text content to stdout
 pasty notes.txt          # Saves the file's text content to notes.txt
 ```
 
+**3. Save browser images**
+
+```bash
+# Right-click "Copy Image" in any browser, then:
+pasty photo.png          # Saves the image (auto-converts TIFF to PNG)
+pasty --preserve-format  # Keep original format if needed
+```
+
+Also handles rich text with embedded images (`.rtfd` bundles from TextEdit/Notes).
+
+**4. Debugging and plain text extraction**
+
+```bash
+pasty --inspect          # Show what's on clipboard and what pasty will use
+pasty --plain notes.txt  # Force plain text, strip all formatting
+```
+
 ---
 
 ## Draggy - Visual Clipboard Companion

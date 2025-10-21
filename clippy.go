@@ -6,6 +6,10 @@ package clippy
 import (
 	"bytes"
 	"fmt"
+	"image"
+	"image/gif"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"os"
 	"path/filepath"
@@ -15,6 +19,7 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/neilberkman/clippy/pkg/clipboard"
 	"github.com/neilberkman/clippy/pkg/recent"
+	_ "golang.org/x/image/tiff" // Register TIFF decoder
 )
 
 // CopyResult contains information about what was copied and how
@@ -483,44 +488,159 @@ func PasteToStdout() (*PasteResult, error) {
 	return nil, fmt.Errorf("no text or file content found on clipboard")
 }
 
+// PasteOptions configures paste behavior
+type PasteOptions struct {
+	PreserveFormat bool // If true, skip image format conversions (e.g., TIFF to PNG)
+	PlainTextOnly  bool // If true, force plain text extraction (strip all formatting)
+}
+
 // PasteToFile pastes clipboard content to a file or directory
 func PasteToFile(destination string) (*PasteResult, error) {
-	// Try to get file references first (prioritize files over text)
-	files := GetFiles()
-	if len(files) > 0 {
-		filesRead, err := copyFilesToDestination(files, destination)
-		if err != nil {
-			return nil, err
-		}
-		return &PasteResult{
-			Type:      "files",
-			Files:     files,
-			FilesRead: filesRead,
-		}, nil
+	return PasteToFileWithOptions(destination, PasteOptions{})
+}
+
+// PasteToFileWithOptions pastes clipboard content with custom options
+func PasteToFileWithOptions(destination string, opts PasteOptions) (*PasteResult, error) {
+	// Priority 1: File references
+	if files := GetFiles(); len(files) > 0 {
+		return pasteFileReferences(files, destination)
 	}
 
-	// Try to get text content
+	// Priority 2: Image/rich content data (skip if plain text only)
+	if !opts.PlainTextOnly {
+		if content, err := clipboard.GetClipboardContent(); err == nil && !content.IsText && !content.IsFile && len(content.Data) > 0 {
+			return pasteImageData(content, destination, opts)
+		}
+	}
+
+	// Priority 3: Text content
 	if text, ok := GetText(); ok {
-		// Check if destination is a directory
-		destPath := destination
-		destInfo, err := os.Stat(destination)
-		if err == nil && destInfo.IsDir() || strings.HasSuffix(destination, "/") {
-			// Create a default filename for text content
-			timestamp := time.Now().Format("2006-01-02-150405")
-			destPath = filepath.Join(destination, fmt.Sprintf("clipboard-%s.txt", timestamp))
-		}
-
-		if err := os.WriteFile(destPath, []byte(text), 0644); err != nil {
-			return nil, fmt.Errorf("could not write to file %s: %w", destPath, err)
-		}
-		return &PasteResult{
-			Type:    "text",
-			Content: text,
-			Files:   []string{destPath}, // Include the created file path
-		}, nil
+		return pasteTextContent(text, destination)
 	}
 
-	return nil, fmt.Errorf("no text or file content found on clipboard")
+	return nil, fmt.Errorf("no content found on clipboard")
+}
+
+// pasteFileReferences copies file references from clipboard to destination
+func pasteFileReferences(files []string, destination string) (*PasteResult, error) {
+	filesRead, err := copyFilesToDestination(files, destination)
+	if err != nil {
+		return nil, err
+	}
+	return &PasteResult{
+		Type:      "files",
+		Files:     files,
+		FilesRead: filesRead,
+	}, nil
+}
+
+// pasteImageData saves image/rich content data from clipboard to file
+func pasteImageData(content *clipboard.ClipboardContent, destination string, opts PasteOptions) (*PasteResult, error) {
+	// Special handling for RTFD (rich text with embedded images)
+	if content.Type == "com.apple.flat-rtfd" {
+		return pasteRTFDData(content, destination)
+	}
+
+	ext := getFileExtensionFromUTI(content.Type)
+	if ext == "" {
+		ext = ".dat"
+	}
+
+	data := content.Data
+
+	// Check if user specified a target format via file extension
+	destExt := strings.ToLower(filepath.Ext(destination))
+	if destExt == ".jpg" || destExt == ".jpeg" || destExt == ".png" || destExt == ".gif" {
+		// Convert to user-specified format
+		if convertedData, err := convertImageFormat(content.Data, destExt); err == nil {
+			data = convertedData
+			ext = destExt
+		}
+		// If conversion fails, fall back to original data
+	} else if !opts.PreserveFormat && (ext == ".tiff" || ext == ".tif") {
+		// Auto-convert TIFF to PNG (TIFF is huge and not web-friendly)
+		// Only applies when user didn't specify a format
+		if pngData, err := convertImageFormat(content.Data, ".png"); err == nil {
+			data = pngData
+			ext = ".png"
+		}
+		// If conversion fails, fall back to original TIFF data
+	}
+
+	defaultFilename := fmt.Sprintf("clipboard-%s%s", time.Now().Format("2006-01-02-150405"), ext)
+
+	destPath := resolveDestinationPath(destination, defaultFilename, true)
+
+	if err := os.WriteFile(destPath, data, 0644); err != nil {
+		return nil, fmt.Errorf("could not write to file %s: %w", destPath, err)
+	}
+
+	return &PasteResult{
+		Type:  "image",
+		Files: []string{destPath},
+	}, nil
+}
+
+// pasteRTFDData saves RTFD (rich text with embedded images) to .rtfd bundle
+func pasteRTFDData(content *clipboard.ClipboardContent, destination string) (*PasteResult, error) {
+	defaultFilename := fmt.Sprintf("clipboard-%s.rtfd", time.Now().Format("2006-01-02-150405"))
+	destPath := resolveDestinationPath(destination, defaultFilename, true)
+
+	// Ensure the path ends with .rtfd
+	if !strings.HasSuffix(destPath, ".rtfd") {
+		destPath = destPath + ".rtfd"
+	}
+
+	// Use the special RTFD save function
+	if err := clipboard.SaveRTFDToPath(content.Data, destPath); err != nil {
+		return nil, fmt.Errorf("could not save RTFD to %s: %w", destPath, err)
+	}
+
+	return &PasteResult{
+		Type:  "rtfd",
+		Files: []string{destPath},
+	}, nil
+}
+
+// pasteTextContent saves text content from clipboard to file
+func pasteTextContent(text string, destination string) (*PasteResult, error) {
+	defaultFilename := fmt.Sprintf("clipboard-%s.txt", time.Now().Format("2006-01-02-150405"))
+	destPath := resolveDestinationPath(destination, defaultFilename, false)
+
+	if err := os.WriteFile(destPath, []byte(text), 0644); err != nil {
+		return nil, fmt.Errorf("could not write to file %s: %w", destPath, err)
+	}
+
+	return &PasteResult{
+		Type:    "text",
+		Content: text,
+		Files:   []string{destPath},
+	}, nil
+}
+
+// resolveDestinationPath determines the final file path for pasting content
+// If destination is a directory or looks like one, joins it with defaultFilename
+// If allowNoExtension is true, treats paths without extensions as directories
+func resolveDestinationPath(destination string, defaultFilename string, allowNoExtension bool) string {
+	destInfo, err := os.Stat(destination)
+
+	// Existing directory
+	if err == nil && destInfo.IsDir() {
+		return filepath.Join(destination, defaultFilename)
+	}
+
+	// Path ends with /
+	if strings.HasSuffix(destination, "/") {
+		return filepath.Join(destination, defaultFilename)
+	}
+
+	// Path doesn't exist and has no extension (for image data)
+	if allowNoExtension && err != nil && !strings.Contains(filepath.Base(destination), ".") {
+		return filepath.Join(destination, defaultFilename)
+	}
+
+	// Use destination as-is (it's a file path)
+	return destination
 }
 
 // copyFilesToDestination copies files from clipboard to destination
@@ -564,4 +684,53 @@ func copyFilesToDestination(files []string, destination string) (int, error) {
 	}
 
 	return filesRead, nil
+}
+
+// getFileExtensionFromUTI returns the file extension for a UTI
+// using macOS's canonical type database
+func getFileExtensionFromUTI(uti string) string {
+	ext := clipboard.GetPreferredExtensionForUTI(uti)
+	if ext == "" {
+		return ""
+	}
+	// Add the dot prefix if not present
+	if !strings.HasPrefix(ext, ".") {
+		return "." + ext
+	}
+	return ext
+}
+
+// convertImageFormat converts image data to the specified format
+// Supports .png, .jpg/.jpeg, .gif
+// Returns the converted bytes or an error if conversion fails
+func convertImageFormat(imageData []byte, targetExt string) ([]byte, error) {
+	// Decode the source image (auto-detects format: TIFF, PNG, JPEG, GIF)
+	img, _, err := image.Decode(bytes.NewReader(imageData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode image: %w", err)
+	}
+
+	// Encode to target format
+	var buf bytes.Buffer
+	targetExt = strings.ToLower(targetExt)
+
+	switch targetExt {
+	case ".png":
+		if err := png.Encode(&buf, img); err != nil {
+			return nil, fmt.Errorf("failed to encode PNG: %w", err)
+		}
+	case ".jpg", ".jpeg":
+		// Use 90% quality for JPEG (good balance of quality/size)
+		if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90}); err != nil {
+			return nil, fmt.Errorf("failed to encode JPEG: %w", err)
+		}
+	case ".gif":
+		if err := gif.Encode(&buf, img, nil); err != nil {
+			return nil, fmt.Errorf("failed to encode GIF: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported target format: %s", targetExt)
+	}
+
+	return buf.Bytes(), nil
 }

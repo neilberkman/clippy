@@ -169,3 +169,17 @@ func TestCopyTextWithType(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertImageFormat(t *testing.T) {
+	// Verify the function handles errors gracefully
+	_, err := convertImageFormat([]byte("not an image"), ".png")
+	if err == nil {
+		t.Error("Expected error for invalid image data")
+	}
+
+	// Test unsupported format
+	_, err = convertImageFormat([]byte("fake image"), ".bmp")
+	if err == nil {
+		t.Error("Expected error for unsupported format")
+	}
+}
