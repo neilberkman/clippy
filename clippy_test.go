@@ -169,3 +169,11 @@ func TestCopyTextWithType(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertTiffToPng(t *testing.T) {
+	// Verify the function handles errors gracefully
+	_, err := convertTiffToPng([]byte("not a tiff"))
+	if err == nil {
+		t.Error("Expected error for invalid TIFF data")
+	}
+}

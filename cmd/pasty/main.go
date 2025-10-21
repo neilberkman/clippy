@@ -32,15 +32,19 @@ Examples:
   # Paste clipboard content to stdout
   pasty
 
-  # Paste to a specific file
+  # Save browser image (auto-converts TIFF to PNG)
+  pasty photo.png
+
+  # Paste to a file
   pasty output.txt
 
-  # Paste and show what was pasted
+  # Show verbose output
   pasty -v
 
 Description:
   Pasty intelligently pastes clipboard content:
   - Text content is written directly
+  - Image data is saved (TIFF auto-converts to PNG)
   - File references are copied to destination
   - If no destination specified, outputs to stdout`,
 		Version: fmt.Sprintf("%s (%s) built on %s", common.Version, common.Commit, common.Date),
