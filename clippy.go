@@ -485,42 +485,96 @@ func PasteToStdout() (*PasteResult, error) {
 
 // PasteToFile pastes clipboard content to a file or directory
 func PasteToFile(destination string) (*PasteResult, error) {
-	// Try to get file references first (prioritize files over text)
-	files := GetFiles()
-	if len(files) > 0 {
-		filesRead, err := copyFilesToDestination(files, destination)
-		if err != nil {
-			return nil, err
-		}
-		return &PasteResult{
-			Type:      "files",
-			Files:     files,
-			FilesRead: filesRead,
-		}, nil
+	// Priority 1: File references
+	if files := GetFiles(); len(files) > 0 {
+		return pasteFileReferences(files, destination)
 	}
 
-	// Try to get text content
+	// Priority 2: Image/rich content data
+	if content, err := clipboard.GetClipboardContent(); err == nil && !content.IsText && !content.IsFile && len(content.Data) > 0 {
+		return pasteImageData(content, destination)
+	}
+
+	// Priority 3: Text content
 	if text, ok := GetText(); ok {
-		// Check if destination is a directory
-		destPath := destination
-		destInfo, err := os.Stat(destination)
-		if err == nil && destInfo.IsDir() || strings.HasSuffix(destination, "/") {
-			// Create a default filename for text content
-			timestamp := time.Now().Format("2006-01-02-150405")
-			destPath = filepath.Join(destination, fmt.Sprintf("clipboard-%s.txt", timestamp))
-		}
-
-		if err := os.WriteFile(destPath, []byte(text), 0644); err != nil {
-			return nil, fmt.Errorf("could not write to file %s: %w", destPath, err)
-		}
-		return &PasteResult{
-			Type:    "text",
-			Content: text,
-			Files:   []string{destPath}, // Include the created file path
-		}, nil
+		return pasteTextContent(text, destination)
 	}
 
-	return nil, fmt.Errorf("no text or file content found on clipboard")
+	return nil, fmt.Errorf("no content found on clipboard")
+}
+
+// pasteFileReferences copies file references from clipboard to destination
+func pasteFileReferences(files []string, destination string) (*PasteResult, error) {
+	filesRead, err := copyFilesToDestination(files, destination)
+	if err != nil {
+		return nil, err
+	}
+	return &PasteResult{
+		Type:      "files",
+		Files:     files,
+		FilesRead: filesRead,
+	}, nil
+}
+
+// pasteImageData saves image/rich content data from clipboard to file
+func pasteImageData(content *clipboard.ClipboardContent, destination string) (*PasteResult, error) {
+	ext := getFileExtensionFromUTI(content.Type)
+	if ext == "" {
+		ext = ".dat"
+	}
+	defaultFilename := fmt.Sprintf("clipboard-%s%s", time.Now().Format("2006-01-02-150405"), ext)
+
+	destPath := resolveDestinationPath(destination, defaultFilename, true)
+
+	if err := os.WriteFile(destPath, content.Data, 0644); err != nil {
+		return nil, fmt.Errorf("could not write to file %s: %w", destPath, err)
+	}
+
+	return &PasteResult{
+		Type:  "image",
+		Files: []string{destPath},
+	}, nil
+}
+
+// pasteTextContent saves text content from clipboard to file
+func pasteTextContent(text string, destination string) (*PasteResult, error) {
+	defaultFilename := fmt.Sprintf("clipboard-%s.txt", time.Now().Format("2006-01-02-150405"))
+	destPath := resolveDestinationPath(destination, defaultFilename, false)
+
+	if err := os.WriteFile(destPath, []byte(text), 0644); err != nil {
+		return nil, fmt.Errorf("could not write to file %s: %w", destPath, err)
+	}
+
+	return &PasteResult{
+		Type:    "text",
+		Content: text,
+		Files:   []string{destPath},
+	}, nil
+}
+
+// resolveDestinationPath determines the final file path for pasting content
+// If destination is a directory or looks like one, joins it with defaultFilename
+// If allowNoExtension is true, treats paths without extensions as directories
+func resolveDestinationPath(destination string, defaultFilename string, allowNoExtension bool) string {
+	destInfo, err := os.Stat(destination)
+
+	// Existing directory
+	if err == nil && destInfo.IsDir() {
+		return filepath.Join(destination, defaultFilename)
+	}
+
+	// Path ends with /
+	if strings.HasSuffix(destination, "/") {
+		return filepath.Join(destination, defaultFilename)
+	}
+
+	// Path doesn't exist and has no extension (for image data)
+	if allowNoExtension && err != nil && !strings.Contains(filepath.Base(destination), ".") {
+		return filepath.Join(destination, defaultFilename)
+	}
+
+	// Use destination as-is (it's a file path)
+	return destination
 }
 
 // copyFilesToDestination copies files from clipboard to destination
@@ -564,4 +618,18 @@ func copyFilesToDestination(files []string, destination string) (int, error) {
 	}
 
 	return filesRead, nil
+}
+
+// getFileExtensionFromUTI returns the file extension for a UTI
+// using macOS's canonical type database
+func getFileExtensionFromUTI(uti string) string {
+	ext := clipboard.GetPreferredExtensionForUTI(uti)
+	if ext == "" {
+		return ""
+	}
+	// Add the dot prefix if not present
+	if !strings.HasPrefix(ext, ".") {
+		return "." + ext
+	}
+	return ext
 }

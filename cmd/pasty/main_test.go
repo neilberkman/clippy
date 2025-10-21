@@ -102,7 +102,7 @@ func TestPastyWithTextClipboard(t *testing.T) {
 	if !strings.Contains(outputStr, "Test text content for pasty") {
 		t.Errorf("Pasty should output the text content, got: %s", outputStr)
 	}
-	if !strings.Contains(outputStr, "✅ Pasted text content to stdout") {
+	if !strings.Contains(outputStr, "Pasted text content to stdout") {
 		t.Errorf("Pasty should show verbose success message, got: %s", outputStr)
 	}
 }
@@ -149,7 +149,7 @@ func TestPastyToFile(t *testing.T) {
 
 	// Check verbose output
 	outputStr := string(output)
-	if !strings.Contains(outputStr, "✅ Pasted text content to") {
+	if !strings.Contains(outputStr, "Pasted text content to") {
 		t.Error("Should show verbose success message for file output")
 	}
 }
@@ -180,7 +180,7 @@ func TestPastyWithFileClipboard(t *testing.T) {
 	if !strings.Contains(outputStr, "minimal.png") {
 		t.Errorf("Should list the file path from clipboard, got: %s", outputStr)
 	}
-	if !strings.Contains(outputStr, "✅ Copied 1 files to '.'") {
+	if !strings.Contains(outputStr, "Copied 1 files to '.'") {
 		t.Errorf("Should show verbose message about copying files, got: %s", outputStr)
 	}
 }
@@ -232,7 +232,7 @@ func TestPastyCopyFileToDirectory(t *testing.T) {
 
 	// Check verbose output
 	outputStr := string(output)
-	if !strings.Contains(outputStr, "✅ Copied 1 files to") {
+	if !strings.Contains(outputStr, "Copied 1 files to") {
 		t.Error("Should show verbose message about copying file")
 	}
 }

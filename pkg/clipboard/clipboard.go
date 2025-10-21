@@ -342,6 +342,40 @@ int utiConformsTo(const char* uti, const char* parentType) {
         return result;
     }
 }
+
+// Get preferred file extension for a UTI from macOS's type database
+char* getPreferredExtensionForUTI(const char* uti) {
+    @autoreleasepool {
+        NSString *utiString = [NSString stringWithUTF8String:uti];
+
+        if (@available(macOS 11.0, *)) {
+            UTType *utType = [UTType typeWithIdentifier:utiString];
+            NSString *ext = utType.preferredFilenameExtension;
+
+            if (ext) {
+                return strdup([ext UTF8String]);
+            }
+        } else {
+            // Fallback to deprecated API
+            #pragma clang diagnostic push
+            #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+            CFStringRef utiRef = CFStringCreateWithCString(NULL, uti, kCFStringEncodingUTF8);
+            CFStringRef extRef = UTTypeCopyPreferredTagWithClass(utiRef, kUTTagClassFilenameExtension);
+
+            if (extRef) {
+                const char *ext = CFStringGetCStringPtr(extRef, kCFStringEncodingUTF8);
+                char *result = ext ? strdup(ext) : NULL;
+                CFRelease(extRef);
+                CFRelease(utiRef);
+                return result;
+            }
+            CFRelease(utiRef);
+            #pragma clang diagnostic pop
+        }
+
+        return NULL;
+    }
+}
 */
 import "C"
 import (
@@ -541,6 +575,22 @@ func UTIConformsTo(uti, parentType string) bool {
 	defer C.free(unsafe.Pointer(cParent))
 
 	return C.utiConformsTo(cUTI, cParent) == 1
+}
+
+// GetPreferredExtensionForUTI returns the preferred file extension for a UTI
+// using macOS's canonical type database. Returns empty string if not found.
+// Example: "public.png" -> "png", "public.jpeg" -> "jpg"
+func GetPreferredExtensionForUTI(uti string) string {
+	cUTI := C.CString(uti)
+	defer C.free(unsafe.Pointer(cUTI))
+
+	cExt := C.getPreferredExtensionForUTI(cUTI)
+	if cExt == nil {
+		return ""
+	}
+	defer C.freeString(cExt)
+
+	return C.GoString(cExt)
 }
 
 // ClipboardContent represents the content and type information from clipboard

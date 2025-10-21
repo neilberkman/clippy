@@ -78,15 +78,18 @@ Description:
 			if result != nil {
 				if destination == "" {
 					if result.Type == "text" {
-						logger.Verbose("✅ Pasted text content to stdout")
+						logger.Verbose("Pasted text content to stdout")
 					} else {
-						logger.Verbose("✅ Listed %d file references from clipboard", len(result.Files))
+						logger.Verbose("Listed %d file references from clipboard", len(result.Files))
 					}
 				} else {
-					if result.Type == "text" {
-						logger.Verbose("✅ Pasted text content to '%s'", destination)
-					} else {
-						logger.Verbose("✅ Copied %d files to '%s'", result.FilesRead, destination)
+					switch result.Type {
+					case "text":
+						logger.Verbose("Pasted text content to '%s'", destination)
+					case "image":
+						logger.Verbose("Saved image data to '%s'", result.Files[0])
+					case "files":
+						logger.Verbose("Copied %d files to '%s'", result.FilesRead, destination)
 						if verbose {
 							for _, file := range result.Files {
 								fmt.Fprintf(os.Stderr, "  - %s\n", filepath.Base(file))
