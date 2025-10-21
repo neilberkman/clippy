@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/fsnotify/fsnotify"
 	"github.com/neilberkman/clippy/pkg/recent"
 	"github.com/neilberkman/mimedescription"
 )
@@ -28,6 +29,8 @@ type pickerModel struct {
 	terminalWidth  int
 	terminalHeight int
 	refreshFunc    func() ([]recent.FileInfo, error) // Function to call to refresh file list
+	watcher        *fsnotify.Watcher                 // File system watcher for auto-refresh
+	watchDirs      []string                          // Directories being watched
 }
 
 // pickerItem represents a file item with its display state
@@ -38,10 +41,41 @@ type pickerItem struct {
 	focused  bool
 }
 
+// waitForFSEvent returns a command that waits for file system events
+func (m pickerModel) waitForFSEvent() tea.Msg {
+	if m.watcher == nil {
+		return nil
+	}
+
+	select {
+	case event, ok := <-m.watcher.Events:
+		if !ok {
+			return nil
+		}
+		// Only refresh on Create events (new files)
+		if event.Op&fsnotify.Create == fsnotify.Create {
+			if m.refreshFunc != nil {
+				files, err := m.refreshFunc()
+				if err == nil {
+					return refreshMsg{files: files}
+				}
+			}
+		}
+	case <-m.watcher.Errors:
+		// Ignore errors, just keep watching
+	}
+	return nil
+}
+
 // Initialize the model
 func (m pickerModel) Init() tea.Cmd {
-	// Request initial window size
-	return tea.WindowSize()
+	// Start watching for file system events if we have a watcher
+	if m.watcher != nil {
+		return func() tea.Msg {
+			return m.waitForFSEvent()
+		}
+	}
+	return nil
 }
 
 // Update handles messages
@@ -55,6 +89,12 @@ func (m pickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.cursor < 0 {
 			m.cursor = 0
+		}
+		// Continue watching for more events
+		if m.watcher != nil {
+			return m, func() tea.Msg {
+				return m.waitForFSEvent()
+			}
 		}
 		return m, nil
 
@@ -372,13 +412,28 @@ func getFileTypeDisplay(mimeType string) string {
 }
 
 // showBubbleTeaPickerWithResult shows an interactive picker and returns the full result
-func showBubbleTeaPickerWithResult(files []recent.FileInfo, absoluteTime bool, refreshFunc func() ([]recent.FileInfo, error)) (*recent.PickerResult, error) {
+func showBubbleTeaPickerWithResult(files []recent.FileInfo, absoluteTime bool, refreshFunc func() ([]recent.FileInfo, error), watchDirs []string) (*recent.PickerResult, error) {
 	m := pickerModel{
 		files:        files,
 		cursor:       0,
 		selected:     make(map[int]bool),
 		absoluteTime: absoluteTime,
 		refreshFunc:  refreshFunc,
+		watchDirs:    watchDirs,
+	}
+
+	// Setup file system watcher if we have directories to watch
+	if len(watchDirs) > 0 && refreshFunc != nil {
+		watcher, err := fsnotify.NewWatcher()
+		if err == nil {
+			m.watcher = watcher
+			defer watcher.Close()
+
+			// Add all watch directories
+			for _, dir := range watchDirs {
+				_ = watcher.Add(dir) // Ignore errors, best effort
+			}
+		}
 	}
 
 	// Run the program inline (not fullscreen)

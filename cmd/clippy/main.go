@@ -328,7 +328,7 @@ func handleRecentMode(timeStr string, interactiveMode bool) {
 			return getRecentDownloadsWithDirs(config, maxFiles, searchDirs)
 		}
 
-		result, err := showBubbleTeaPickerWithResult(files, config.AbsoluteTime, refreshFunc)
+		result, err := showBubbleTeaPickerWithResult(files, config.AbsoluteTime, refreshFunc, searchDirs)
 		if err != nil {
 			if err.Error() == "cancelled" {
 				fmt.Println("Cancelled.")
@@ -449,7 +449,8 @@ func handleFindMode(query string) {
 		return newFiles, nil
 	}
 
-	pickerResult, err := showBubbleTeaPickerWithResult(files, absoluteTime, refreshFunc)
+	// Spotlight doesn't watch specific directories, pass nil for watchDirs
+	pickerResult, err := showBubbleTeaPickerWithResult(files, absoluteTime, refreshFunc, nil)
 	if err != nil {
 		logger.Error("Picker error: %v", err)
 		os.Exit(1)
