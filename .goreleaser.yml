@@ -60,41 +60,30 @@ release:
   make_latest: true
   mode: replace
   header: |
-    ## Clippy {{.Tag}} - Unified Clipboard Tool for macOS
+    ## Clippy {{.Tag}}
 
-    A smart clipboard utility that intelligently handles both text and file copying based on content type.
+    Smart clipboard tool for macOS that bridges terminal and GUI workflows.
 
-    ### 🎯 Features
-    - Automatic content type detection
-    - Smart file path expansion
-    - Multiple file support
-    - Natural language file copying (e.g., "copy *.txt")
-    - Integration with system clipboard
-
-    ### 📦 Installation
-
-    #### Homebrew (Recommended)
-    ```bash
-    brew install clippy  # Installs both clippy and pasty
-    ```
-
-    #### Direct Download
-    ```bash
-    # For Apple Silicon (M1/M2):
-    curl -L https://github.com/neilberkman/clippy/releases/download/{{.Tag}}/clippy_{{.Tag}}_darwin_arm64.tar.gz | tar xz
-
-    # For Intel Macs:
-    curl -L https://github.com/neilberkman/clippy/releases/download/{{.Tag}}/clippy_{{.Tag}}_darwin_amd64.tar.gz | tar xz
-
-    # Move to your PATH
-    sudo mv clippy /usr/local/bin/
-    ```
+    **Install:** `brew install clippy`
 
   footer: |
+    ---
+
     **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/clippy/compare/{{.PreviousTag}}...{{.Tag}}
 
-    ---
-    🐛 **Found a bug?** Please [open an issue](https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/clippy/issues/new)
+    **Installation:**
+    ```bash
+    # Homebrew (recommended)
+    brew install clippy
+
+    # Direct download - Apple Silicon
+    curl -L https://github.com/neilberkman/clippy/releases/download/{{.Tag}}/clippy_{{.Tag}}_darwin_arm64.tar.gz | tar xz
+
+    # Direct download - Intel
+    curl -L https://github.com/neilberkman/clippy/releases/download/{{.Tag}}/clippy_{{.Tag}}_darwin_amd64.tar.gz | tar xz
+    ```
+
+    🐛 **Found a bug?** [Open an issue](https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/clippy/issues/new)
 
 # brews section removed - clippy is now in Homebrew Core
 # The tap (neilberkman/clippy) is kept only for Draggy cask
