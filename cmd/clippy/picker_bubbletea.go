@@ -155,19 +155,6 @@ func (m pickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pasteMode = true
 			m.done = true
 			return m, tea.Quit
-
-		case "r":
-			// Refresh file list
-			if m.refreshFunc != nil {
-				return m, func() tea.Msg {
-					files, err := m.refreshFunc()
-					if err != nil {
-						// On error, return current files
-						return refreshMsg{files: m.files}
-					}
-					return refreshMsg{files: files}
-				}
-			}
 		}
 	}
 
@@ -184,7 +171,7 @@ func (m pickerModel) View() string {
 
 	// Header
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
-	builder.WriteString(headerStyle.Render("Select files (Enter: current item, Space: multi-select, p: copy & paste, r: refresh)"))
+	builder.WriteString(headerStyle.Render("Select files (Enter: current item, Space: multi-select, p: copy & paste)"))
 	builder.WriteString("\n\n")
 
 	// Calculate viewport
