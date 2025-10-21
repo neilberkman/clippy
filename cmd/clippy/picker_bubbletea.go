@@ -7,9 +7,18 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/fsnotify/fsnotify"
 	"github.com/neilberkman/clippy/pkg/recent"
 	"github.com/neilberkman/mimedescription"
 )
+
+// refreshMsg is sent when files should be refreshed
+type refreshMsg struct {
+	files []recent.FileInfo
+}
+
+// tickMsg is sent periodically to clean up old highlights
+type tickMsg time.Time
 
 // pickerModel represents the state of our file picker
 type pickerModel struct {
@@ -22,6 +31,10 @@ type pickerModel struct {
 	absoluteTime   bool
 	terminalWidth  int
 	terminalHeight int
+	refreshFunc    func() ([]recent.FileInfo, error) // Function to call to refresh file list
+	watcher        *fsnotify.Watcher                 // File system watcher for auto-refresh
+	watchDirs      []string                          // Directories being watched
+	newFiles       map[string]time.Time              // Files that appeared recently (path -> time appeared)
 }
 
 // pickerItem represents a file item with its display state
@@ -32,15 +45,121 @@ type pickerItem struct {
 	focused  bool
 }
 
+// waitForFSEvent returns a command that waits for file system events
+func (m pickerModel) waitForFSEvent() tea.Msg {
+	if m.watcher == nil {
+		return nil
+	}
+
+	select {
+	case event, ok := <-m.watcher.Events:
+		if !ok {
+			return nil
+		}
+		// Only refresh on Create events (new files)
+		if event.Op&fsnotify.Create == fsnotify.Create {
+			if m.refreshFunc != nil {
+				files, err := m.refreshFunc()
+				if err == nil {
+					return refreshMsg{files: files}
+				}
+			}
+		}
+	case <-m.watcher.Errors:
+		// Ignore errors, just keep watching
+	}
+	return nil
+}
+
 // Initialize the model
 func (m pickerModel) Init() tea.Cmd {
-	// Request initial window size
-	return tea.WindowSize()
+	// Start watching for file system events if we have a watcher
+	if m.watcher != nil {
+		return tea.Batch(
+			func() tea.Msg {
+				return m.waitForFSEvent()
+			},
+			tea.Tick(time.Second, func(t time.Time) tea.Msg {
+				return tickMsg(t)
+			}),
+		)
+	}
+	return nil
 }
 
 // Update handles messages
 func (m pickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case refreshMsg:
+		// Preserve cursor by file name, not by index
+		// This prevents accidentally selecting a new file that appears at cursor position
+		var cursorFileName string
+		if m.cursor >= 0 && m.cursor < len(m.files) {
+			cursorFileName = m.files[m.cursor].Name
+		}
+
+		// Build a set of existing file paths before update
+		existingFiles := make(map[string]bool)
+		for _, f := range m.files {
+			existingFiles[f.Path] = true
+		}
+
+		// Update files list
+		m.files = msg.files
+
+		// Mark new files that weren't in the previous list
+		if m.newFiles == nil {
+			m.newFiles = make(map[string]time.Time)
+		}
+		now := time.Now()
+		for _, file := range m.files {
+			if !existingFiles[file.Path] {
+				m.newFiles[file.Path] = now
+			}
+		}
+
+		// Try to find the same file by name and restore cursor position
+		if cursorFileName != "" {
+			for i, file := range m.files {
+				if file.Name == cursorFileName {
+					m.cursor = i
+					goto cursorRestored
+				}
+			}
+		}
+
+		// If we couldn't find the file by name, keep cursor in bounds
+		if m.cursor >= len(m.files) {
+			m.cursor = len(m.files) - 1
+		}
+		if m.cursor < 0 {
+			m.cursor = 0
+		}
+
+	cursorRestored:
+		// Continue watching for more events
+		if m.watcher != nil {
+			return m, func() tea.Msg {
+				return m.waitForFSEvent()
+			}
+		}
+		return m, nil
+
+	case tickMsg:
+		// Clean up old highlights (files that appeared more than 3 seconds ago)
+		if m.newFiles != nil {
+			now := time.Now()
+			for path, t := range m.newFiles {
+				if now.Sub(t) > 3*time.Second {
+					delete(m.newFiles, path)
+				}
+			}
+		}
+		// Continue ticking
+		return m, tea.Tick(time.Second, func(t time.Time) tea.Msg {
+			return tickMsg(t)
+		})
+
 	case tea.WindowSizeMsg:
 		m.terminalWidth = msg.Width
 		m.terminalHeight = msg.Height
@@ -185,9 +304,16 @@ func (m pickerModel) renderItem(item pickerItem) string {
 	normalStyle := lipgloss.NewStyle()
 	focusedStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
 	selectedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
+	newFileStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Bold(true) // Yellow, bold
 	checkboxStyle := lipgloss.NewStyle().Width(3)
 	ageStyle := lipgloss.NewStyle().Faint(true)
 	extStyle := lipgloss.NewStyle().Faint(true).Foreground(lipgloss.Color("243"))
+
+	// Check if this is a new file
+	isNew := false
+	if m.newFiles != nil {
+		_, isNew = m.newFiles[item.file.Path]
+	}
 
 	// Checkbox
 	checkbox := "[ ]"
@@ -247,6 +373,11 @@ func (m pickerModel) renderItem(item pickerItem) string {
 
 	if item.selected {
 		return selectedStyle.Render("  " + line[2:])
+	}
+
+	// Highlight new files
+	if isNew {
+		return newFileStyle.Render("  " + line[2:])
 	}
 
 	return normalStyle.Render("  " + line[2:])
@@ -342,12 +473,30 @@ func getFileTypeDisplay(mimeType string) string {
 }
 
 // showBubbleTeaPickerWithResult shows an interactive picker and returns the full result
-func showBubbleTeaPickerWithResult(files []recent.FileInfo, absoluteTime bool) (*recent.PickerResult, error) {
+func showBubbleTeaPickerWithResult(files []recent.FileInfo, absoluteTime bool, refreshFunc func() ([]recent.FileInfo, error), watchDirs []string) (*recent.PickerResult, error) {
 	m := pickerModel{
 		files:        files,
 		cursor:       0,
 		selected:     make(map[int]bool),
 		absoluteTime: absoluteTime,
+		refreshFunc:  refreshFunc,
+		watchDirs:    watchDirs,
+	}
+
+	// Setup file system watcher if we have directories to watch
+	if len(watchDirs) > 0 && refreshFunc != nil {
+		watcher, err := fsnotify.NewWatcher()
+		if err == nil {
+			m.watcher = watcher
+			defer func() {
+				_ = watcher.Close()
+			}()
+
+			// Add all watch directories
+			for _, dir := range watchDirs {
+				_ = watcher.Add(dir) // Ignore errors, best effort
+			}
+		}
 	}
 
 	// Run the program inline (not fullscreen)

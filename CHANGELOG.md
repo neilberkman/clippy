@@ -4,6 +4,11 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+### Added
+
+- Pasty uses Finder-style duplicate naming (photo.png → photo 2.png) instead of overwriting
+- `--force` / `-f` flag to override and allow overwriting
+
 ## [1.6.1] - 2025-10-20
 
 ### Added
