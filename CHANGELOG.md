@@ -4,6 +4,19 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+## [1.6.3] - 2026-01-10
+
+### Added
+
+- Pasty uses Finder-style duplicate naming (photo.png → photo 2.png) instead of overwriting
+- `--force` / `-f` flag to override and allow overwriting
+- Interactive picker auto-refreshes when new files appear in Downloads/Desktop
+- Visual highlighting for newly appeared files in picker
+
+### Fixed
+
+- Multi-part extensions now handled correctly (archive.tar.gz → archive 2.tar.gz)
+
 ## [1.6.2] - 2026-01-06
 
 ### Fixed
