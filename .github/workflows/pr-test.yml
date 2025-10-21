@@ -54,3 +54,12 @@ jobs:
         run: |
           ./clippy --version
           ./pasty --version
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: clippy-pasty-binaries-macos
+          path: |
+            clippy
+            pasty
+          retention-days: 7
