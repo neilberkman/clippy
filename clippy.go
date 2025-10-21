@@ -10,7 +10,6 @@ import (
 	"image/gif"
 	"image/jpeg"
 	"image/png"
-	_ "image/jpeg" // Register JPEG decoder
 	"io"
 	"os"
 	"path/filepath"
