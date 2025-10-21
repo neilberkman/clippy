@@ -258,7 +258,7 @@ func TestFindAvailableFilename(t *testing.T) {
 			}
 
 			for _, f := range tt.existingFiles {
-				os.Remove(tmpDir + "/" + f)
+				_ = os.Remove(tmpDir + "/" + f)
 			}
 		})
 	}

@@ -435,7 +435,9 @@ func showBubbleTeaPickerWithResult(files []recent.FileInfo, absoluteTime bool, r
 		watcher, err := fsnotify.NewWatcher()
 		if err == nil {
 			m.watcher = watcher
-			defer watcher.Close()
+			defer func() {
+				_ = watcher.Close()
+			}()
 
 			// Add all watch directories
 			for _, dir := range watchDirs {
