@@ -14,9 +14,10 @@ import (
 )
 
 var (
-	verbose bool
-	debug   bool
-	logger  *log.Logger
+	verbose         bool
+	debug           bool
+	preserveFormat  bool
+	logger          *log.Logger
 )
 
 func main() {
@@ -67,7 +68,9 @@ Description:
 			if destination == "" {
 				result, err = clippy.PasteToStdout()
 			} else {
-				result, err = clippy.PasteToFile(destination)
+				result, err = clippy.PasteToFileWithOptions(destination, clippy.PasteOptions{
+					PreserveFormat: preserveFormat,
+				})
 			}
 
 			if err != nil {
@@ -103,6 +106,7 @@ Description:
 
 	// Add flags
 	common.AddCommonFlags(rootCmd, &verbose, &debug)
+	rootCmd.Flags().BoolVar(&preserveFormat, "preserve-format", false, "Preserve original image format (skip TIFF to PNG conversion)")
 
 	// Execute the command
 	if err := rootCmd.Execute(); err != nil {

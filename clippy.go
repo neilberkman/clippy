@@ -6,6 +6,9 @@ package clippy
 import (
 	"bytes"
 	"fmt"
+	"image"
+	"image/png"
+	_ "image/jpeg" // Register JPEG decoder
 	"io"
 	"os"
 	"path/filepath"
@@ -15,6 +18,7 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/neilberkman/clippy/pkg/clipboard"
 	"github.com/neilberkman/clippy/pkg/recent"
+	_ "golang.org/x/image/tiff" // Register TIFF decoder
 )
 
 // CopyResult contains information about what was copied and how
@@ -483,8 +487,18 @@ func PasteToStdout() (*PasteResult, error) {
 	return nil, fmt.Errorf("no text or file content found on clipboard")
 }
 
+// PasteOptions configures paste behavior
+type PasteOptions struct {
+	PreserveFormat bool // If true, skip image format conversions (e.g., TIFF to PNG)
+}
+
 // PasteToFile pastes clipboard content to a file or directory
 func PasteToFile(destination string) (*PasteResult, error) {
+	return PasteToFileWithOptions(destination, PasteOptions{})
+}
+
+// PasteToFileWithOptions pastes clipboard content with custom options
+func PasteToFileWithOptions(destination string, opts PasteOptions) (*PasteResult, error) {
 	// Priority 1: File references
 	if files := GetFiles(); len(files) > 0 {
 		return pasteFileReferences(files, destination)
@@ -492,7 +506,7 @@ func PasteToFile(destination string) (*PasteResult, error) {
 
 	// Priority 2: Image/rich content data
 	if content, err := clipboard.GetClipboardContent(); err == nil && !content.IsText && !content.IsFile && len(content.Data) > 0 {
-		return pasteImageData(content, destination)
+		return pasteImageData(content, destination, opts)
 	}
 
 	// Priority 3: Text content
@@ -517,16 +531,28 @@ func pasteFileReferences(files []string, destination string) (*PasteResult, erro
 }
 
 // pasteImageData saves image/rich content data from clipboard to file
-func pasteImageData(content *clipboard.ClipboardContent, destination string) (*PasteResult, error) {
+func pasteImageData(content *clipboard.ClipboardContent, destination string, opts PasteOptions) (*PasteResult, error) {
 	ext := getFileExtensionFromUTI(content.Type)
 	if ext == "" {
 		ext = ".dat"
 	}
+
+	// Auto-convert TIFF to PNG (TIFF is huge and not web-friendly)
+	// unless --preserve-format flag is set
+	data := content.Data
+	if !opts.PreserveFormat && (ext == ".tiff" || ext == ".tif") {
+		if pngData, err := convertTiffToPng(content.Data); err == nil {
+			data = pngData
+			ext = ".png"
+		}
+		// If conversion fails, fall back to original TIFF data
+	}
+
 	defaultFilename := fmt.Sprintf("clipboard-%s%s", time.Now().Format("2006-01-02-150405"), ext)
 
 	destPath := resolveDestinationPath(destination, defaultFilename, true)
 
-	if err := os.WriteFile(destPath, content.Data, 0644); err != nil {
+	if err := os.WriteFile(destPath, data, 0644); err != nil {
 		return nil, fmt.Errorf("could not write to file %s: %w", destPath, err)
 	}
 
@@ -632,4 +658,22 @@ func getFileExtensionFromUTI(uti string) string {
 		return "." + ext
 	}
 	return ext
+}
+
+// convertTiffToPng converts TIFF image data to PNG format
+// Returns the PNG bytes or an error if conversion fails
+func convertTiffToPng(tiffData []byte) ([]byte, error) {
+	// Decode TIFF image
+	img, _, err := image.Decode(bytes.NewReader(tiffData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode TIFF: %w", err)
+	}
+
+	// Encode as PNG
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		return nil, fmt.Errorf("failed to encode PNG: %w", err)
+	}
+
+	return buf.Bytes(), nil
 }
