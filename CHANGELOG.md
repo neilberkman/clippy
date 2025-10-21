@@ -4,6 +4,14 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+## [1.6.1] - 2025-10-20
+
+### Added
+
+- Spotlight search: `clippy -f <query>` finds files without leaving terminal
+- Uses native macOS MDQuery APIs for fast indexed search
+- Results filtered to last 90 days, sorted by modification time
+
 ## [1.6.0] - 2025-10-21
 
 ### Fixed

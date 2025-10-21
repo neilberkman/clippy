@@ -13,14 +13,15 @@ import (
 
 // pickerModel represents the state of our file picker
 type pickerModel struct {
-	files         []recent.FileInfo
-	cursor        int
-	selected      map[int]bool
-	done          bool
-	cancelled     bool
-	pasteMode     bool // true if user pressed 'p' to copy & paste
-	absoluteTime  bool
-	terminalWidth int
+	files          []recent.FileInfo
+	cursor         int
+	selected       map[int]bool
+	done           bool
+	cancelled      bool
+	pasteMode      bool // true if user pressed 'p' to copy & paste
+	absoluteTime   bool
+	terminalWidth  int
+	terminalHeight int
 }
 
 // pickerItem represents a file item with its display state
@@ -42,6 +43,7 @@ func (m pickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.terminalWidth = msg.Width
+		m.terminalHeight = msg.Height
 		return m, nil
 
 	case tea.KeyMsg:
@@ -115,15 +117,51 @@ func (m pickerModel) View() string {
 	builder.WriteString(headerStyle.Render("Select files (Enter: current item, Space: multi-select, p: copy & paste)"))
 	builder.WriteString("\n\n")
 
-	// File list
-	for i, file := range m.files {
+	// Calculate viewport
+	// Reserve space for: header (2 lines) + details (6 lines) + help (2 lines) = 10 lines
+	maxVisibleItems := m.terminalHeight - 10
+	if maxVisibleItems < 5 {
+		maxVisibleItems = 5 // Minimum
+	}
+	if maxVisibleItems > len(m.files) {
+		maxVisibleItems = len(m.files)
+	}
+
+	// Calculate viewport window
+	start := m.cursor - (maxVisibleItems / 2)
+	if start < 0 {
+		start = 0
+	}
+	end := start + maxVisibleItems
+	if end > len(m.files) {
+		end = len(m.files)
+		start = end - maxVisibleItems
+		if start < 0 {
+			start = 0
+		}
+	}
+
+	// Show indicator if there are items above
+	if start > 0 {
+		builder.WriteString(lipgloss.NewStyle().Faint(true).Render(fmt.Sprintf("  ↑ %d more files above...", start)))
+		builder.WriteString("\n")
+	}
+
+	// File list (viewport only)
+	for i := start; i < end; i++ {
 		item := pickerItem{
-			file:     file,
+			file:     m.files[i],
 			index:    i,
 			selected: m.selected[i],
 			focused:  i == m.cursor,
 		}
 		builder.WriteString(m.renderItem(item))
+		builder.WriteString("\n")
+	}
+
+	// Show indicator if there are items below
+	if end < len(m.files) {
+		builder.WriteString(lipgloss.NewStyle().Faint(true).Render(fmt.Sprintf("  ↓ %d more files below...", len(m.files)-end)))
 		builder.WriteString("\n")
 	}
 

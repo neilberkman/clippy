@@ -72,14 +72,26 @@ clippy -r --paste      # Copy most recent and paste here
 clippy -i --paste      # Pick file, copy it, and paste here
 ```
 
-### 3. Pipe Data as Files
+### 3. Find Files with Spotlight
+
+```bash
+clippy -f invoice      # Search for files matching "invoice"
+clippy -f screenshot   # Find screenshots
+clippy -f .pdf         # Find all PDF files (by extension)
+clippy -f report.xlsx  # Find specific file "report.xlsx"
+# Shows interactive picker with results
+```
+
+No more switching to Finder to search for files - find and copy them directly from your terminal.
+
+### 4. Pipe Data as Files
 
 ```bash
 curl -sL https://example.com/image.jpg | clippy
 cat archive.tar.gz | clippy
 ```
 
-### 4. Copy and Paste Together
+### 5. Copy and Paste Together
 
 ```bash
 clippy ~/Downloads/report.pdf --paste  # Copy to clipboard AND paste here
@@ -87,14 +99,14 @@ clippy -r --paste          # Copy recent download and paste here
 clippy -i --paste           # Pick file, copy it, and paste here
 ```
 
-### 5. Clear Clipboard
+### 6. Clear Clipboard
 
 ```bash
 clippy --clear         # Empty the clipboard
 echo -n | clippy       # Also clears the clipboard
 ```
 
-### 6. Content Type Detection
+### 7. Content Type Detection
 
 A nice bonus: clippy auto-detects content types (JSON, HTML, XML) so receiving apps handle them properly - something `pbcopy` can't do. This means when you paste into apps that support rich content, they'll handle it correctly - JSON viewers will syntax highlight, HTML will render, etc.
 
@@ -104,7 +116,7 @@ clippy -t page.html                       # Recognized as HTML
 clippy -t file.txt --mime application/json  # Manual override when needed
 ```
 
-### 7. Helpful Flags
+### 8. Helpful Flags
 
 ```bash
 clippy -v file.txt     # Show what happened

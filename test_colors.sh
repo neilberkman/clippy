@@ -1,0 +1,10 @@
+#!/bin/bash
+echo "Terminal color diagnostics:"
+echo "TERM=$TERM"
+echo "COLORTERM=$COLORTERM"
+echo "NO_COLOR=${NO_COLOR:-not set}"
+echo ""
+echo "Color test:"
+echo -e "\033[1;32mGreen text\033[0m"
+echo -e "\033[1;34mBlue text\033[0m"
+echo -e "\033[38;5;86mColor 86 (cyan)\033[0m"
