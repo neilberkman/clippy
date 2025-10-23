@@ -14,7 +14,9 @@ import (
 	"github.com/neilberkman/clippy/cmd/clippy/mcp"
 	"github.com/neilberkman/clippy/cmd/internal/common"
 	"github.com/neilberkman/clippy/internal/log"
+	"github.com/neilberkman/clippy/pkg/clipboard"
 	"github.com/neilberkman/clippy/pkg/recent"
+	"github.com/neilberkman/clippy/pkg/rtf"
 	"github.com/neilberkman/clippy/pkg/spotlight"
 	"github.com/spf13/cobra"
 )
@@ -34,6 +36,7 @@ var (
 	foldersFlag     []string
 	defaultFolders  []string
 	mimeType        string
+	terminalFlag bool
 	logger          *log.Logger
 )
 
@@ -173,6 +176,12 @@ MCP Server:
 				return
 			}
 
+			// Handle --terminal flag
+			if terminalFlag {
+				handleTerminal()
+				return
+			}
+
 			// Handle --clear flag
 			if clearFlag {
 				if err := clearClipboard(); err != nil {
@@ -217,6 +226,7 @@ MCP Server:
 	rootCmd.PersistentFlags().BoolVar(&clearFlag, "clear", false, "Clear the clipboard")
 	rootCmd.PersistentFlags().StringSliceVar(&foldersFlag, "folders", nil, "Specific folders to search (e.g., --folders downloads,desktop). Options: downloads, desktop, documents")
 	rootCmd.PersistentFlags().StringVarP(&mimeType, "mime", "m", "", "Manually specify MIME type for clipboard (e.g., text/html, application/json, text/xml)")
+	rootCmd.PersistentFlags().BoolVar(&terminalFlag, "terminal", false, "Convert terminal output from clipboard to HTML (auto-detects RTF or plain text)")
 
 	// Add MCP server subcommand
 	var mcpCmd = &cobra.Command{
@@ -708,4 +718,70 @@ func getRecentDownloadsWithDirs(config recent.PickerConfig, maxFiles int, custom
 	}
 
 	return files, nil
+}
+
+func handleTerminal() {
+	types := clipboard.GetClipboardTypes()
+
+	var htmlOutput string
+
+	// Try RTF first (preserves colors/formatting)
+	hasRTF := false
+	for _, t := range types {
+		if t == "public.rtf" {
+			hasRTF = true
+			break
+		}
+	}
+
+	if hasRTF {
+		rtfData, ok := clipboard.GetClipboardDataForType("public.rtf")
+		if ok {
+			result, err := rtf.ToHTML(string(rtfData))
+			if err != nil {
+				logger.Error("Failed to convert RTF to HTML: %v", err)
+				os.Exit(1)
+			}
+			htmlOutput = result.HTML
+		}
+	}
+
+	// Fall back to plain text if no RTF or RTF conversion failed
+	if htmlOutput == "" {
+		hasText := false
+		for _, t := range types {
+			if t == "public.utf8-plain-text" || t == "NSStringPboardType" {
+				hasText = true
+				break
+			}
+		}
+
+		if !hasText {
+			logger.Error("No text or RTF data on clipboard. Copy terminal output first.")
+			os.Exit(1)
+		}
+
+		textData, ok := clipboard.GetClipboardDataForType("public.utf8-plain-text")
+		if !ok {
+			textData, ok = clipboard.GetClipboardDataForType("NSStringPboardType")
+			if !ok {
+				logger.Error("Failed to read text from clipboard")
+				os.Exit(1)
+			}
+		}
+
+		// Plain text: wrap in <pre> tags
+		escaped := strings.ReplaceAll(string(textData), "&", "&amp;")
+		escaped = strings.ReplaceAll(escaped, "<", "&lt;")
+		escaped = strings.ReplaceAll(escaped, ">", "&gt;")
+		htmlOutput = fmt.Sprintf("<pre>%s</pre>", escaped)
+	}
+
+	// Copy HTML to clipboard
+	if err := clippy.CopyTextWithType(htmlOutput, "text/html"); err != nil {
+		logger.Error("Failed to copy HTML to clipboard: %v", err)
+		os.Exit(1)
+	}
+
+	logger.Verbose("✅ Converted terminal output to HTML and copied to clipboard")
 }
