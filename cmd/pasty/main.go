@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/neilberkman/clippy"
 	"github.com/neilberkman/clippy/cmd/internal/common"
@@ -24,6 +25,13 @@ var (
 )
 
 func main() {
+	// Pasty only works on macOS
+	if runtime.GOOS != "darwin" {
+		fmt.Fprintf(os.Stderr, "Error: Pasty only works on macOS (detected: %s)\n", runtime.GOOS)
+		fmt.Fprintln(os.Stderr, "Pasty uses macOS-specific clipboard APIs and frameworks.")
+		os.Exit(1)
+	}
+
 	var rootCmd = &cobra.Command{
 		Use:   "pasty [destination]",
 		Short: "Smart paste tool for macOS",

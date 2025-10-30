@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -38,6 +39,13 @@ var (
 )
 
 func main() {
+	// Clippy only works on macOS
+	if runtime.GOOS != "darwin" {
+		fmt.Fprintf(os.Stderr, "Error: Clippy only works on macOS (detected: %s)\n", runtime.GOOS)
+		fmt.Fprintln(os.Stderr, "Clippy uses macOS-specific clipboard APIs and frameworks.")
+		os.Exit(1)
+	}
+
 	// Preprocess args to convert "-r 3" to "-r=3" for Cobra compatibility
 	os.Args = preprocessArgs(os.Args)
 
