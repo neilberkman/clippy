@@ -5,11 +5,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
 
 func TestMain(m *testing.M) {
+	// Clippy only works on macOS
+	if runtime.GOOS != "darwin" {
+		panic("Clippy tests require macOS (detected: " + runtime.GOOS + ")")
+	}
+
 	// Build the binary for testing
 	cmd := exec.Command("go", "build", "-o", "clippy_test", ".")
 	if err := cmd.Run(); err != nil {
