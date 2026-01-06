@@ -11,6 +11,9 @@ import (
 	"time"
 
 	"github.com/gabriel-vasile/mimetype"
+	"github.com/olebedev/when"
+	"github.com/olebedev/when/rules/common"
+	"github.com/olebedev/when/rules/en"
 )
 
 // FileInfo represents a file with its metadata
@@ -137,7 +140,7 @@ func FindMostRecentFile(opts FindOptions) (*FileInfo, error) {
 	return &files[0], nil
 }
 
-// ParseDuration parses duration strings like "5m", "1h", "30s"
+// ParseDuration parses duration strings like "5m", "1h", "30s", "7d", "2 weeks ago"
 func ParseDuration(s string) (time.Duration, error) {
 	if s == "" {
 		return 5 * time.Minute, nil
@@ -151,13 +154,44 @@ func ParseDuration(s string) (time.Duration, error) {
 		return time.Duration(num) * time.Minute, nil
 	}
 
-	duration, err := time.ParseDuration(s)
-	if err != nil {
-		return 0, err
+	// Try Go's standard time.ParseDuration first (handles h, m, s, ms, us, ns)
+	if duration, err := time.ParseDuration(s); err == nil {
+		if duration < 0 {
+			return 0, fmt.Errorf("duration cannot be negative")
+		}
+		return duration, nil
 	}
+
+	// Handle days notation (e.g., "7d", "30d") before trying natural language
+	if strings.HasSuffix(s, "d") && !strings.Contains(s, " ") {
+		daysStr := strings.TrimSuffix(s, "d")
+		if days, err := strconv.Atoi(daysStr); err == nil {
+			if days < 0 {
+				return 0, fmt.Errorf("duration cannot be negative")
+			}
+			return time.Duration(days) * 24 * time.Hour, nil
+		}
+	}
+
+	// Use when library for natural language parsing (e.g., "2 weeks ago", "last week")
+	w := when.New(nil)
+	w.Add(en.All...)
+	w.Add(common.All...)
+
+	// Normalize hyphenated formats to spaces (e.g., "7-days-ago" -> "7 days ago")
+	normalizedStr := strings.ReplaceAll(s, "-", " ")
+
+	result, err := w.Parse(normalizedStr, time.Now())
+	if err != nil || result == nil {
+		return 0, fmt.Errorf("unable to parse duration %q: must be a Go duration (5m, 1h), days (7d), or relative time (2 weeks ago)", s)
+	}
+
+	// Calculate duration from now to the parsed time
+	duration := time.Since(result.Time)
 	if duration < 0 {
-		return 0, fmt.Errorf("duration cannot be negative")
+		return 0, fmt.Errorf("duration cannot be negative (parsed time is in the future)")
 	}
+
 	return duration, nil
 }
 

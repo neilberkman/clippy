@@ -4,6 +4,13 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-01-06
+
+### Fixed
+
+- MCP tool `get_recent_downloads` now supports natural language time expressions (7d, yesterday, 2 weeks ago)
+- Uses `github.com/olebedev/when` library for robust relative time parsing
+
 ## [1.6.1] - 2025-10-20
 
 ### Added

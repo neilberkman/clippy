@@ -277,7 +277,7 @@ func StartServer() error {
 		"get_recent_downloads",
 		mcp.WithDescription("Get list of recently added files from Downloads, Desktop, and Documents folders. Only shows files that were recently added to these directories."),
 		mcp.WithNumber("count", mcp.Description("Number of files to return (default: 10)")),
-		mcp.WithString("duration", mcp.Description("Time duration to look back (e.g. 5m, 1h)")),
+		mcp.WithString("duration", mcp.Description("Time duration to look back (e.g. 5m, 1h, 7d, 2 weeks ago, yesterday)")),
 	)
 
 	// Add recent downloads tool handler
