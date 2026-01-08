@@ -619,6 +619,25 @@ func pasteTextContent(text string, destination string, opts PasteOptions) (*Past
 	}, nil
 }
 
+// splitExtension splits a filename into base and extension, handling multi-part extensions.
+// Examples: "file.tar.gz" → ("file", ".tar.gz"), "photo.png" → ("photo", ".png")
+func splitExtension(filename string) (base string, ext string) {
+	multipartExts := []string{".tar.gz", ".tar.bz2", ".tar.xz", ".tar.zst"}
+
+	lower := strings.ToLower(filename)
+	for _, me := range multipartExts {
+		if strings.HasSuffix(lower, me) {
+			return filename[:len(filename)-len(me)], filename[len(filename)-len(me):]
+		}
+	}
+
+	ext = filepath.Ext(filename)
+	if ext != "" {
+		return filename[:len(filename)-len(ext)], ext
+	}
+	return filename, ""
+}
+
 // findAvailableFilename returns a filename that doesn't exist, using Finder's naming convention.
 // If the file exists, tries "basename 2.ext", "basename 3.ext", etc.
 // Format follows macOS Finder: "photo.png" → "photo 2.png" → "photo 3.png"
@@ -634,14 +653,7 @@ func findAvailableFilename(path string, force bool) string {
 
 	dir := filepath.Dir(path)
 	base := filepath.Base(path)
-	ext := filepath.Ext(base)
-
-	var nameWithoutExt string
-	if ext != "" {
-		nameWithoutExt = base[:len(base)-len(ext)]
-	} else {
-		nameWithoutExt = base
-	}
+	nameWithoutExt, ext := splitExtension(base)
 
 	for i := 2; i < 10000; i++ {
 		var candidate string

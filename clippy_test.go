@@ -234,7 +234,13 @@ func TestFindAvailableFilename(t *testing.T) {
 			name:          "multi-part extension",
 			existingFiles: []string{"archive.tar.gz"},
 			inputPath:     tmpDir + "/archive.tar.gz",
-			want:          tmpDir + "/archive.tar 2.gz",
+			want:          tmpDir + "/archive 2.tar.gz",
+		},
+		{
+			name:          "multi-part extension multiple conflicts",
+			existingFiles: []string{"backup.tar.bz2", "backup 2.tar.bz2"},
+			inputPath:     tmpDir + "/backup.tar.bz2",
+			want:          tmpDir + "/backup 3.tar.bz2",
 		},
 		{
 			name:          "gaps in numbering",
