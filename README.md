@@ -227,7 +227,10 @@ Also handles rich text with embedded images (`.rtfd` bundles from TextEdit/Notes
 ```bash
 pasty --inspect          # Show what's on clipboard and what pasty will use
 pasty --plain notes.txt  # Force plain text, strip all formatting
+pasty -f existing.txt    # Overwrite existing files instead of creating duplicates
 ```
+
+By default, pasty uses Finder-style duplicate naming if a file already exists.
 
 ---
 

@@ -322,7 +322,13 @@ func handleRecentMode(timeStr string, interactiveMode bool) {
 	// If interactive mode is requested, show the picker
 	if interactiveMode {
 		logger.Debug("Showing bubble tea picker with %d files", len(files))
-		result, err := showBubbleTeaPickerWithResult(files, config.AbsoluteTime)
+
+		// Create refresh function that re-scans directories
+		refreshFunc := func() ([]recent.FileInfo, error) {
+			return getRecentDownloadsWithDirs(config, maxFiles, searchDirs)
+		}
+
+		result, err := showBubbleTeaPickerWithResult(files, config.AbsoluteTime, refreshFunc, searchDirs)
 		if err != nil {
 			if err.Error() == "cancelled" {
 				fmt.Println("Cancelled.")
@@ -421,7 +427,30 @@ func handleFindMode(query string) {
 	}
 
 	// Show picker with results
-	pickerResult, err := showBubbleTeaPickerWithResult(files, absoluteTime)
+	// Create refresh function that re-runs the spotlight search
+	refreshFunc := func() ([]recent.FileInfo, error) {
+		newResults, err := spotlight.SearchWithMetadata(spotlight.SearchOptions{
+			Query:      query,
+			MaxResults: 1000,
+		})
+		if err != nil {
+			return files, err
+		}
+		var newFiles []recent.FileInfo
+		for _, r := range newResults {
+			newFiles = append(newFiles, recent.FileInfo{
+				Path:     r.Path,
+				Name:     r.Name,
+				Size:     r.Size,
+				Modified: r.Modified,
+				IsDir:    r.IsDir,
+			})
+		}
+		return newFiles, nil
+	}
+
+	// Spotlight doesn't watch specific directories, pass nil for watchDirs
+	pickerResult, err := showBubbleTeaPickerWithResult(files, absoluteTime, refreshFunc, nil)
 	if err != nil {
 		logger.Error("Picker error: %v", err)
 		os.Exit(1)
