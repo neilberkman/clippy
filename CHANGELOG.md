@@ -145,6 +145,12 @@ Notable changes to clippy.
   - Prevents negative durations when files have future timestamps in local timezone
   - Added comprehensive timezone tests
 
+## Draggy [0.14.1] - 2026-01-15
+
+### Fixed
+
+- Pin Swift version in Release Draggy workflow to avoid setup failures
+
 ## Draggy [0.14.0] - 2026-01-15
 
 ### Changed
