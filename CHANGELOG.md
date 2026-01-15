@@ -145,6 +145,16 @@ Notable changes to clippy.
   - Prevents negative durations when files have future timestamps in local timezone
   - Added comprehensive timezone tests
 
+## Draggy [0.14.0] - 2026-01-15
+
+### Changed
+
+- Unified clipboard and recent files into a single view with clear section headers
+- Clipboard files now always appear at the top, with a divider before recent files
+- Removed clipboard/recent toggle and auto-switch toast to reduce mode switching
+- Added folder-specific icons alongside file source labels (Downloads, Desktop, Documents, other)
+- Renamed UI copy from "Recent Downloads" to "Recent Files"
+
 ## Draggy [0.13.3] - 2025-01-25
 
 ### Fixed

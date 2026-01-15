@@ -99,7 +99,10 @@ struct FileRow: View {
                 HStack(spacing: 4) {
                     Text(byteCount).font(.caption2).foregroundColor(.secondary)
                     Text("•").font(.caption2).foregroundColor(.secondary)
-                    Text(folderSource).font(.caption2).foregroundColor(.secondary)
+                    Image(systemName: folderInfo.iconName)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Text(folderInfo.label).font(.caption2).foregroundColor(.secondary)
                 }
             }
             Spacer(minLength: 0)
@@ -228,23 +231,23 @@ struct FileRow: View {
         } ?? ""
     }
     
-    private var folderSource: String {
+    private var folderInfo: (label: String, iconName: String) {
         let homeDir = FileManager.default.homeDirectoryForCurrentUser
         let downloadsPath = homeDir.appendingPathComponent("Downloads").path
         let desktopPath = homeDir.appendingPathComponent("Desktop").path
         let documentsPath = homeDir.appendingPathComponent("Documents").path
-        
+
         let filePath = fileURL.path
-        
+
         if filePath.hasPrefix(downloadsPath) {
-            return "Downloads"
+            return ("Downloads", "tray.and.arrow.down")
         } else if filePath.hasPrefix(desktopPath) {
-            return "Desktop"  
+            return ("Desktop", "desktopcomputer")
         } else if filePath.hasPrefix(documentsPath) {
-            return "Documents"
+            return ("Documents", "doc.text")
         } else {
             // For files not in standard folders, show the immediate parent folder name
-            return fileURL.deletingLastPathComponent().lastPathComponent
+            return (fileURL.deletingLastPathComponent().lastPathComponent, "folder")
         }
     }
 

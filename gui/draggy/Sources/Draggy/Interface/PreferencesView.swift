@@ -82,7 +82,7 @@ struct PreferencesView: View {
 
                 Spacer()
 
-                Text("v0.11.3")
+                Text("v0.14.0")
                     .foregroundColor(.secondary)
                     .font(.caption)
                 

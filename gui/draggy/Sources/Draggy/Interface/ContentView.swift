@@ -17,21 +17,18 @@ struct ContentView: View {
 
                 HeaderView(viewModel: viewModel)
                 Divider()
-                FileListView(files: viewModel.files, viewModel: viewModel)
+                UnifiedFileListView(viewModel: viewModel)
                 Divider()
-                FooterView(fileCount: viewModel.files.count, viewModel: viewModel)
+                FooterView(
+                    clipboardCount: viewModel.clipboardFiles.count,
+                    recentCount: viewModel.recentFiles.count,
+                    viewModel: viewModel
+                )
             }
             .frame(width: 300, height: 400)
 
             if viewModel.showOnboarding {
                 OnboardingView(viewModel: viewModel)
-            }
-            
-            // Toast notification for auto-switch message
-            if viewModel.showAutoSwitchMessage {
-                ToastView(message: "Nothing in clipboard, showing recent downloads", viewModel: viewModel)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .animation(.easeInOut(duration: 0.3), value: viewModel.showAutoSwitchMessage)
             }
         }
         .sheet(isPresented: $viewModel.showPermissionAlert) {
@@ -47,9 +44,6 @@ struct ContentView: View {
 
 struct HeaderView: View {
     @ObservedObject var viewModel: ClipboardViewModel
-    @State private var showToggleTooltip = false
-    @State private var showRefreshTooltip = false
-    @State private var showFolderPopover = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -60,31 +54,6 @@ struct HeaderView: View {
                     .help("This is Draggy")
 
                 Spacer()
-
-                Text(viewModel.showingRecentDownloads ? "Recent Downloads" : "Clipboard")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                Spacer()
-
-                // Folder filter button (only show in recent downloads mode)
-                if viewModel.showingRecentDownloads {
-                    Button(action: { showFolderPopover = true }) {
-                        Image(systemName: "folder")
-                    }
-                    .buttonStyle(.plain)
-                    .help("Choose folders to search")
-                    .popover(isPresented: $showFolderPopover) {
-                        FolderSelectionView(viewModel: viewModel)
-                    }
-                }
-
-                // Toggle between clipboard and recent downloads
-                Button(action: viewModel.toggleRecentMode) {
-                    Image(systemName: viewModel.showingRecentDownloads ? "paperclip" : "clock")
-                }
-                .buttonStyle(.plain)
-                .help(viewModel.showingRecentDownloads ? "Show clipboard" : "Show recent downloads")
 
                 // Settings gear icon (always visible, rightmost)
                 Button(action: {
@@ -98,36 +67,74 @@ struct HeaderView: View {
             }
             .padding()
 
-            // Active folders indicator (only show in recent downloads mode)
-            if viewModel.showingRecentDownloads {
-                ActiveFoldersView(viewModel: viewModel)
-            }
         }
     }
 }
 
-struct FileListView: View {
-    let files: [ClipboardFile]
+struct UnifiedFileListView: View {
     @ObservedObject var viewModel: ClipboardViewModel
     @State private var hasCheckedOnce = false
+    @State private var showFolderPopover = false
 
     var body: some View {
-        Group {
-            if files.isEmpty && hasCheckedOnce {
-                EmptyStateView(showingRecentDownloads: viewModel.showingRecentDownloads, viewModel: viewModel)
-            } else if !files.isEmpty {
-                ScrollView {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeaderView(title: "Clipboard", systemImage: "clipboard") {
+                    EmptyView()
+                }
+
+                if viewModel.clipboardFiles.isEmpty && hasCheckedOnce {
+                    EmptySectionView(
+                        title: "Clipboard is empty",
+                        subtitle: "Copy files to see them here"
+                    )
+                } else {
                     VStack(alignment: .leading, spacing: 8) {
-                        ForEach(files, id: \.path) { file in
+                        ForEach(viewModel.clipboardFiles, id: \.path) { file in
                             FileRow(file: file, onDragStarted: viewModel.onDragStarted)
                         }
                     }
-                    .padding()
                 }
-            } else {
-                // Loading state - show nothing initially
-                Spacer()
+
+                Divider()
+                    .padding(.vertical, 4)
+
+                SectionHeaderView(title: "Recent Files", systemImage: "clock") {
+                    if viewModel.recentDownloadsEnabled {
+                        Button(action: { showFolderPopover = true }) {
+                            Image(systemName: "folder")
+                        }
+                        .buttonStyle(.plain)
+                        .help("Choose folders to search")
+                        .popover(isPresented: $showFolderPopover) {
+                            FolderSelectionView(viewModel: viewModel)
+                        }
+                    } else {
+                        EmptyView()
+                    }
+                }
+
+                if viewModel.recentDownloadsEnabled {
+                    ActiveFoldersView(viewModel: viewModel)
+                        .padding(.bottom, 2)
+
+                    if viewModel.recentFiles.isEmpty && hasCheckedOnce {
+                        EmptySectionView(
+                            title: "No recent files",
+                            subtitle: "Files from selected folders will appear here"
+                        )
+                    } else {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(viewModel.recentFiles, id: \.path) { file in
+                                FileRow(file: file, onDragStarted: viewModel.onDragStarted)
+                            }
+                        }
+                    }
+                } else {
+                    DisabledRecentSectionView(viewModel: viewModel)
+                }
             }
+            .padding()
         }
         .onAppear {
             // Mark that we've checked at least once after a small delay
@@ -138,78 +145,86 @@ struct FileListView: View {
     }
 }
 
-struct EmptyStateView: View {
-    let showingRecentDownloads: Bool
+struct SectionHeaderView<TrailingContent: View>: View {
+    let title: String
+    let systemImage: String
+    let trailingContent: TrailingContent
+
+    init(title: String, systemImage: String, @ViewBuilder trailingContent: () -> TrailingContent) {
+        self.title = title
+        self.systemImage = systemImage
+        self.trailingContent = trailingContent()
+    }
+
+    var body: some View {
+        HStack {
+            Image(systemName: systemImage)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            Spacer()
+            trailingContent
+        }
+    }
+}
+
+struct EmptySectionView: View {
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding(.vertical, 6)
+    }
+}
+
+struct DisabledRecentSectionView: View {
     @ObservedObject var viewModel: ClipboardViewModel
 
     var body: some View {
-        VStack {
-            Spacer()
-            Image(systemName: showingRecentDownloads ? "clock" : "clipboard")
-                .font(.largeTitle)
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Recent files are off")
+                .font(.subheadline)
                 .foregroundColor(.secondary)
-                .padding(.bottom, 8)
+            Text("Enable this to show files from Downloads, Desktop, and Documents.")
+                .font(.caption)
+                .foregroundColor(.secondary)
 
-            if showingRecentDownloads {
-                Text("No recent downloads")
-                    .foregroundColor(.secondary)
-                Text("Files added to Downloads folder will appear here")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            } else {
-                Text("Clipboard is empty")
-                    .foregroundColor(.secondary)
-                Text("Copy files to see them here")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                // Show option to enable recent downloads if not already enabled
-                if !viewModel.recentDownloadsEnabled && !viewModel.hasSeenRecentDownloadsPrompt {
-                    Button("Show recent files when empty") {
-                        viewModel.showOnboarding = true
-                    }
-                    .buttonStyle(.link)
-                    .padding(.top, 8)
-                }
+            Button("Enable Recent Files") {
+                viewModel.showOnboarding = true
             }
-
-            Spacer()
+            .buttonStyle(.link)
+            .padding(.top, 4)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.vertical, 6)
     }
 }
 
 // InfoBar removed - functionality moved to FooterView
 
 struct FooterView: View {
-    let fileCount: Int
+    let clipboardCount: Int
+    let recentCount: Int
     @ObservedObject var viewModel: ClipboardViewModel
 
     var body: some View {
         VStack(spacing: 4) {
-            // Show opt-in reminder if user declined but hasn't re-enabled
-            if viewModel.hasSeenRecentDownloadsPrompt && !viewModel.recentDownloadsEnabled && !viewModel.showingRecentDownloads {
-                Button(action: { viewModel.showOnboarding = true }) {
-                    HStack {
-                        Image(systemName: "clock.arrow.circlepath")
-                            .font(.caption)
-                        Text("Show recent files when clipboard empty")
-                            .font(.caption)
-                    }
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(.accentColor)
-                .padding(.vertical, 4)
-            }
-
             HStack {
-                // Show "No files" when count is 0
-                if fileCount == 0 {
-                    Text("No files")
+                if viewModel.recentDownloadsEnabled {
+                    Text("Clipboard: \(clipboardCount) • Recent: \(recentCount)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 } else {
-                    Text("\(fileCount) file\(fileCount == 1 ? "" : "s")")
+                    Text("\(clipboardCount) clipboard file\(clipboardCount == 1 ? "" : "s")")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -257,10 +272,10 @@ struct OnboardingView: View {
                     .font(.system(size: 40))
                     .foregroundColor(.accentColor)
 
-                Text("Show Recent Files When Empty")
+                Text("Show Recent Files")
                     .font(.headline)
 
-                Text("Draggy can automatically show files from your Downloads, Desktop, and Documents folders when the clipboard is empty.")
+                Text("Draggy can show files from your Downloads, Desktop, and Documents folders in the Recent Files section.")
                     .multilineTextAlignment(.center)
                     .foregroundColor(.secondary)
                     .font(.caption)
@@ -455,46 +470,6 @@ struct ActiveFoldersView: View {
             }
             .padding(.horizontal)
             .padding(.bottom, 2)
-        }
-    }
-}
-
-// MARK: - Toast View
-
-struct ToastView: View {
-    let message: String
-    @ObservedObject var viewModel: ClipboardViewModel
-    
-    var body: some View {
-        VStack {
-            HStack {
-                Image(systemName: "info.circle")
-                    .foregroundColor(.blue)
-                Text(message)
-                    .font(.caption)
-                    .foregroundColor(.primary)
-                Spacer()
-                Button(action: {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        viewModel.showAutoSwitchMessage = false
-                    }
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(NSColor.controlBackgroundColor))
-                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-            )
-            .padding(.top, 16)
-            
-            Spacer()
         }
     }
 }

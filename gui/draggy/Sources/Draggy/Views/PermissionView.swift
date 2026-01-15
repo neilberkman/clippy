@@ -14,7 +14,7 @@ struct PermissionView: View {
             Text("Permission Required")
                 .font(.headline)
             
-            Text("Draggy needs permission to access your folders to show recent downloads.")
+            Text("Draggy needs permission to access your folders to show recent files.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
