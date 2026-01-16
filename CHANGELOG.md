@@ -4,6 +4,13 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+## [1.6.4] - 2026-01-15
+
+### Added
+
+- Platform checks to fail fast on non-macOS systems with clear error messages
+- Runtime detection prevents cryptic clipboard failures on unsupported platforms
+
 ## [1.6.3] - 2026-01-10
 
 ### Added
