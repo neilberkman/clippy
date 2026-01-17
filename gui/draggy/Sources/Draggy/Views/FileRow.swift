@@ -361,7 +361,7 @@ struct FileRow: View {
         metadataComponents.append(byteCount)
         
         // Folder location
-        metadataComponents.append(folderSource)
+        metadataComponents.append(folderInfo.label)
         
         // Time with better formatting
         if let modified = file.modified {
