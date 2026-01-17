@@ -175,15 +175,10 @@ struct EmptySectionView: View {
     let subtitle: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            Text(subtitle)
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .padding(.vertical, 6)
+        Text(subtitle)
+            .font(.caption)
+            .foregroundColor(.secondary)
+            .padding(.vertical, 4)
     }
 }
 
