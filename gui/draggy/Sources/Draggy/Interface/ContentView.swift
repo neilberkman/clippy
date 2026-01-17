@@ -78,26 +78,36 @@ struct UnifiedFileListView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                SectionHeaderView(title: "Clipboard", systemImage: "clipboard") {
-                    EmptyView()
+            VStack(alignment: .leading, spacing: 0) {
+                // Clipboard section - super compact
+                HStack {
+                    Image(systemName: "clipboard")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Text("Clipboard")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    if viewModel.clipboardFiles.isEmpty && hasCheckedOnce {
+                        Text("•")
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 4)
+                        Text("Copy files to see them here")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
+                .padding(.bottom, viewModel.clipboardFiles.isEmpty ? 8 : 4)
 
-                if viewModel.clipboardFiles.isEmpty && hasCheckedOnce {
-                    EmptySectionView(
-                        title: "Clipboard is empty",
-                        subtitle: "Copy files to see them here"
-                    )
-                } else {
+                if !viewModel.clipboardFiles.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(viewModel.clipboardFiles, id: \.path) { file in
                             FileRow(file: file, onDragStarted: viewModel.onDragStarted)
                         }
                     }
+                    .padding(.bottom, 8)
                 }
 
                 Divider()
-                    .padding(.vertical, 4)
 
                 SectionHeaderView(title: "Recent Files", systemImage: "clock") {
                     if viewModel.recentDownloadsEnabled {
