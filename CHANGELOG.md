@@ -152,6 +152,12 @@ Notable changes to clippy.
   - Prevents negative durations when files have future timestamps in local timezone
   - Added comprehensive timezone tests
 
+## Draggy [0.14.2] - 2026-01-17
+
+### Changed
+
+- Made empty clipboard state more compact (one-liner instead of two lines)
+
 ## Draggy [0.14.1] - 2026-01-15
 
 ### Fixed
