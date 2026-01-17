@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-14  # Xcode 15.x, compatible with Swift 5.10
 
     steps:
     - uses: actions/checkout@v4
