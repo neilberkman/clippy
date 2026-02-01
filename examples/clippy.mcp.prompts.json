@@ -1,0 +1,17 @@
+[
+  {
+    "name": "copy-recent-download",
+    "description": "Copy a recent download straight to the clipboard",
+    "arguments": [
+      {
+        "name": "count",
+        "description": "How many recent downloads to copy",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "paste-here",
+    "description": "Paste clipboard content into the current directory"
+  }
+]
