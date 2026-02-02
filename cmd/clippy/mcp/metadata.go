@@ -5,18 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-)
+	"strings"
 
-const (
-	paramTypeString = "string"
-	paramTypeNumber = "number"
+	"github.com/neilberkman/clippy"
 )
 
 // ServerOptions controls optional MCP metadata overrides.
 type ServerOptions struct {
-	ExamplesPath string
-	ToolsPath    string
-	PromptsPath  string
+	ExamplesPath   string
+	ToolsPath      string
+	PromptsPath    string
+	StrictMetadata bool
 }
 
 // ServerMetadata describes the MCP server's tools, prompts, and examples.
@@ -61,181 +60,105 @@ type ExampleSpec struct {
 	Description string `json:"description"`
 }
 
+type serverJSON struct {
+	Tools    []serverTool  `json:"tools"`
+	Prompts  []PromptSpec  `json:"prompts"`
+	Examples []ExampleSpec `json:"examples"`
+}
+
+type serverTool struct {
+	Name        string           `json:"name"`
+	Description string           `json:"description"`
+	Parameters  serverToolParams `json:"parameters"`
+}
+
+type serverToolParams struct {
+	Properties map[string]serverToolParam `json:"properties"`
+	Required   []string                   `json:"required"`
+}
+
+type serverToolParam struct {
+	Type        string `json:"type"`
+	Description string `json:"description"`
+}
+
 // DefaultServerMetadata returns the built-in MCP metadata definitions.
-func DefaultServerMetadata() ServerMetadata {
-	return ServerMetadata{
-		Tools: []ToolSpec{
-			{
-				Name:        "clipboard_copy",
-				Description: "Copy text or file to clipboard. CRITICAL: Use 'text' parameter for ANY generated content, code, messages, or text that will be pasted. Use 'file' parameter ONLY for existing files that need to be attached/uploaded. DEFAULT TO 'text' FOR ALL GENERATED CONTENT. PRO TIP: For iterative editing, write to a temp file then use file + force_text='true' to avoid regenerating full content each time.",
-				Params: []ToolParamSpec{
-					{
-						Name:        "text",
-						Description: "Text content to copy - USE THIS for all generated content, code snippets, messages, emails, documentation, or any text that will be pasted",
-						Type:        paramTypeString,
-					},
-					{
-						Name:        "file",
-						Description: "File path to copy as file reference - ONLY use this for existing files on disk that need to be dragged/attached, NOT for generated content. PRO TIP: Use with force_text='true' for efficient iterative editing of temp files.",
-						Type:        paramTypeString,
-					},
-					{
-						Name:        "force_text",
-						Description: "Set to 'true' to force copying file content as text (only with 'file' parameter). USEFUL PATTERN: Write code to /tmp/script.ext, edit incrementally with Edit tool, then copy with file='/tmp/script.ext' force_text='true' for efficient iterative development without regenerating full text.",
-						Type:        paramTypeString,
-					},
-				},
-			},
-			{
-				Name:        "clipboard_paste",
-				Description: "Paste clipboard content to file or directory. Intelligently handles both text content and file references from clipboard.",
-				Params: []ToolParamSpec{
-					{
-						Name:        "destination",
-						Description: "Destination directory (defaults to current directory)",
-						Type:        paramTypeString,
-					},
-				},
-			},
-			{
-				Name:        "get_recent_downloads",
-				Description: "Get list of recently added files from Downloads, Desktop, and Documents folders. Only shows files that were recently added to these directories.",
-				Params: []ToolParamSpec{
-					{
-						Name:        "count",
-						Description: "Number of files to return (default: 10)",
-						Type:        paramTypeNumber,
-					},
-					{
-						Name:        "duration",
-						Description: "Time duration to look back (e.g. 5m, 1h, 7d, 2 weeks ago, yesterday)",
-						Type:        paramTypeString,
-					},
-				},
-			},
-			{
-				Name:        "buffer_copy",
-				Description: "Copy file bytes (with optional line ranges) to agent's private buffer for refactoring. Server reads bytes directly - no token generation. Use when moving code between files or reorganizing large sections. Better than Edit for large blocks since content isn't regenerated.",
-				Params: []ToolParamSpec{
-					{
-						Name:        "file",
-						Description: "File path to copy from (required)",
-						Type:        paramTypeString,
-						Required:    true,
-					},
-					{
-						Name:        "start_line",
-						Description: "Starting line number (1-indexed, omit for entire file)",
-						Type:        paramTypeNumber,
-					},
-					{
-						Name:        "end_line",
-						Description: "Ending line number (inclusive, omit for entire file)",
-						Type:        paramTypeNumber,
-					},
-				},
-			},
-			{
-				Name:        "buffer_paste",
-				Description: "Paste buffered bytes to file with append/insert/replace modes. Use after buffer_copy to complete refactoring. Writes exact bytes without token generation. append=add to end, insert=inject at line, replace=overwrite range. Byte-perfect, no content regeneration.",
-				Params: []ToolParamSpec{
-					{
-						Name:        "file",
-						Description: "Target file path (required)",
-						Type:        paramTypeString,
-						Required:    true,
-					},
-					{
-						Name:        "mode",
-						Description: "Paste mode: 'append' (default), 'insert', or 'replace'",
-						Type:        paramTypeString,
-					},
-					{
-						Name:        "at_line",
-						Description: "Line number for insert/replace mode (1-indexed)",
-						Type:        paramTypeNumber,
-					},
-					{
-						Name:        "to_line",
-						Description: "End line for replace mode (inclusive, required for replace)",
-						Type:        paramTypeNumber,
-					},
-				},
-			},
-			{
-				Name:        "buffer_cut",
-				Description: "Cut lines from file to buffer - copies to buffer then deletes from source. Like buffer_copy but removes the lines after copying. Use for moving code sections without manual deletion. Atomic operation - only deletes if copy succeeds.",
-				Params: []ToolParamSpec{
-					{
-						Name:        "file",
-						Description: "File path to cut from (required)",
-						Type:        paramTypeString,
-						Required:    true,
-					},
-					{
-						Name:        "start_line",
-						Description: "Starting line number (1-indexed, omit for entire file)",
-						Type:        paramTypeNumber,
-					},
-					{
-						Name:        "end_line",
-						Description: "Ending line number (inclusive, omit for entire file)",
-						Type:        paramTypeNumber,
-					},
-				},
-			},
-			{
-				Name:        "buffer_list",
-				Description: "Show buffer metadata (lines, source file, range). Use to verify buffer contents before pasting. Returns metadata only, not actual content.",
-			},
-		},
-		Prompts: []PromptSpec{
-			{
-				Name:        "copy-recent-download",
-				Description: "Copy the most recent download to clipboard",
-				Arguments: []PromptArgSpec{
-					{
-						Name:        "count",
-						Description: "Number of recent downloads to copy",
-					},
-				},
-			},
-			{
-				Name:        "paste-here",
-				Description: "Paste clipboard content to current directory",
-			},
-		},
-		Examples: []ExampleSpec{
-			{
-				Prompt:      "Write a Python script to process CSV files and copy it to my clipboard",
-				Description: "Generate code and put it directly on your clipboard",
-			},
-			{
-				Prompt:      "Draft an email about the meeting and put it on my clipboard",
-				Description: "Create formatted text ready to paste into any email client",
-			},
-			{
-				Prompt:      "Copy my most recent download to the clipboard",
-				Description: "Quickly grab recently downloaded files",
-			},
-			{
-				Prompt:      "Refactor the processData function into a separate file",
-				Description: "Use buffer_copy and buffer_paste to move code without touching system clipboard",
-			},
-		},
+func DefaultServerMetadata() (ServerMetadata, error) {
+	return loadServerMetadataFromJSON(clippy.DefaultServerJSON)
+}
+
+func loadServerMetadataFromJSON(data []byte) (ServerMetadata, error) {
+	if len(bytes.TrimSpace(data)) == 0 {
+		return ServerMetadata{}, fmt.Errorf("default server metadata is empty")
 	}
+
+	var payload serverJSON
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return ServerMetadata{}, fmt.Errorf("parse default server metadata: %w", err)
+	}
+	if len(payload.Tools) == 0 {
+		return ServerMetadata{}, fmt.Errorf("default server metadata is missing tools")
+	}
+
+	tools := make([]ToolSpec, 0, len(payload.Tools))
+	for _, tool := range payload.Tools {
+		if tool.Name == "" {
+			return ServerMetadata{}, fmt.Errorf("default tool is missing name")
+		}
+		if strings.TrimSpace(tool.Description) == "" {
+			return ServerMetadata{}, fmt.Errorf("default tool %q is missing description", tool.Name)
+		}
+
+		requiredSet := make(map[string]bool, len(tool.Parameters.Required))
+		for _, name := range tool.Parameters.Required {
+			requiredSet[name] = true
+		}
+
+		params := make([]ToolParamSpec, 0, len(tool.Parameters.Properties))
+		for name, param := range tool.Parameters.Properties {
+			if name == "" {
+				return ServerMetadata{}, fmt.Errorf("default tool %q has a parameter with no name", tool.Name)
+			}
+			if strings.TrimSpace(param.Description) == "" {
+				return ServerMetadata{}, fmt.Errorf("default tool %q parameter %q missing description", tool.Name, name)
+			}
+			if strings.TrimSpace(param.Type) == "" {
+				return ServerMetadata{}, fmt.Errorf("default tool %q parameter %q missing type", tool.Name, name)
+			}
+			params = append(params, ToolParamSpec{
+				Name:        name,
+				Description: param.Description,
+				Type:        param.Type,
+				Required:    requiredSet[name],
+			})
+		}
+		tools = append(tools, ToolSpec{
+			Name:        tool.Name,
+			Description: tool.Description,
+			Params:      params,
+		})
+	}
+
+	return ServerMetadata{
+		Tools:    tools,
+		Prompts:  payload.Prompts,
+		Examples: payload.Examples,
+	}, nil
 }
 
 // LoadServerMetadata loads default metadata and applies any overrides.
 func LoadServerMetadata(opts ServerOptions) (ServerMetadata, error) {
-	metadata := DefaultServerMetadata()
+	metadata, err := DefaultServerMetadata()
+	if err != nil {
+		return ServerMetadata{}, err
+	}
 
 	if opts.ToolsPath != "" {
 		overrides, err := loadToolsOverride(opts.ToolsPath)
 		if err != nil {
 			return ServerMetadata{}, err
 		}
-		tools, err := applyToolOverrides(metadata.Tools, overrides)
+		tools, err := applyToolOverrides(metadata.Tools, overrides, opts.StrictMetadata)
 		if err != nil {
 			return ServerMetadata{}, err
 		}
@@ -247,7 +170,7 @@ func LoadServerMetadata(opts ServerOptions) (ServerMetadata, error) {
 		if err != nil {
 			return ServerMetadata{}, err
 		}
-		prompts, err := applyPromptOverrides(metadata.Prompts, overrides)
+		prompts, err := applyPromptOverrides(metadata.Prompts, overrides, opts.StrictMetadata)
 		if err != nil {
 			return ServerMetadata{}, err
 		}
@@ -314,30 +237,30 @@ func requirePromptSpec(promptSpecs map[string]PromptSpec, name string) (PromptSp
 }
 
 type toolOverride struct {
-	Name        string               `json:"name"`
-	Description string               `json:"description"`
-	Parameters  toolOverrideParams   `json:"parameters"`
+	Name        string              `json:"name"`
+	Description *string             `json:"description,omitempty"`
+	Parameters  *toolOverrideParams `json:"parameters,omitempty"`
 }
 
 type toolOverrideParams struct {
 	Properties map[string]toolOverrideProperty `json:"properties"`
-	Required   []string                        `json:"required"`
+	Required   *[]string                       `json:"required"`
 }
 
 type toolOverrideProperty struct {
-	Description string `json:"description"`
+	Description *string `json:"description,omitempty"`
 }
 
 type promptOverride struct {
 	Name        string               `json:"name"`
-	Description string               `json:"description"`
-	Arguments   []promptArgOverride  `json:"arguments"`
+	Description *string              `json:"description,omitempty"`
+	Arguments   *[]promptArgOverride `json:"arguments,omitempty"`
 }
 
 type promptArgOverride struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Required    *bool  `json:"required"`
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+	Required    *bool   `json:"required,omitempty"`
 }
 
 func loadToolsOverride(path string) ([]toolOverride, error) {
@@ -393,13 +316,18 @@ func readJSONFile(path string) ([]byte, error) {
 	return data, nil
 }
 
-func applyToolOverrides(defaults []ToolSpec, overrides []toolOverride) ([]ToolSpec, error) {
+func applyToolOverrides(defaults []ToolSpec, overrides []toolOverride, strict bool) ([]ToolSpec, error) {
 	if len(overrides) == 0 {
 		return nil, fmt.Errorf("tools override file contains no tools")
 	}
 
+	updated := make([]ToolSpec, len(defaults))
+	copy(updated, defaults)
+
+	defaultIndex := make(map[string]int, len(defaults))
 	defaultMap := make(map[string]ToolSpec, len(defaults))
-	for _, tool := range defaults {
+	for idx, tool := range defaults {
+		defaultIndex[tool.Name] = idx
 		defaultMap[tool.Name] = tool
 	}
 
@@ -420,60 +348,81 @@ func applyToolOverrides(defaults []ToolSpec, overrides []toolOverride) ([]ToolSp
 		}
 	}
 
-	updated := make([]ToolSpec, 0, len(defaults))
-	for _, tool := range defaults {
-		override, ok := overrideMap[tool.Name]
-		if !ok {
-			return nil, fmt.Errorf("tools override missing tool %q", tool.Name)
+	if strict {
+		for _, tool := range defaults {
+			if _, ok := overrideMap[tool.Name]; !ok {
+				return nil, fmt.Errorf("tools override missing tool %q", tool.Name)
+			}
 		}
-		if override.Description == "" {
+	}
+
+	for _, override := range overrides {
+		idx := defaultIndex[override.Name]
+		tool := updated[idx]
+
+		if override.Description != nil {
+			if strings.TrimSpace(*override.Description) == "" {
+				return nil, fmt.Errorf("tools override tool %q missing description", tool.Name)
+			}
+			tool.Description = *override.Description
+		} else if strict {
 			return nil, fmt.Errorf("tools override tool %q missing description", tool.Name)
 		}
 
-		paramMap := override.Parameters.Properties
-		if paramMap == nil {
-			paramMap = map[string]toolOverrideProperty{}
+		if override.Parameters != nil {
+			if override.Parameters.Required != nil {
+				if !stringSetEqual(toolRequiredNames(tool), *override.Parameters.Required) {
+					return nil, fmt.Errorf("tools override tool %q required parameters mismatch", tool.Name)
+				}
+			}
+			if override.Parameters.Properties != nil {
+				paramIndex := toolParamIndex(tool.Params)
+				for name, overrideParam := range override.Parameters.Properties {
+					paramIdx, ok := paramIndex[name]
+					if !ok {
+						return nil, fmt.Errorf("tools override tool %q contains unknown parameter %q", tool.Name, name)
+					}
+					if overrideParam.Description == nil || strings.TrimSpace(*overrideParam.Description) == "" {
+						return nil, fmt.Errorf("tools override tool %q parameter %q missing description", tool.Name, name)
+					}
+					param := tool.Params[paramIdx]
+					param.Description = *overrideParam.Description
+					tool.Params[paramIdx] = param
+				}
+			}
+		} else if strict && len(tool.Params) > 0 {
+			return nil, fmt.Errorf("tools override tool %q missing parameters", tool.Name)
 		}
 
-		defaultParamNames := make(map[string]ToolParamSpec, len(tool.Params))
-		for _, param := range tool.Params {
-			defaultParamNames[param.Name] = param
-			if _, ok := paramMap[param.Name]; !ok {
-				return nil, fmt.Errorf("tools override tool %q missing parameter %q", tool.Name, param.Name)
+		if strict {
+			if override.Parameters == nil || override.Parameters.Properties == nil {
+				return nil, fmt.Errorf("tools override tool %q missing parameters", tool.Name)
 			}
-			if paramMap[param.Name].Description == "" {
-				return nil, fmt.Errorf("tools override tool %q parameter %q missing description", tool.Name, param.Name)
-			}
-		}
-
-		for name := range paramMap {
-			if _, ok := defaultParamNames[name]; !ok {
-				return nil, fmt.Errorf("tools override tool %q contains unknown parameter %q", tool.Name, name)
+			for _, param := range tool.Params {
+				if _, ok := override.Parameters.Properties[param.Name]; !ok {
+					return nil, fmt.Errorf("tools override tool %q missing parameter %q", tool.Name, param.Name)
+				}
 			}
 		}
 
-		updatedTool := tool
-		updatedTool.Description = override.Description
-		for idx := range updatedTool.Params {
-			param := updatedTool.Params[idx]
-			if overrideParam, ok := paramMap[param.Name]; ok {
-				param.Description = overrideParam.Description
-				updatedTool.Params[idx] = param
-			}
-		}
-		updated = append(updated, updatedTool)
+		updated[idx] = tool
 	}
 
 	return updated, nil
 }
 
-func applyPromptOverrides(defaults []PromptSpec, overrides []promptOverride) ([]PromptSpec, error) {
+func applyPromptOverrides(defaults []PromptSpec, overrides []promptOverride, strict bool) ([]PromptSpec, error) {
 	if len(overrides) == 0 {
 		return nil, fmt.Errorf("prompts override file contains no prompts")
 	}
 
+	updated := make([]PromptSpec, len(defaults))
+	copy(updated, defaults)
+
+	defaultIndex := make(map[string]int, len(defaults))
 	defaultMap := make(map[string]PromptSpec, len(defaults))
-	for _, prompt := range defaults {
+	for idx, prompt := range defaults {
+		defaultIndex[prompt.Name] = idx
 		defaultMap[prompt.Name] = prompt
 	}
 
@@ -494,58 +443,87 @@ func applyPromptOverrides(defaults []PromptSpec, overrides []promptOverride) ([]
 		}
 	}
 
-	updated := make([]PromptSpec, 0, len(defaults))
-	for _, prompt := range defaults {
-		override, ok := overrideMap[prompt.Name]
-		if !ok {
-			return nil, fmt.Errorf("prompts override missing prompt %q", prompt.Name)
+	if strict {
+		for _, prompt := range defaults {
+			if _, ok := overrideMap[prompt.Name]; !ok {
+				return nil, fmt.Errorf("prompts override missing prompt %q", prompt.Name)
+			}
 		}
-		if override.Description == "" {
+	}
+
+	for _, override := range overrides {
+		idx := defaultIndex[override.Name]
+		prompt := updated[idx]
+
+		if override.Description != nil {
+			if strings.TrimSpace(*override.Description) == "" {
+				return nil, fmt.Errorf("prompts override prompt %q missing description", prompt.Name)
+			}
+			prompt.Description = *override.Description
+		} else if strict {
 			return nil, fmt.Errorf("prompts override prompt %q missing description", prompt.Name)
 		}
 
-		argMap := make(map[string]promptArgOverride, len(override.Arguments))
-		for _, arg := range override.Arguments {
-			if arg.Name == "" {
-				return nil, fmt.Errorf("prompts override prompt %q contains an argument with no name", prompt.Name)
+		if override.Arguments != nil {
+			argMap := make(map[string]promptArgOverride, len(*override.Arguments))
+			for _, arg := range *override.Arguments {
+				if arg.Name == "" {
+					return nil, fmt.Errorf("prompts override prompt %q contains an argument with no name", prompt.Name)
+				}
+				if _, exists := argMap[arg.Name]; exists {
+					return nil, fmt.Errorf("prompts override prompt %q contains duplicate argument %q", prompt.Name, arg.Name)
+				}
+				argMap[arg.Name] = arg
 			}
-			if _, exists := argMap[arg.Name]; exists {
-				return nil, fmt.Errorf("prompts override prompt %q contains duplicate argument %q", prompt.Name, arg.Name)
+
+			defaultArgNames := make(map[string]PromptArgSpec, len(prompt.Arguments))
+			for _, arg := range prompt.Arguments {
+				defaultArgNames[arg.Name] = arg
 			}
-			argMap[arg.Name] = arg
+
+			for name, overrideArg := range argMap {
+				defaultArg, ok := defaultArgNames[name]
+				if !ok {
+					return nil, fmt.Errorf("prompts override prompt %q contains unknown argument %q", prompt.Name, name)
+				}
+				if overrideArg.Description == nil || strings.TrimSpace(*overrideArg.Description) == "" {
+					return nil, fmt.Errorf("prompts override prompt %q argument %q missing description", prompt.Name, name)
+				}
+				if overrideArg.Required != nil && *overrideArg.Required != defaultArg.Required {
+					return nil, fmt.Errorf("prompts override prompt %q argument %q required mismatch", prompt.Name, name)
+				}
+			}
+
+			for idx := range prompt.Arguments {
+				arg := prompt.Arguments[idx]
+				if overrideArg, ok := argMap[arg.Name]; ok {
+					arg.Description = *overrideArg.Description
+					prompt.Arguments[idx] = arg
+				}
+			}
+		} else if strict && len(prompt.Arguments) > 0 {
+			return nil, fmt.Errorf("prompts override prompt %q missing arguments", prompt.Name)
 		}
 
-		defaultArgNames := make(map[string]PromptArgSpec, len(prompt.Arguments))
-		for _, arg := range prompt.Arguments {
-			defaultArgNames[arg.Name] = arg
-			overrideArg, ok := argMap[arg.Name]
-			if !ok {
-				return nil, fmt.Errorf("prompts override prompt %q missing argument %q", prompt.Name, arg.Name)
+		if strict {
+			if override.Arguments == nil && len(prompt.Arguments) > 0 {
+				return nil, fmt.Errorf("prompts override prompt %q missing arguments", prompt.Name)
 			}
-			if overrideArg.Description == "" {
-				return nil, fmt.Errorf("prompts override prompt %q argument %q missing description", prompt.Name, arg.Name)
-			}
-			if overrideArg.Required != nil && *overrideArg.Required != arg.Required {
-				return nil, fmt.Errorf("prompts override prompt %q argument %q required mismatch", prompt.Name, arg.Name)
-			}
-		}
-
-		for name := range argMap {
-			if _, ok := defaultArgNames[name]; !ok {
-				return nil, fmt.Errorf("prompts override prompt %q contains unknown argument %q", prompt.Name, name)
+			if override.Arguments != nil {
+				requiredArgs := make(map[string]bool, len(prompt.Arguments))
+				for _, arg := range prompt.Arguments {
+					requiredArgs[arg.Name] = true
+				}
+				for _, arg := range *override.Arguments {
+					delete(requiredArgs, arg.Name)
+				}
+				for name := range requiredArgs {
+					return nil, fmt.Errorf("prompts override prompt %q missing argument %q", prompt.Name, name)
+				}
 			}
 		}
 
-		updatedPrompt := prompt
-		updatedPrompt.Description = override.Description
-		for idx := range updatedPrompt.Arguments {
-			arg := updatedPrompt.Arguments[idx]
-			if overrideArg, ok := argMap[arg.Name]; ok {
-				arg.Description = overrideArg.Description
-				updatedPrompt.Arguments[idx] = arg
-			}
-		}
-		updated = append(updated, updatedPrompt)
+		updated[idx] = prompt
 	}
 
 	return updated, nil
@@ -561,6 +539,47 @@ func validateExamples(examples []ExampleSpec) error {
 		}
 	}
 	return nil
+}
+
+func toolRequiredNames(tool ToolSpec) []string {
+	names := make([]string, 0)
+	for _, param := range tool.Params {
+		if param.Required {
+			names = append(names, param.Name)
+		}
+	}
+	return names
+}
+
+func toolParamIndex(params []ToolParamSpec) map[string]int {
+	index := make(map[string]int, len(params))
+	for idx, param := range params {
+		index[param.Name] = idx
+	}
+	return index
+}
+
+func stringSetEqual(a []string, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	counts := make(map[string]int, len(a))
+	for _, name := range a {
+		counts[name]++
+	}
+	for _, name := range b {
+		if counts[name] == 0 {
+			return false
+		}
+		counts[name]--
+	}
+	for _, count := range counts {
+		if count != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func loadExamplesOverride(path string) ([]ExampleSpec, error) {

@@ -170,6 +170,19 @@ Add to your config (`~/Library/Application Support/Claude/claude_desktop_config.
 }
 ```
 
+### Metadata Overrides (Optional)
+
+You can customize MCP tool/prompt/example descriptions without changing behavior:
+
+```bash
+clippy mcp-server \
+  --tools /path/to/tools.json \
+  --prompts /path/to/prompts.json \
+  --examples /path/to/examples.json
+```
+
+By default, override files can be partial. Add `--strict-metadata` to require full coverage of every tool, prompt, and parameter.
+
 ### Available Tools
 
 #### System Clipboard Tools
