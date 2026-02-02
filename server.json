@@ -90,6 +90,28 @@
       }
     },
     {
+      "name": "buffer_cut",
+      "description": "Cut lines from file to buffer - copies to buffer then deletes from source. Like buffer_copy but removes the lines after copying. Use for moving code sections without manual deletion. Atomic operation - only deletes if copy succeeds.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "File path to cut from (required)"
+          },
+          "start_line": {
+            "type": "number",
+            "description": "Starting line number (1-indexed, omit for entire file)"
+          },
+          "end_line": {
+            "type": "number",
+            "description": "Ending line number (inclusive, omit for entire file)"
+          }
+        },
+        "required": ["file"]
+      }
+    },
+    {
       "name": "buffer_paste",
       "description": "Paste file bytes from agent's buffer to file. Writes exact bytes without agent token generation. Supports append/insert/replace modes for surgical refactoring.",
       "parameters": {

@@ -1,0 +1,18 @@
+[
+  {
+    "prompt": "Generate a short meeting recap and copy it to my clipboard",
+    "description": "Create a concise recap ready to paste into chat or email"
+  },
+  {
+    "prompt": "Write a bash script that cleans temp files and copy it",
+    "description": "Produce a script and place it directly on the clipboard"
+  },
+  {
+    "prompt": "Copy the three most recent downloads to the clipboard",
+    "description": "Quickly grab multiple recent files"
+  },
+  {
+    "prompt": "Move the parseConfig function into its own file",
+    "description": "Use buffer_copy and buffer_paste for byte-accurate refactors"
+  }
+]

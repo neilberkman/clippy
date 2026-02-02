@@ -1,0 +1,131 @@
+[
+  {
+    "name": "clipboard_copy",
+    "description": "Copy text or existing files to the clipboard. Prefer text for any generated output.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Generated text to copy (preferred for any newly created content)"
+        },
+        "file": {
+          "type": "string",
+          "description": "Path to an existing file to copy as a file reference"
+        },
+        "force_text": {
+          "type": "string",
+          "description": "Set to 'true' to copy file contents as text"
+        }
+      }
+    }
+  },
+  {
+    "name": "clipboard_paste",
+    "description": "Paste clipboard content to a directory or file.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "destination": {
+          "type": "string",
+          "description": "Target directory for pasted files (defaults to current directory)"
+        }
+      }
+    }
+  },
+  {
+    "name": "get_recent_downloads",
+    "description": "List recently added files from Downloads, Desktop, and Documents.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "number",
+          "description": "Maximum number of files to return"
+        },
+        "duration": {
+          "type": "string",
+          "description": "How far back to look (e.g. 10m, 2h, 3d)"
+        }
+      }
+    }
+  },
+  {
+    "name": "buffer_copy",
+    "description": "Copy file bytes into the agent buffer for safe refactors.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Source file path (required)"
+        },
+        "start_line": {
+          "type": "number",
+          "description": "Start line (1-indexed, optional)"
+        },
+        "end_line": {
+          "type": "number",
+          "description": "End line (inclusive, optional)"
+        }
+      },
+      "required": ["file"]
+    }
+  },
+  {
+    "name": "buffer_cut",
+    "description": "Cut lines from a file into the agent buffer and remove them from the source.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Source file path (required)"
+        },
+        "start_line": {
+          "type": "number",
+          "description": "Start line (1-indexed, optional)"
+        },
+        "end_line": {
+          "type": "number",
+          "description": "End line (inclusive, optional)"
+        }
+      },
+      "required": ["file"]
+    }
+  },
+  {
+    "name": "buffer_paste",
+    "description": "Paste buffered bytes into a file with append/insert/replace modes.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Target file path (required)"
+        },
+        "mode": {
+          "type": "string",
+          "description": "Paste mode: append, insert, or replace"
+        },
+        "at_line": {
+          "type": "number",
+          "description": "Line number for insert/replace (1-indexed)"
+        },
+        "to_line": {
+          "type": "number",
+          "description": "End line for replace (inclusive)"
+        }
+      },
+      "required": ["file"]
+    }
+  },
+  {
+    "name": "buffer_list",
+    "description": "Show buffer metadata (line count, source file, and range).",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    }
+  }
+]

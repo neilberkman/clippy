@@ -227,6 +227,11 @@ MCP Server:
 	rootCmd.PersistentFlags().StringVarP(&mimeType, "mime", "m", "", "Manually specify MIME type for clipboard (e.g., text/html, application/json, text/xml)")
 
 	// Add MCP server subcommand
+	var mcpExamplesPath string
+	var mcpToolsPath string
+	var mcpPromptsPath string
+	var mcpStrictMetadata bool
+
 	var mcpCmd = &cobra.Command{
 		Use:   "mcp-server",
 		Short: "Start MCP server for AI/LLM integration",
@@ -251,12 +256,22 @@ Add to ~/Library/Application Support/Claude/claude_desktop_config.json:
 }`,
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Fprintln(os.Stderr, "Starting Clippy MCP server...")
-			if err := mcp.StartServer(); err != nil {
+			if err := mcp.StartServerWithOptions(mcp.ServerOptions{
+				ExamplesPath:   mcpExamplesPath,
+				ToolsPath:      mcpToolsPath,
+				PromptsPath:    mcpPromptsPath,
+				StrictMetadata: mcpStrictMetadata,
+			}); err != nil {
 				fmt.Fprintf(os.Stderr, "MCP server error: %v\n", err)
 				os.Exit(1)
 			}
 		},
 	}
+
+	mcpCmd.Flags().StringVar(&mcpExamplesPath, "examples", "", "Path to JSON file with MCP examples overrides")
+	mcpCmd.Flags().StringVar(&mcpToolsPath, "tools", "", "Path to JSON file with MCP tool description overrides")
+	mcpCmd.Flags().StringVar(&mcpPromptsPath, "prompts", "", "Path to JSON file with MCP prompt overrides")
+	mcpCmd.Flags().BoolVar(&mcpStrictMetadata, "strict-metadata", false, "Require override files to provide descriptions for every tool/prompt/parameter")
 
 	rootCmd.AddCommand(mcpCmd)
 

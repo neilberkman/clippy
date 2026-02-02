@@ -95,8 +95,59 @@ type BufferResult struct {
 	SourceRange string `json:"source_range,omitempty"`
 }
 
-// StartServer starts the MCP server
+// StartServer starts the MCP server.
 func StartServer() error {
+	return StartServerWithOptions(ServerOptions{})
+}
+
+// StartServerWithOptions starts the MCP server with optional metadata overrides.
+func StartServerWithOptions(opts ServerOptions) error {
+	metadata, err := LoadServerMetadata(opts)
+	if err != nil {
+		return err
+	}
+
+	toolSpecs := metadata.ToolMap()
+	promptSpecs := metadata.PromptMap()
+
+	copySpec, err := requireToolSpec(toolSpecs, "clipboard_copy")
+	if err != nil {
+		return err
+	}
+	pasteSpec, err := requireToolSpec(toolSpecs, "clipboard_paste")
+	if err != nil {
+		return err
+	}
+	recentSpec, err := requireToolSpec(toolSpecs, "get_recent_downloads")
+	if err != nil {
+		return err
+	}
+	bufferCopySpec, err := requireToolSpec(toolSpecs, "buffer_copy")
+	if err != nil {
+		return err
+	}
+	bufferPasteSpec, err := requireToolSpec(toolSpecs, "buffer_paste")
+	if err != nil {
+		return err
+	}
+	bufferCutSpec, err := requireToolSpec(toolSpecs, "buffer_cut")
+	if err != nil {
+		return err
+	}
+	bufferListSpec, err := requireToolSpec(toolSpecs, "buffer_list")
+	if err != nil {
+		return err
+	}
+
+	copyPromptSpec, err := requirePromptSpec(promptSpecs, "copy-recent-download")
+	if err != nil {
+		return err
+	}
+	pastePromptSpec, err := requirePromptSpec(promptSpecs, "paste-here")
+	if err != nil {
+		return err
+	}
+
 	// Create MCP server
 	s := server.NewMCPServer(
 		"Clippy MCP Server",
@@ -110,12 +161,25 @@ func StartServer() error {
 	}
 
 	// Define copy tool
+	copyTextDesc, err := toolParamDescription(copySpec, "text")
+	if err != nil {
+		return err
+	}
+	copyFileDesc, err := toolParamDescription(copySpec, "file")
+	if err != nil {
+		return err
+	}
+	copyForceTextDesc, err := toolParamDescription(copySpec, "force_text")
+	if err != nil {
+		return err
+	}
+
 	copyTool := mcp.NewTool(
 		"clipboard_copy",
-		mcp.WithDescription("Copy text or file to clipboard. CRITICAL: Use 'text' parameter for ANY generated content, code, messages, or text that will be pasted. Use 'file' parameter ONLY for existing files that need to be attached/uploaded. DEFAULT TO 'text' FOR ALL GENERATED CONTENT. PRO TIP: For iterative editing, write to a temp file then use file + force_text='true' to avoid regenerating full content each time."),
-		mcp.WithString("text", mcp.Description("Text content to copy - USE THIS for all generated content, code snippets, messages, emails, documentation, or any text that will be pasted")),
-		mcp.WithString("file", mcp.Description("File path to copy as file reference - ONLY use this for existing files on disk that need to be dragged/attached, NOT for generated content. PRO TIP: Use with force_text='true' for efficient iterative editing of temp files.")),
-		mcp.WithString("force_text", mcp.Description("Set to 'true' to force copying file content as text (only with 'file' parameter). USEFUL PATTERN: Write code to /tmp/script.ext, edit incrementally with Edit tool, then copy with file='/tmp/script.ext' force_text='true' for efficient iterative development without regenerating full text.")),
+		mcp.WithDescription(copySpec.Description),
+		mcp.WithString("text", mcp.Description(copyTextDesc)),
+		mcp.WithString("file", mcp.Description(copyFileDesc)),
+		mcp.WithString("force_text", mcp.Description(copyForceTextDesc)),
 	)
 
 	// Add copy tool handler
@@ -195,10 +259,15 @@ func StartServer() error {
 	})
 
 	// Define paste tool
+	pasteDestDesc, err := toolParamDescription(pasteSpec, "destination")
+	if err != nil {
+		return err
+	}
+
 	pasteTool := mcp.NewTool(
 		"clipboard_paste",
-		mcp.WithDescription("Paste clipboard content to file or directory. Intelligently handles both text content and file references from clipboard."),
-		mcp.WithString("destination", mcp.Description("Destination directory (defaults to current directory)")),
+		mcp.WithDescription(pasteSpec.Description),
+		mcp.WithString("destination", mcp.Description(pasteDestDesc)),
 	)
 
 	// Add paste tool handler
@@ -273,11 +342,20 @@ func StartServer() error {
 	})
 
 	// Define recent downloads tool
+	recentCountDesc, err := toolParamDescription(recentSpec, "count")
+	if err != nil {
+		return err
+	}
+	recentDurationDesc, err := toolParamDescription(recentSpec, "duration")
+	if err != nil {
+		return err
+	}
+
 	recentTool := mcp.NewTool(
 		"get_recent_downloads",
-		mcp.WithDescription("Get list of recently added files from Downloads, Desktop, and Documents folders. Only shows files that were recently added to these directories."),
-		mcp.WithNumber("count", mcp.Description("Number of files to return (default: 10)")),
-		mcp.WithString("duration", mcp.Description("Time duration to look back (e.g. 5m, 1h, 7d, 2 weeks ago, yesterday)")),
+		mcp.WithDescription(recentSpec.Description),
+		mcp.WithNumber("count", mcp.Description(recentCountDesc)),
+		mcp.WithString("duration", mcp.Description(recentDurationDesc)),
 	)
 
 	// Add recent downloads tool handler
@@ -330,12 +408,25 @@ func StartServer() error {
 	})
 
 	// Define buffer_copy tool
+	bufferCopyFileDesc, err := toolParamDescription(bufferCopySpec, "file")
+	if err != nil {
+		return err
+	}
+	bufferCopyStartDesc, err := toolParamDescription(bufferCopySpec, "start_line")
+	if err != nil {
+		return err
+	}
+	bufferCopyEndDesc, err := toolParamDescription(bufferCopySpec, "end_line")
+	if err != nil {
+		return err
+	}
+
 	bufferCopyTool := mcp.NewTool(
 		"buffer_copy",
-		mcp.WithDescription("Copy file bytes (with optional line ranges) to agent's private buffer for refactoring. Server reads bytes directly - no token generation. Use when moving code between files or reorganizing large sections. Better than Edit for large blocks since content isn't regenerated."),
-		mcp.WithString("file", mcp.Description("File path to copy from (required)"), mcp.Required()),
-		mcp.WithNumber("start_line", mcp.Description("Starting line number (1-indexed, omit for entire file)")),
-		mcp.WithNumber("end_line", mcp.Description("Ending line number (inclusive, omit for entire file)")),
+		mcp.WithDescription(bufferCopySpec.Description),
+		mcp.WithString("file", mcp.Description(bufferCopyFileDesc), mcp.Required()),
+		mcp.WithNumber("start_line", mcp.Description(bufferCopyStartDesc)),
+		mcp.WithNumber("end_line", mcp.Description(bufferCopyEndDesc)),
 	)
 
 	// Add buffer_copy tool handler
@@ -412,13 +503,30 @@ func StartServer() error {
 	})
 
 	// Define buffer_paste tool
+	bufferPasteFileDesc, err := toolParamDescription(bufferPasteSpec, "file")
+	if err != nil {
+		return err
+	}
+	bufferPasteModeDesc, err := toolParamDescription(bufferPasteSpec, "mode")
+	if err != nil {
+		return err
+	}
+	bufferPasteAtDesc, err := toolParamDescription(bufferPasteSpec, "at_line")
+	if err != nil {
+		return err
+	}
+	bufferPasteToDesc, err := toolParamDescription(bufferPasteSpec, "to_line")
+	if err != nil {
+		return err
+	}
+
 	bufferPasteTool := mcp.NewTool(
 		"buffer_paste",
-		mcp.WithDescription("Paste buffered bytes to file with append/insert/replace modes. Use after buffer_copy to complete refactoring. Writes exact bytes without token generation. append=add to end, insert=inject at line, replace=overwrite range. Byte-perfect, no content regeneration."),
-		mcp.WithString("file", mcp.Description("Target file path (required)"), mcp.Required()),
-		mcp.WithString("mode", mcp.Description("Paste mode: 'append' (default), 'insert', or 'replace'")),
-		mcp.WithNumber("at_line", mcp.Description("Line number for insert/replace mode (1-indexed)")),
-		mcp.WithNumber("to_line", mcp.Description("End line for replace mode (inclusive, required for replace)")),
+		mcp.WithDescription(bufferPasteSpec.Description),
+		mcp.WithString("file", mcp.Description(bufferPasteFileDesc), mcp.Required()),
+		mcp.WithString("mode", mcp.Description(bufferPasteModeDesc)),
+		mcp.WithNumber("at_line", mcp.Description(bufferPasteAtDesc)),
+		mcp.WithNumber("to_line", mcp.Description(bufferPasteToDesc)),
 	)
 
 	// Add buffer_paste tool handler
@@ -528,12 +636,25 @@ func StartServer() error {
 	})
 
 	// Define buffer_cut tool
+	bufferCutFileDesc, err := toolParamDescription(bufferCutSpec, "file")
+	if err != nil {
+		return err
+	}
+	bufferCutStartDesc, err := toolParamDescription(bufferCutSpec, "start_line")
+	if err != nil {
+		return err
+	}
+	bufferCutEndDesc, err := toolParamDescription(bufferCutSpec, "end_line")
+	if err != nil {
+		return err
+	}
+
 	bufferCutTool := mcp.NewTool(
 		"buffer_cut",
-		mcp.WithDescription("Cut lines from file to buffer - copies to buffer then deletes from source. Like buffer_copy but removes the lines after copying. Use for moving code sections without manual deletion. Atomic operation - only deletes if copy succeeds."),
-		mcp.WithString("file", mcp.Description("File path to cut from (required)"), mcp.Required()),
-		mcp.WithNumber("start_line", mcp.Description("Starting line number (1-indexed, omit for entire file)")),
-		mcp.WithNumber("end_line", mcp.Description("Ending line number (inclusive, omit for entire file)")),
+		mcp.WithDescription(bufferCutSpec.Description),
+		mcp.WithString("file", mcp.Description(bufferCutFileDesc), mcp.Required()),
+		mcp.WithNumber("start_line", mcp.Description(bufferCutStartDesc)),
+		mcp.WithNumber("end_line", mcp.Description(bufferCutEndDesc)),
 	)
 
 	// Add buffer_cut tool handler
@@ -627,7 +748,7 @@ func StartServer() error {
 	// Define buffer_list tool
 	bufferListTool := mcp.NewTool(
 		"buffer_list",
-		mcp.WithDescription("Show buffer metadata (lines, source file, range). Use to verify buffer contents before pasting. Returns metadata only, not actual content."),
+		mcp.WithDescription(bufferListSpec.Description),
 	)
 
 	// Add buffer_list tool handler
@@ -664,10 +785,21 @@ func StartServer() error {
 	})
 
 	// Add prompts for common operations
+	copyPromptArg, err := promptArgSpec(copyPromptSpec, "count")
+	if err != nil {
+		return err
+	}
+	copyPromptArgOptions := []mcp.ArgumentOption{
+		mcp.ArgumentDescription(copyPromptArg.Description),
+	}
+	if copyPromptArg.Required {
+		copyPromptArgOptions = append(copyPromptArgOptions, mcp.RequiredArgument())
+	}
+
 	s.AddPrompt(mcp.NewPrompt(
 		"copy-recent-download",
-		mcp.WithPromptDescription("Copy the most recent download to clipboard"),
-		mcp.WithArgument("count"),
+		mcp.WithPromptDescription(copyPromptSpec.Description),
+		mcp.WithArgument("count", copyPromptArgOptions...),
 	), func(ctx context.Context, request mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 		count := "1"
 		if val, ok := request.Params.Arguments["count"]; ok {
@@ -689,7 +821,7 @@ func StartServer() error {
 
 	s.AddPrompt(mcp.NewPrompt(
 		"paste-here",
-		mcp.WithPromptDescription("Paste clipboard content to current directory"),
+		mcp.WithPromptDescription(pastePromptSpec.Description),
 	), func(ctx context.Context, request mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 		return &mcp.GetPromptResult{
 			Messages: []mcp.PromptMessage{

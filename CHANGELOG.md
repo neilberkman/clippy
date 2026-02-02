@@ -4,6 +4,11 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+### Added
+
+- MCP metadata overrides now support partial files by default, with `--strict-metadata` for full coverage validation
+- MCP server metadata is loaded from `server.json` to keep defaults in a single source of truth
+
 ## [1.6.4] - 2026-01-15
 
 ### Added
