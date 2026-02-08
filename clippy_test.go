@@ -285,3 +285,29 @@ func TestFindAvailableFilenameWithForce(t *testing.T) {
 		t.Errorf("findAvailableFilename(%q, true) should return original path when force=true\n  got:  %q\n  want: %q", path, got, want)
 	}
 }
+
+func TestCopyFilesToDestination_Directory(t *testing.T) {
+	srcRoot := t.TempDir()
+	srcDir := srcRoot + "/src-folder"
+	if err := os.MkdirAll(srcDir+"/nested", 0755); err != nil {
+		t.Fatalf("Failed to create source dir: %v", err)
+	}
+	if err := os.WriteFile(srcDir+"/nested/file.txt", []byte("hello"), 0644); err != nil {
+		t.Fatalf("Failed to create source file: %v", err)
+	}
+
+	destRoot := t.TempDir()
+
+	// Destination is an existing directory: should copy folder into it.
+	if _, err := copyFilesToDestination([]string{srcDir}, destRoot, false); err != nil {
+		t.Fatalf("copyFilesToDestination returned error: %v", err)
+	}
+
+	got, err := os.ReadFile(destRoot + "/src-folder/nested/file.txt")
+	if err != nil {
+		t.Fatalf("Expected copied file, got error: %v", err)
+	}
+	if string(got) != "hello" {
+		t.Fatalf("Copied file content mismatch: got %q want %q", string(got), "hello")
+	}
+}

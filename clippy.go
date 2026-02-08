@@ -735,7 +735,9 @@ func copyFilesToDestination(files []string, destination string, force bool) (int
 
 		destFile = findAvailableFilename(destFile, force)
 
-		if err := recent.CopyFile(srcFile, destFile); err != nil {
+		// Clipboard file references can include directories; CopyFileToDestination
+		// handles both files and folders (recursive copy).
+		if err := recent.CopyFileToDestination(srcFile, destFile); err != nil {
 			return filesRead, fmt.Errorf("could not copy %s to %s: %w", srcFile, destFile, err)
 		}
 
