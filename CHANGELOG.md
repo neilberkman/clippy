@@ -4,6 +4,14 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+## [1.6.6] - 2026-02-08
+
+### Fixed
+
+- Pasty (and MCP `clipboard_paste`) now supports pasting folders by recursively copying directory references
+
+## [1.6.5] - 2026-02-01
+
 ### Added
 
 - MCP metadata overrides now support partial files by default, with `--strict-metadata` for full coverage validation

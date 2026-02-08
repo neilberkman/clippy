@@ -28,7 +28,9 @@ jobs:
           cache: true
 
       - name: Run tests
-        run: go test -v ./...
+        run: |
+          # Run tests sequentially to avoid clipboard conflicts between packages.
+          go test -v -p 1 ./...
 
       - name: Install golangci-lint
         run: |
