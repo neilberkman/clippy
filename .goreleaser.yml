@@ -77,10 +77,10 @@ release:
     brew install clippy
 
     # Direct download - Apple Silicon
-    curl -L https://github.com/neilberkman/clippy/releases/download/{{.Tag}}/clippy_{{.Tag}}_darwin_arm64.tar.gz | tar xz
+    curl -L https://github.com/neilberkman/clippy/releases/download/{{.Tag}}/clippy_{{.Version}}_darwin_arm64.tar.gz | tar xz
 
     # Direct download - Intel
-    curl -L https://github.com/neilberkman/clippy/releases/download/{{.Tag}}/clippy_{{.Tag}}_darwin_amd64.tar.gz | tar xz
+    curl -L https://github.com/neilberkman/clippy/releases/download/{{.Tag}}/clippy_{{.Version}}_darwin_amd64.tar.gz | tar xz
     ```
 
     🐛 **Found a bug?** [Open an issue](https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/clippy/issues/new)
