@@ -238,7 +238,7 @@ Also handles rich text with embedded images (`.rtfd` bundles from TextEdit/Notes
 **4. Debugging and plain text extraction**
 
 ```bash
-pasty --inspect          # Show what's on clipboard and what pasty will use
+pasty --inspect          # Show clipboard types + paste priority (metadata only)
 pasty --plain notes.txt  # Force plain text, strip all formatting
 pasty -f existing.txt    # Overwrite existing files instead of creating duplicates
 ```
