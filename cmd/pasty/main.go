@@ -16,13 +16,13 @@ import (
 )
 
 var (
-	verbose         bool
-	debug           bool
-	preserveFormat  bool
-	inspect         bool
-	plain           bool
-	force           bool
-	logger          *log.Logger
+	verbose        bool
+	debug          bool
+	preserveFormat bool
+	inspect        bool
+	plain          bool
+	force          bool
+	logger         *log.Logger
 )
 
 func main() {
@@ -133,7 +133,7 @@ Description:
 	// Add flags
 	common.AddCommonFlags(rootCmd, &verbose, &debug)
 	rootCmd.Flags().BoolVar(&preserveFormat, "preserve-format", false, "Preserve original image format (skip TIFF to PNG conversion)")
-	rootCmd.Flags().BoolVar(&inspect, "inspect", false, "Show clipboard contents and types (debug mode)")
+	rootCmd.Flags().BoolVar(&inspect, "inspect", false, "Show clipboard types and paste priority (metadata only)")
 	rootCmd.Flags().BoolVar(&plain, "plain", false, "Force plain text output (strip all formatting)")
 	rootCmd.Flags().BoolVarP(&force, "force", "f", false, "Overwrite existing files without Finder-style duplicate naming")
 
@@ -150,30 +150,16 @@ func inspectClipboard() {
 	fmt.Println("Clipboard Types:")
 	for i, t := range types {
 		fmt.Printf("  %d. %s\n", i+1, t)
-
-		// Get size for each type
-		if data, ok := clipboard.GetClipboardDataForType(t); ok {
-			size := len(data)
-			if size > 1024*1024 {
-				fmt.Printf("     Size: %.1f MB\n", float64(size)/(1024*1024))
-			} else if size > 1024 {
-				fmt.Printf("     Size: %.1f KB\n", float64(size)/1024)
-			} else {
-				fmt.Printf("     Size: %d bytes\n", size)
-			}
-		}
 	}
 
 	// Show what pasty would use
 	fmt.Println("\nPriority (what pasty will use):")
 	if files := clippy.GetFiles(); len(files) > 0 {
 		fmt.Printf("  → File references (%d files)\n", len(files))
-	} else if content, err := clipboard.GetClipboardContent(); err == nil {
-		if content.IsText {
-			fmt.Printf("  → Text content (%d bytes)\n", len(content.Data))
-		} else {
-			fmt.Printf("  → %s (%d bytes)\n", content.Type, len(content.Data))
-		}
+	} else if text, ok := clipboard.GetText(); ok {
+		fmt.Printf("  → Text content (%d bytes)\n", len(text))
+	} else if len(types) > 0 {
+		fmt.Printf("  → Non-file clipboard data (%d types)\n", len(types))
 	} else {
 		fmt.Println("  → No supported content found")
 	}

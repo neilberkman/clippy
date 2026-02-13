@@ -4,6 +4,13 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+## [1.6.7] - 2026-02-13
+
+### Changed
+
+- `pasty --inspect` is now metadata-only and no longer reads raw clipboard payload bytes
+- Removed per-type size output from `pasty --inspect`
+
 ## [1.6.6] - 2026-02-08
 
 ### Fixed
