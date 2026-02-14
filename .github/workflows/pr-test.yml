@@ -34,6 +34,13 @@ jobs:
           # Run tests sequentially to avoid clipboard conflicts between packages.
           go test -v -p 1 ./...
 
+      - name: Ensure tmux is available
+        run: |
+          if ! command -v tmux >/dev/null 2>&1; then
+            brew install tmux
+          fi
+          tmux -V
+
       - name: Run TUI snapshot regression
         run: |
           if ! command -v tmux >/dev/null 2>&1; then
