@@ -1,0 +1,15 @@
+Select files (Enter: current item, Space: multi-select, p: copy & paste)
+
+  ] workflow-run-logs-2026-02-13.txt [Plain text document] (Feb 13 09:30)
+▶ ] incident-response-playbook-v3.pdf [PDF document] (Feb 13 09:15)
+  ] database-backup-2026-02-13-0915.sql.gz [Gzip archive] (Feb 13 08:45)
+  ] screenshot-prod-error.png [PNG image] (Feb 13 07:30)
+
+╭─────────────────────────────────────────────────────────────────╮
+│ Name: incident-response-playbook-v3.pdf                         │
+│ Type: PDF document                                              │
+│ Size: 964.5 KB                                                  │
+│ Modified: Feb 13 09:15:00                                       │
+│ Path: /Users/tester/Documents/incident-response-playbook-v3.pdf │
+╰─────────────────────────────────────────────────────────────────╯
+↑/↓ navigate • Enter: copy current • Space: toggle select • p: copy&paste • Esc: cancel

@@ -7,6 +7,8 @@ on:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
+      - 'cmd/clippy/testdata/**'
+      - 'scripts/picker_snapshot_tmux.sh'
       - '.github/workflows/pr-test.yml'
 
 permissions:
@@ -31,6 +33,14 @@ jobs:
         run: |
           # Run tests sequentially to avoid clipboard conflicts between packages.
           go test -v -p 1 ./...
+
+      - name: Run TUI snapshot regression
+        run: |
+          if ! command -v tmux >/dev/null 2>&1; then
+            echo "tmux is required for TUI snapshot tests"
+            exit 1
+          fi
+          ./scripts/picker_snapshot_tmux.sh
 
       - name: Install golangci-lint
         run: |
