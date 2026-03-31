@@ -4,6 +4,14 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+## [1.6.8] - 2026-03-30
+
+### Fixed
+
+- Shell tab-completion now completes file/directory names for positional arguments in both clippy and pasty
+  - Cobra's default `ArbitraryArgs` was returning `ShellCompDirectiveNoFileComp`, suppressing file completion
+  - Added explicit `ValidArgsFunction` to return `ShellCompDirectiveDefault`
+
 ## [1.6.7] - 2026-02-13
 
 ### Changed

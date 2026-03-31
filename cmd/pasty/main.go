@@ -36,6 +36,9 @@ func main() {
 	var rootCmd = &cobra.Command{
 		Use:   "pasty [destination]",
 		Short: "Smart paste tool for macOS",
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return nil, cobra.ShellCompDirectiveDefault
+		},
 		Long: `pasty - Smart paste tool for macOS
 
 Companion to clippy, provides intelligent pasting from clipboard.
