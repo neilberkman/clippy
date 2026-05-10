@@ -16,9 +16,10 @@ import (
 
 // CopyArgs defines arguments for the copy tool
 type CopyArgs struct {
-	Text      string `json:"text,omitempty" jsonschema:"description=Text content to copy to clipboard"`
-	File      string `json:"file,omitempty" jsonschema:"description=File path to copy to clipboard"`
-	ForceText string `json:"force_text,omitempty" jsonschema:"description=Set to 'true' to force copying file content as text (only used with 'file' parameter)"`
+	Text      string   `json:"text,omitempty" jsonschema:"description=Text content to copy to clipboard"`
+	File      string   `json:"file,omitempty" jsonschema:"description=File path to copy to clipboard"`
+	Files     []string `json:"files,omitempty" jsonschema:"description=Multiple file paths to copy as references in a single clipboard operation"`
+	ForceText string   `json:"force_text,omitempty" jsonschema:"description=Set to 'true' to force copying file content as text (only used with 'file' parameter)"`
 }
 
 // PasteArgs defines arguments for the paste tool
@@ -169,6 +170,10 @@ func StartServerWithOptions(opts ServerOptions) error {
 	if err != nil {
 		return err
 	}
+	copyFilesDesc, err := toolParamDescription(copySpec, "files")
+	if err != nil {
+		return err
+	}
 	copyForceTextDesc, err := toolParamDescription(copySpec, "force_text")
 	if err != nil {
 		return err
@@ -179,6 +184,7 @@ func StartServerWithOptions(opts ServerOptions) error {
 		mcp.WithDescription(copySpec.Description),
 		mcp.WithString("text", mcp.Description(copyTextDesc)),
 		mcp.WithString("file", mcp.Description(copyFileDesc)),
+		mcp.WithArray("files", mcp.WithStringItems(), mcp.Description(copyFilesDesc)),
 		mcp.WithString("force_text", mcp.Description(copyForceTextDesc)),
 	)
 
@@ -190,19 +196,28 @@ func StartServerWithOptions(opts ServerOptions) error {
 			return nil, fmt.Errorf("invalid arguments: %w", err)
 		}
 
-		// Validate that only one of text or file is provided
-		if args.Text != "" && args.File != "" {
-			return nil, fmt.Errorf("provide either text or file, not both")
+		// Exactly one of text, file, files must be provided.
+		modes := 0
+		if args.Text != "" {
+			modes++
 		}
-
-		if args.Text == "" && args.File == "" {
-			return nil, fmt.Errorf("provide either text or file to copy")
+		if args.File != "" {
+			modes++
+		}
+		if len(args.Files) > 0 {
+			modes++
+		}
+		if modes == 0 {
+			return nil, fmt.Errorf("provide one of text, file, or files to copy")
+		}
+		if modes > 1 {
+			return nil, fmt.Errorf("provide only one of text, file, or files (got multiple)")
 		}
 
 		var result CopyResult
 
-		if args.Text != "" {
-			// Copy text
+		switch {
+		case args.Text != "":
 			err := clippy.CopyText(args.Text)
 			if err != nil {
 				result = CopyResult{
@@ -216,14 +231,12 @@ func StartServerWithOptions(opts ServerOptions) error {
 					Message: fmt.Sprintf("Copied %d characters to clipboard", len(args.Text)),
 				}
 			}
-		} else {
-			// Copy file
+
+		case args.File != "":
 			absPath, err := filepath.Abs(args.File)
 			if err != nil {
 				return nil, fmt.Errorf("invalid file path: %w", err)
 			}
-
-			// Check if file exists
 			if _, err := os.Stat(absPath); os.IsNotExist(err) {
 				return nil, fmt.Errorf("file not found: %s", absPath)
 			}
@@ -244,6 +257,37 @@ func StartServerWithOptions(opts ServerOptions) error {
 					Success: true,
 					Type:    typeStr,
 					Message: fmt.Sprintf("Copied %s as %s", filepath.Base(absPath), typeStr),
+				}
+			}
+
+		case len(args.Files) > 0:
+			if args.ForceText != "" {
+				return nil, fmt.Errorf("force_text is not supported with the 'files' parameter")
+			}
+			absPaths := make([]string, 0, len(args.Files))
+			for _, p := range args.Files {
+				if p == "" {
+					return nil, fmt.Errorf("files contains an empty path")
+				}
+				absPath, err := filepath.Abs(p)
+				if err != nil {
+					return nil, fmt.Errorf("invalid file path %q: %w", p, err)
+				}
+				if _, err := os.Stat(absPath); os.IsNotExist(err) {
+					return nil, fmt.Errorf("file not found: %s", absPath)
+				}
+				absPaths = append(absPaths, absPath)
+			}
+			if err := clippy.CopyMultiple(absPaths); err != nil {
+				result = CopyResult{
+					Success: false,
+					Message: fmt.Sprintf("Failed to copy files: %v", err),
+				}
+			} else {
+				result = CopyResult{
+					Success: true,
+					Type:    "files",
+					Message: fmt.Sprintf("Copied %d file references to clipboard", len(absPaths)),
 				}
 			}
 		}

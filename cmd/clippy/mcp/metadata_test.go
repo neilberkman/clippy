@@ -41,6 +41,13 @@ func TestDefaultServerMetadataLoads(t *testing.T) {
 	if _, ok := findToolParam(copyTool, "text"); !ok {
 		t.Fatalf("expected clipboard_copy text param")
 	}
+	filesParam, ok := findToolParam(copyTool, "files")
+	if !ok {
+		t.Fatalf("expected clipboard_copy files param")
+	}
+	if filesParam.Type != "array" {
+		t.Fatalf("expected files param to be type array, got %q", filesParam.Type)
+	}
 }
 
 func TestLoadServerMetadataPartialToolOverride(t *testing.T) {

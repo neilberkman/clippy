@@ -18,7 +18,7 @@
   "tools": [
     {
       "name": "clipboard_copy",
-      "description": "Copy text or files to clipboard. Use 'text' parameter for generated content (code, emails, docs). Use 'file' parameter only for existing files that need to be attached/uploaded.",
+      "description": "Copy text or files to clipboard. Use 'text' parameter for generated content (code, emails, docs). Use 'file' parameter for a single existing file. Use 'files' parameter to copy multiple file references in one call (so the receiving app sees a multi-file paste).",
       "parameters": {
         "type": "object",
         "properties": {
@@ -28,11 +28,16 @@
           },
           "file": {
             "type": "string",
-            "description": "File path to copy as file reference - only for existing files"
+            "description": "File path to copy as a single file reference"
+          },
+          "files": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "List of file paths to copy as multiple file references in a single clipboard operation"
           },
           "force_text": {
             "type": "string",
-            "description": "Set to 'true' to force copying file content as text"
+            "description": "Set to 'true' to force copying file content as text (only valid with 'file')"
           }
         }
       }

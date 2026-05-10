@@ -4,6 +4,18 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+## [1.6.9] - 2026-05-10
+
+### Fixed
+
+- File copies now preserve the original filename when pasted into Messages.app (and other apps that look at the plain-text representation)
+  - Previously, pasting a copied file into Messages produced `FILE_NNNN.<ext>` because the clipboard only carried `public.file-url`
+  - `copyFile`/`copyFiles` now write an `NSPasteboardItem` carrying both `public.file-url` and a `public.utf8-plain-text` basename, matching the shape Finder produces for right-click → Copy
+
+### Added
+
+- MCP `clipboard_copy` tool now accepts a `files` array parameter for copying multiple file references in a single call (uses `clippy.CopyMultiple` under the hood); the existing `file` (single string) and `text` parameters are unchanged
+
 ## [1.6.8] - 2026-03-30
 
 ### Fixed

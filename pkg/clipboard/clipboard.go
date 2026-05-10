@@ -5,6 +5,7 @@ package clipboard
 #cgo LDFLAGS: -framework Foundation -framework AppKit -framework CoreServices -framework UniformTypeIdentifiers
 #import <Foundation/Foundation.h>
 #import <AppKit/NSPasteboard.h>
+#import <AppKit/NSPasteboardItem.h>
 #import <AppKit/NSApplication.h>
 #import <AppKit/NSAttributedString.h>
 #import <CoreServices/CoreServices.h>
@@ -26,19 +27,31 @@ static int waitForPasteboardChange(NSPasteboard *pasteboard, NSInteger initialCh
     return 0; // Success
 }
 
-// Function to copy a file reference to the clipboard
+// Function to copy a file reference to the clipboard.
+//
+// Writes a single NSPasteboardItem carrying both public.file-url (so
+// receivers attach the file) and public.utf8-plain-text containing the
+// basename. The plain-text basename is what makes Messages.app preserve
+// the original filename on paste instead of synthesising "FILE_NNNN.<ext>".
+// Verified empirically against Messages on macOS 26 (Tahoe); matches the
+// shape Finder writes for right-click → Copy.
 int copyFile(const char *path) {
     @autoreleasepool {
         [NSApplication sharedApplication]; // Initialize the app context
-        NSURL *fileURL = [NSURL fileURLWithPath:[NSString stringWithUTF8String:path]];
+        NSString *nsPath = [NSString stringWithUTF8String:path];
+        NSURL *fileURL = [NSURL fileURLWithPath:nsPath];
         NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+
+        NSPasteboardItem *item = [[NSPasteboardItem alloc] init];
+        [item setString:[fileURL absoluteString] forType:NSPasteboardTypeFileURL];
+        [item setString:[nsPath lastPathComponent] forType:NSPasteboardTypeString];
 
         // Get the current changeCount before operation
         NSInteger initialChangeCount = [pasteboard changeCount];
 
         // Perform the write operation
         [pasteboard clearContents];
-        BOOL success = [pasteboard writeObjects:@[fileURL]];
+        BOOL success = [pasteboard writeObjects:@[item]];
 
         if (!success) {
             return -1; // Write operation failed to start
@@ -53,15 +66,23 @@ int copyFile(const char *path) {
     }
 }
 
-// Function to copy multiple file references to the clipboard
+// Function to copy multiple file references to the clipboard.
+//
+// One NSPasteboardItem per file, each with public.file-url and a
+// public.utf8-plain-text basename. See copyFile for why the basename is
+// included.
 int copyFiles(const char **paths, int count) {
     @autoreleasepool {
         [NSApplication sharedApplication]; // Initialize the app context
-        NSMutableArray *fileURLs = [NSMutableArray arrayWithCapacity:count];
+        NSMutableArray *items = [NSMutableArray arrayWithCapacity:count];
 
         for (int i = 0; i < count; i++) {
-            NSURL *fileURL = [NSURL fileURLWithPath:[NSString stringWithUTF8String:paths[i]]];
-            [fileURLs addObject:fileURL];
+            NSString *nsPath = [NSString stringWithUTF8String:paths[i]];
+            NSURL *fileURL = [NSURL fileURLWithPath:nsPath];
+            NSPasteboardItem *item = [[NSPasteboardItem alloc] init];
+            [item setString:[fileURL absoluteString] forType:NSPasteboardTypeFileURL];
+            [item setString:[nsPath lastPathComponent] forType:NSPasteboardTypeString];
+            [items addObject:item];
         }
 
         NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
@@ -71,7 +92,7 @@ int copyFiles(const char **paths, int count) {
 
         // Perform the write operation
         [pasteboard clearContents];
-        BOOL success = [pasteboard writeObjects:fileURLs];
+        BOOL success = [pasteboard writeObjects:items];
 
         if (!success) {
             return -1; // Write operation failed to start
