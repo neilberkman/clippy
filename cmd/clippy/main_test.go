@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/neilberkman/clippy/pkg/clipboard"
 )
 
 func TestMain(m *testing.M) {
@@ -107,6 +109,28 @@ func TestStreamMode(t *testing.T) {
 				t.Errorf("Expected smart stream copy, got: %s", outputStr)
 			}
 		})
+	}
+}
+
+func TestMD2RichCommand(t *testing.T) {
+	markdown := "Hello **team**.\n\n```go\nfmt.Println(\"hi\")\n```"
+	if err := clipboard.CopyText(markdown); err != nil {
+		t.Fatalf("seed clipboard: %v", err)
+	}
+
+	cmd := exec.Command("./clippy_test", "--verbose", "md2rich")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("md2rich failed: %v\nOutput: %s", err, output)
+	}
+	if !strings.Contains(string(output), "Rendered clipboard Markdown as rich text") {
+		t.Fatalf("unexpected md2rich output: %s", output)
+	}
+
+	for _, typeName := range []string{"public.rtf", "public.html", "public.utf8-plain-text"} {
+		if _, ok := clipboard.GetClipboardDataForType(typeName); !ok {
+			t.Errorf("md2rich clipboard is missing %s", typeName)
+		}
 	}
 }
 

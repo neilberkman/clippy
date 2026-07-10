@@ -4,6 +4,14 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-07-09
+
+### Added
+
+- MCP `copy_email` tool renders Markdown as Gmail-ready HTML, RTF, and plain text on the macOS clipboard without addressing or sending mail
+- `clippy md2rich` command (with `md2rtf` alias) copies the same rich email payload for manual paste into Gmail or Mimestream
+- Email salutations now stay tight against the first paragraph instead of creating an extra empty line
+
 ## [1.6.9] - 2026-05-10
 
 ### Fixed

@@ -1,7 +1,7 @@
 [
   {
     "name": "clipboard_copy",
-    "description": "Copy text or existing files to the clipboard. Prefer text for any generated output.",
+    "description": "Copy plain text or existing files to the clipboard. Use copy_email for formatted email drafts.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -18,6 +18,20 @@
           "description": "Set to 'true' to copy file contents as text"
         }
       }
+    }
+  },
+  {
+    "name": "copy_email",
+    "description": "Copy a Markdown email body as Gmail-ready rich text without sending it.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "markdown": {
+          "type": "string",
+          "description": "Complete email body in Markdown"
+        }
+      },
+      "required": ["markdown"]
     }
   },
   {

@@ -19,6 +19,7 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/neilberkman/clippy/pkg/clipboard"
 	"github.com/neilberkman/clippy/pkg/recent"
+	"github.com/neilberkman/clippy/pkg/transform"
 	_ "golang.org/x/image/tiff" // Register TIFF decoder
 )
 
@@ -185,6 +186,21 @@ func CopyText(text string) error {
 	return CopyTextWithAutoDetection(text)
 }
 
+// CopyMarkdown renders Markdown as rich email-safe content and copies HTML,
+// RTF, and plain-text representations to one pasteboard item. Applications can
+// choose the representation they handle best while preserving a text fallback.
+func CopyMarkdown(markdown string) error {
+	richText, err := transform.MarkdownToRichText(markdown)
+	if err != nil {
+		return fmt.Errorf("could not render markdown: %w", err)
+	}
+
+	if err := clipboard.CopyRichText(richText.HTML, richText.RTF, richText.PlainText); err != nil {
+		return fmt.Errorf("could not copy rendered markdown: %w", err)
+	}
+	return nil
+}
+
 // CopyTextWithAutoDetection copies text with auto-detected type
 func CopyTextWithAutoDetection(text string) error {
 	// Try to detect the content type
@@ -275,14 +291,14 @@ func isTextualMimeType(mimeType string) bool {
 	// Common application/* types that are actually text
 	textualApplicationTypes := []string{
 		"application/json",
-		"application/ld+json",     // JSON-LD
+		"application/ld+json", // JSON-LD
 		"application/xml",
 		"application/xhtml+xml",
 		"application/javascript",
 		"application/typescript",
 		"application/ecmascript",
 		"application/x-httpd-php",
-		"application/x-sh",         // Shell scripts
+		"application/x-sh", // Shell scripts
 		"application/x-csh",
 		"application/x-python",
 		"application/x-ruby",

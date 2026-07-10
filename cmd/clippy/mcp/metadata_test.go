@@ -48,6 +48,18 @@ func TestDefaultServerMetadataLoads(t *testing.T) {
 	if filesParam.Type != "array" {
 		t.Fatalf("expected files param to be type array, got %q", filesParam.Type)
 	}
+
+	copyEmailTool, ok := toolMap["copy_email"]
+	if !ok {
+		t.Fatalf("expected copy_email tool")
+	}
+	markdownParam, ok := findToolParam(copyEmailTool, "markdown")
+	if !ok {
+		t.Fatalf("expected copy_email markdown param")
+	}
+	if !markdownParam.Required {
+		t.Fatalf("expected copy_email markdown param to be required")
+	}
 }
 
 func TestLoadServerMetadataPartialToolOverride(t *testing.T) {

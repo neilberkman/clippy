@@ -134,6 +134,51 @@ int copyText(const char *text) {
     }
 }
 
+// Copy rich text as one pasteboard item with ordered RTF, HTML, and plain-text
+// representations. NSData keeps the supplied RTF and UTF-8 bytes intact.
+int copyRichText(const void *htmlBytes, size_t htmlLength,
+                 const void *rtfBytes, size_t rtfLength,
+                 const void *plainTextBytes, size_t plainTextLength) {
+    @autoreleasepool {
+        [NSApplication sharedApplication]; // Initialize the app context
+
+        NSData *rtfData = rtfLength == 0
+            ? [NSData data]
+            : [NSData dataWithBytes:rtfBytes length:rtfLength];
+        NSData *htmlData = htmlLength == 0
+            ? [NSData data]
+            : [NSData dataWithBytes:htmlBytes length:htmlLength];
+        NSData *plainTextData = plainTextLength == 0
+            ? [NSData data]
+            : [NSData dataWithBytes:plainTextBytes length:plainTextLength];
+
+        NSPasteboardItem *item = [[NSPasteboardItem alloc] init];
+        BOOL success = [item setData:rtfData forType:NSPasteboardTypeRTF];
+        success = success && [item setData:htmlData forType:NSPasteboardTypeHTML];
+        success = success && [item setData:plainTextData forType:NSPasteboardTypeString];
+
+        if (!success) {
+            return -1; // Failed to prepare a representation
+        }
+
+        NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+        NSInteger initialChangeCount = [pasteboard changeCount];
+
+        [pasteboard clearContents];
+        success = [pasteboard writeObjects:@[item]];
+
+        if (!success) {
+            return -1; // Write operation failed to start
+        }
+
+        if (waitForPasteboardChange(pasteboard, initialChangeCount) != 0) {
+            return -2; // Timed out
+        }
+
+        return 0; // Success
+    }
+}
+
 // Function to copy text with a specific UTI/type to the clipboard
 int copyTextWithType(const char *text, const char *typeIdentifier) {
     @autoreleasepool {
@@ -518,6 +563,53 @@ func CopyText(text string) error {
 	}
 }
 
+// CopyRichText copies ordered RTF, HTML, and plain-text representations to a
+// single pasteboard item. HTML and plainText are encoded as UTF-8.
+func CopyRichText(htmlContent string, rtfContent []byte, plainText string) error {
+	htmlBytes := []byte(htmlContent)
+	plainTextBytes := []byte(plainText)
+
+	cHTML := cBytes(htmlBytes)
+	if cHTML != nil {
+		defer C.free(cHTML)
+	}
+	cRTF := cBytes(rtfContent)
+	if cRTF != nil {
+		defer C.free(cRTF)
+	}
+	cPlainText := cBytes(plainTextBytes)
+	if cPlainText != nil {
+		defer C.free(cPlainText)
+	}
+
+	result := C.copyRichText(
+		cHTML,
+		C.size_t(len(htmlBytes)),
+		cRTF,
+		C.size_t(len(rtfContent)),
+		cPlainText,
+		C.size_t(len(plainTextBytes)),
+	)
+
+	switch result {
+	case 0:
+		return nil
+	case -1:
+		return fmt.Errorf("failed to write to clipboard")
+	case -2:
+		return fmt.Errorf("clipboard operation timed out")
+	default:
+		return fmt.Errorf("unknown clipboard error: %d", result)
+	}
+}
+
+func cBytes(data []byte) unsafe.Pointer {
+	if len(data) == 0 {
+		return nil
+	}
+	return C.CBytes(data)
+}
+
 // CopyTextWithType copies text with a specific UTI type to clipboard
 // Common types: "public.html", "public.json", "public.xml", "public.plain-text"
 func CopyTextWithType(text string, typeIdentifier string) error {
@@ -797,9 +889,9 @@ func isImageUTI(uti string) bool {
 // isRichContentUTI checks if a UTI represents rich content
 func isRichContentUTI(uti string) bool {
 	richUTIs := []string{
-		"com.apple.flat-rtfd",          // RTF with embedded images/attachments (priority)
-		"public.rtf",                   // Plain RTF formatting
-		"com.apple.rtfd",               // RTFD bundle
+		"com.apple.flat-rtfd", // RTF with embedded images/attachments (priority)
+		"public.rtf",          // Plain RTF formatting
+		"com.apple.rtfd",      // RTFD bundle
 		"public.pdf",
 		"public.html",
 		"public.xml",

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gabriel-vasile/mimetype"
+	"github.com/neilberkman/clippy/pkg/clipboard"
 )
 
 func TestIsTextualMimeType(t *testing.T) {
@@ -168,6 +169,34 @@ func TestCopyTextWithType(t *testing.T) {
 					tt.typeIdentifier, tt.wantUTI, result)
 			}
 		})
+	}
+}
+
+func TestCopyMarkdownWritesRichRepresentations(t *testing.T) {
+	markdown := "Hello **team**.\n\n```go\nfmt.Println(\"hi\")\n```"
+	if err := CopyMarkdown(markdown); err != nil {
+		t.Fatalf("CopyMarkdown() error = %v", err)
+	}
+
+	htmlData, ok := clipboard.GetClipboardDataForType("public.html")
+	if !ok {
+		t.Fatal("CopyMarkdown() did not write public.html")
+	}
+	html := string(htmlData)
+	for _, want := range []string{"<b>team</b>", "<pre", "fmt.Println"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("HTML missing %q: %s", want, html)
+		}
+	}
+
+	rtf, ok := clipboard.GetClipboardDataForType("public.rtf")
+	if !ok || !strings.HasPrefix(string(rtf), "{\\rtf") {
+		t.Errorf("CopyMarkdown() did not write valid RTF; present=%v prefix=%q", ok, string(rtf[:min(len(rtf), 12)]))
+	}
+
+	plain, ok := clipboard.GetText()
+	if !ok || !strings.Contains(plain, "fmt.Println") {
+		t.Errorf("CopyMarkdown() plain fallback = %q, present=%v", plain, ok)
 	}
 }
 

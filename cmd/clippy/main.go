@@ -119,6 +119,9 @@ Examples:
   clippy -t page.html                  # Recognized as HTML
   clippy -t file.txt --mime text/html  # Override type when needed
 
+  # Render Markdown for rich paste into Gmail and other email composers
+  clippy md2rich                       # Read Markdown from clipboard, replace it with rich content
+
 Configuration:
   Create ~/.clippy.conf with:
     verbose = true        # Always show verbose output
@@ -244,6 +247,7 @@ The MCP server allows AI assistants like Claude to interact with your clipboard 
 
 Available tools:
 - clipboard_copy: Copy text or files to clipboard
+- copy_email: Copy a Markdown email draft as Gmail-ready rich text
 - clipboard_paste: Paste clipboard content to files
 - get_recent_downloads: List recently downloaded files
 
@@ -277,11 +281,40 @@ Add to ~/Library/Application Support/Claude/claude_desktop_config.json:
 	mcpCmd.Flags().BoolVar(&mcpStrictMetadata, "strict-metadata", false, "Require override files to provide descriptions for every tool/prompt/parameter")
 
 	rootCmd.AddCommand(mcpCmd)
+	rootCmd.AddCommand(newMD2RichCommand())
 
 	// Execute the command
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
+	}
+}
+
+func newMD2RichCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:     "md2rich",
+		Aliases: []string{"md2rtf"},
+		Short:   "Render clipboard Markdown for rich email paste",
+		Long: `Render Markdown currently on the clipboard and replace it with a rich
+pasteboard item containing HTML, RTF, and plain-text representations.
+
+The HTML follows Gmail-style tight line spacing and includes Mimestream-like
+inline and fenced code formatting. RTF and plain text remain available as
+fallbacks for applications that do not accept HTML.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			markdown, ok := clippy.GetText()
+			if !ok || markdown == "" {
+				return fmt.Errorf("clipboard is empty or contains no text")
+			}
+			if err := clippy.CopyMarkdown(markdown); err != nil {
+				return err
+			}
+			if verbose {
+				fmt.Fprintln(os.Stderr, "✅ Rendered clipboard Markdown as rich text")
+			}
+			return nil
+		},
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -20,6 +21,11 @@ type CopyArgs struct {
 	File      string   `json:"file,omitempty" jsonschema:"description=File path to copy to clipboard"`
 	Files     []string `json:"files,omitempty" jsonschema:"description=Multiple file paths to copy as references in a single clipboard operation"`
 	ForceText string   `json:"force_text,omitempty" jsonschema:"description=Set to 'true' to force copying file content as text (only used with 'file' parameter)"`
+}
+
+// CopyEmailArgs defines arguments for the Gmail-ready rich email tool.
+type CopyEmailArgs struct {
+	Markdown string `json:"markdown" jsonschema:"description=Complete email body written in Markdown"`
 }
 
 // PasteArgs defines arguments for the paste tool
@@ -66,8 +72,8 @@ type RecentFile struct {
 // AgentBuffer represents an in-memory clipboard buffer for agent use
 // Stores actual file bytes, not generated tokens
 type AgentBuffer struct {
-	Content     []byte `json:"-"`                 // Raw bytes from file
-	Lines       int    `json:"lines,omitempty"`   // Number of lines copied
+	Content     []byte `json:"-"`               // Raw bytes from file
+	Lines       int    `json:"lines,omitempty"` // Number of lines copied
 	SourceFile  string `json:"source_file,omitempty"`
 	SourceRange string `json:"source_range,omitempty"` // e.g. "17-23" or "all"
 }
@@ -112,6 +118,10 @@ func StartServerWithOptions(opts ServerOptions) error {
 	promptSpecs := metadata.PromptMap()
 
 	copySpec, err := requireToolSpec(toolSpecs, "clipboard_copy")
+	if err != nil {
+		return err
+	}
+	copyEmailSpec, err := requireToolSpec(toolSpecs, "copy_email")
 	if err != nil {
 		return err
 	}
@@ -293,6 +303,54 @@ func StartServerWithOptions(opts ServerOptions) error {
 		}
 
 		// Convert result to JSON for response
+		resultJSON, _ := json.Marshal(result)
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{mcp.TextContent{
+				Type: "text",
+				Text: string(resultJSON),
+			}},
+		}, nil
+	})
+
+	copyEmailMarkdownDesc, err := toolParamDescription(copyEmailSpec, "markdown")
+	if err != nil {
+		return err
+	}
+	copyEmailTool := mcp.NewTool(
+		"copy_email",
+		mcp.WithDescription(copyEmailSpec.Description),
+		mcp.WithTitleAnnotation("Copy Gmail-ready email"),
+		mcp.WithReadOnlyHintAnnotation(false),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithIdempotentHintAnnotation(true),
+		mcp.WithOpenWorldHintAnnotation(false),
+		mcp.WithString("markdown", mcp.Description(copyEmailMarkdownDesc), mcp.Required()),
+	)
+
+	// Add Gmail-ready email copy handler. This writes the clipboard only; it
+	// never addresses or sends a message.
+	s.AddTool(copyEmailTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		var args CopyEmailArgs
+		argsBytes, _ := json.Marshal(request.Params.Arguments)
+		if err := json.Unmarshal(argsBytes, &args); err != nil {
+			return nil, fmt.Errorf("invalid arguments: %w", err)
+		}
+		if strings.TrimSpace(args.Markdown) == "" {
+			return nil, fmt.Errorf("markdown email body is required")
+		}
+
+		result := CopyResult{
+			Success: true,
+			Type:    "rich_email",
+			Message: fmt.Sprintf("Copied %d characters as Gmail-ready rich email content; paste with Command-V", utf8.RuneCountInString(args.Markdown)),
+		}
+		if err := clippy.CopyMarkdown(args.Markdown); err != nil {
+			result = CopyResult{
+				Success: false,
+				Message: fmt.Sprintf("Failed to render and copy email: %v", err),
+			}
+		}
+
 		resultJSON, _ := json.Marshal(result)
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{mcp.TextContent{

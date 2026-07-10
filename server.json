@@ -1,7 +1,7 @@
 {
   "name": "io.github.neilberkman/clippy",
   "title": "Clippy - Smart macOS Clipboard Tool",
-  "description": "Copy AI-generated content to macOS clipboard. Handles text, code, files & recent downloads.",
+  "description": "Copy AI-generated content to the macOS clipboard, including Gmail-ready rich email drafts, text, code, files, and recent downloads.",
   "vendor": "neilberkman",
   "sourceUrl": "https://github.com/neilberkman/clippy",
   "licenseUrl": "https://github.com/neilberkman/clippy/blob/main/LICENSE",
@@ -18,13 +18,13 @@
   "tools": [
     {
       "name": "clipboard_copy",
-      "description": "Copy text or files to clipboard. Use 'text' parameter for generated content (code, emails, docs). Use 'file' parameter for a single existing file. Use 'files' parameter to copy multiple file references in one call (so the receiving app sees a multi-file paste).",
+      "description": "Copy plain text or files to clipboard. Use 'text' for generated plain content, 'file' for one file reference, or 'files' for multiple file references. For a drafted email that should paste into Gmail with formatting, use the dedicated copy_email tool instead.",
       "parameters": {
         "type": "object",
         "properties": {
           "text": {
             "type": "string",
-            "description": "Text content to copy - use for all generated content"
+            "description": "Plain text content to copy. For a formatted email draft, use copy_email."
           },
           "file": {
             "type": "string",
@@ -40,6 +40,20 @@
             "description": "Set to 'true' to force copying file content as text (only valid with 'file')"
           }
         }
+      }
+    },
+    {
+      "name": "copy_email",
+      "description": "Copy a complete email body from Markdown to the macOS clipboard as high-fidelity Gmail-ready rich text. Use this whenever the user asks you to write or draft an email and put it on their clipboard. A normal Command-V paste preserves intentional paragraph spacing, bold, italic, links, lists, inline code, and Mimestream-style fenced code blocks. HTML, RTF, and plain-text fallbacks are provided for compatibility. This tool only copies content; it never addresses or sends email.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "markdown": {
+            "type": "string",
+            "description": "The complete email body in Markdown. Use blank lines between paragraphs and fenced Markdown blocks for multiline code."
+          }
+        },
+        "required": ["markdown"]
       }
     },
     {
@@ -174,8 +188,8 @@
       "description": "Generate code and put it directly on your clipboard"
     },
     {
-      "prompt": "Draft an email about the meeting and put it on my clipboard",
-      "description": "Create formatted text ready to paste into any email client"
+      "prompt": "Draft an email about the meeting and copy it so I can paste it into Gmail",
+      "description": "Use copy_email to put the Markdown draft on the clipboard as Gmail-ready rich text"
     },
     {
       "prompt": "Copy my most recent download to the clipboard",

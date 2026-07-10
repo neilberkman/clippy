@@ -116,7 +116,25 @@ clippy -t page.html                       # Recognized as HTML
 clippy -t file.txt --mime application/json  # Manual override when needed
 ```
 
-### 8. Helpful Flags
+### 8. Gmail-Ready Markdown Email
+
+Copy Markdown, render it as rich email content, then paste normally into Gmail,
+Mimestream, Mail, or another rich composer:
+
+```bash
+# Copy a Markdown draft first, then render the clipboard in place
+clippy md2rich
+
+# The former experimental name remains an alias
+clippy md2rtf
+```
+
+The clipboard carries HTML, RTF, and plain-text representations together. Rich
+composers preserve intentional paragraph spacing, emphasis, links, lists,
+inline code, and Mimestream-style fenced code blocks; plain-text targets still
+receive a readable fallback.
+
+### 9. Helpful Flags
 
 ```bash
 clippy -v file.txt     # Show what happened
@@ -140,6 +158,10 @@ Ask Claude to generate any text - code, emails, documents - and have it instantl
 - "Generate that regex and copy it so I can paste into my editor"
 
 No more manual selecting and copying from the chat interface.
+
+For email drafts, the dedicated **copy_email** tool is advertised to the model.
+It accepts a complete Markdown email body and puts Gmail-ready rich content on
+the clipboard. It only copies the draft; it does not address or send mail.
 
 ### Setup
 
@@ -188,6 +210,7 @@ By default, override files can be partial. Add `--strict-metadata` to require fu
 #### System Clipboard Tools
 
 - **clipboard_copy** - Copy text or files to system clipboard
+- **copy_email** - Copy a Markdown email draft as Gmail-ready rich text (never sends)
 - **clipboard_paste** - Paste clipboard content to files/directories
 - **get_recent_downloads** - List recently downloaded files
 
