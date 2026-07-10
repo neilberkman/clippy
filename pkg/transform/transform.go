@@ -30,6 +30,14 @@ type RichText struct {
 	PlainText string
 }
 
+// EmailParts makes the semantic email regions explicit so callers do not need
+// to rely on language-specific greeting or sign-off detection.
+type EmailParts struct {
+	Salutation   string
+	BodyMarkdown string
+	Signoff      string
+}
+
 var markdownParser = goldmark.New(
 	goldmark.WithExtensions(extension.GFM),
 )
@@ -52,6 +60,87 @@ func MarkdownToRichText(source string) (*RichText, error) {
 		RTF:       rtf,
 		PlainText: plainText,
 	}, nil
+}
+
+// EmailToRichText renders explicit email regions with normal email spacing.
+// The salutation sits directly above the body; the sign-off is separated from
+// the body and preserves its internal line breaks.
+func EmailToRichText(parts EmailParts) (*RichText, error) {
+	if strings.TrimSpace(parts.BodyMarkdown) == "" {
+		return nil, fmt.Errorf("email body Markdown is required")
+	}
+
+	htmlFragment := renderEmailHTML(parts)
+	plainText := renderEmailPlainText(parts)
+	rtf, err := materializeRTF(htmlFragment, plainText)
+	if err != nil {
+		return nil, fmt.Errorf("convert rendered Markdown to RTF: %w", err)
+	}
+
+	return &RichText{HTML: htmlFragment, RTF: rtf, PlainText: plainText}, nil
+}
+
+func renderEmailHTML(parts EmailParts) string {
+	renderer := &htmlRenderer{}
+	renderer.buf.WriteString(`<div dir="ltr" style="`)
+	renderer.buf.WriteString(rootStyle)
+	renderer.buf.WriteString(`">`)
+
+	if strings.TrimSpace(parts.Salutation) != "" {
+		renderer.renderSegment(parts.Salutation, true)
+	}
+	renderer.renderSegment(parts.BodyMarkdown, false)
+	if strings.TrimSpace(parts.Signoff) != "" {
+		renderer.writeBlankLine()
+		renderer.renderSegment(parts.Signoff, true)
+	}
+
+	renderer.buf.WriteString(`</div>`)
+	return renderer.buf.String()
+}
+
+func (r *htmlRenderer) renderSegment(source string, preserveSoftBreaks bool) {
+	sourceBytes := []byte(source)
+	document := markdownParser.Parser().Parse(text.NewReader(sourceBytes))
+
+	previousSource := r.source
+	previousPreserve := r.preserveSoftBreaks
+	r.source = sourceBytes
+	r.preserveSoftBreaks = preserveSoftBreaks
+	r.renderBlockChildren(document, false)
+	r.source = previousSource
+	r.preserveSoftBreaks = previousPreserve
+}
+
+func renderEmailPlainText(parts EmailParts) string {
+	segments := make([]string, 0, 3)
+	if strings.TrimSpace(parts.Salutation) != "" {
+		segments = append(segments, renderPlainSegment(parts.Salutation, true))
+	}
+	segments = append(segments, renderPlainSegment(parts.BodyMarkdown, false))
+	if strings.TrimSpace(parts.Signoff) != "" {
+		segments = append(segments, renderPlainSegment(parts.Signoff, true))
+	}
+
+	var result strings.Builder
+	for i, segment := range segments {
+		if i > 0 {
+			separator := "\n\n"
+			if i == 1 && strings.TrimSpace(parts.Salutation) != "" {
+				separator = "\n"
+			}
+			result.WriteString(separator)
+		}
+		result.WriteString(segment)
+	}
+	return result.String()
+}
+
+func renderPlainSegment(source string, preserveSoftBreaks bool) string {
+	sourceBytes := []byte(source)
+	document := markdownParser.Parser().Parse(text.NewReader(sourceBytes))
+	renderer := &plainTextRenderer{source: sourceBytes, preserveSoftBreaks: preserveSoftBreaks}
+	return strings.TrimRight(renderer.render(document), "\n")
 }
 
 type htmlRenderer struct {
@@ -87,24 +176,12 @@ func (r *htmlRenderer) render(document ast.Node) string {
 func (r *htmlRenderer) renderBlockChildren(parent ast.Node, compact bool) {
 	first := true
 	for child := parent.FirstChild(); child != nil; child = child.NextSibling() {
-		previous := child.PreviousSibling()
-		if !first && child.HasBlankPreviousLines() && !r.isSalutation(previous) {
+		if !first && child.HasBlankPreviousLines() {
 			r.writeBlankLine()
 		}
 		r.renderBlock(child, compact)
 		first = false
 	}
-}
-
-// isSalutation identifies the conventional greeting at the start of an email.
-// A blank Markdown line after it is rendered as a normal line break so prose
-// reads like an ordinary email rather than having an extra empty paragraph.
-func (r *htmlRenderer) isSalutation(node ast.Node) bool {
-	paragraph, ok := node.(*ast.Paragraph)
-	if !ok {
-		return false
-	}
-	return looksLikeSalutation(string(paragraph.Lines().Value(r.source)))
 }
 
 func (r *htmlRenderer) renderBlock(node ast.Node, compact bool) {
@@ -174,10 +251,7 @@ func (r *htmlRenderer) renderParagraph(node ast.Node, compact bool) {
 	if !compact {
 		r.buf.WriteString(`<div>`)
 	}
-	previous := r.preserveSoftBreaks
-	r.preserveSoftBreaks = isSignoff(node, r.source)
 	r.renderInlineChildren(node)
-	r.preserveSoftBreaks = previous
 	if !compact {
 		r.buf.WriteString(`</div>`)
 	}
@@ -395,57 +469,13 @@ func (r *plainTextRenderer) render(document ast.Node) string {
 			blocks = append(blocks, rendered)
 		}
 	}
-	var rendered strings.Builder
-	for i, block := range blocks {
-		if i > 0 {
-			separator := "\n\n"
-			if i == 1 && looksLikeSalutation(blocks[0]) {
-				separator = "\n"
-			}
-			rendered.WriteString(separator)
-		}
-		rendered.WriteString(block)
-	}
-	return rendered.String()
-}
-
-func looksLikeSalutation(value string) bool {
-	value = strings.TrimSpace(value)
-	if strings.ContainsAny(value, "\r\n") {
-		return false
-	}
-	lower := strings.ToLower(value)
-	for _, prefix := range []string{"hi ", "hello ", "dear ", "hey "} {
-		if strings.HasPrefix(lower, prefix) {
-			return strings.HasSuffix(value, ",") || strings.HasSuffix(value, ":") || strings.HasSuffix(value, "!")
-		}
-	}
-	return false
-}
-
-func isSignoff(node ast.Node, source []byte) bool {
-	paragraph, ok := node.(*ast.Paragraph)
-	if !ok {
-		return false
-	}
-	value := strings.TrimSpace(string(paragraph.Lines().Value(source)))
-	lower := strings.ToLower(value)
-	for _, prefix := range []string{"best,", "thanks,", "thank you,", "regards,", "kind regards,", "best regards,", "sincerely,", "cheers,"} {
-		if strings.HasPrefix(lower, prefix+"\n") || strings.HasPrefix(lower, prefix+"\r\n") {
-			return true
-		}
-	}
-	return false
+	return strings.Join(blocks, "\n\n")
 }
 
 func (r *plainTextRenderer) renderBlock(node ast.Node, indent int) string {
 	switch n := node.(type) {
 	case *ast.Paragraph, *ast.TextBlock, *ast.Heading:
-		previous := r.preserveSoftBreaks
-		r.preserveSoftBreaks = isSignoff(node, r.source)
-		text := r.renderInlineChildren(node)
-		r.preserveSoftBreaks = previous
-		return text
+		return r.renderInlineChildren(node)
 	case *ast.CodeBlock:
 		return strings.TrimSuffix(string(n.Lines().Value(r.source)), "\n")
 	case *ast.FencedCodeBlock:

@@ -1,7 +1,7 @@
 [
   {
     "prompt": "Draft a short meeting recap email and copy it so I can paste it into Gmail",
-    "description": "Use copy_email to provide a Gmail-ready rich-text draft without sending it"
+    "description": "Use copy_email with explicit salutation, body_markdown, and signoff fields to provide a Gmail-ready rich-text draft without sending it"
   },
   {
     "prompt": "Write a bash script that cleans temp files and copy it",

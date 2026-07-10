@@ -22,16 +22,27 @@
   },
   {
     "name": "copy_email",
-    "description": "Copy a Markdown email body as Gmail-ready rich text without sending it.",
+    "description": "Copy a structured email as Gmail-ready rich text without sending it. Prefer salutation, body_markdown, and signoff; markdown remains a compatibility form.",
     "parameters": {
       "type": "object",
       "properties": {
         "markdown": {
           "type": "string",
-          "description": "Complete email body in Markdown"
+          "description": "Complete email body in Markdown (legacy compatibility form)"
+        },
+        "salutation": {
+          "type": "string",
+          "description": "Opening salutation, kept tight against the body"
+        },
+        "body_markdown": {
+          "type": "string",
+          "description": "Email body in Markdown"
+        },
+        "signoff": {
+          "type": "string",
+          "description": "Closing and signature; newlines are preserved"
         }
-      },
-      "required": ["markdown"]
+      }
     }
   },
   {

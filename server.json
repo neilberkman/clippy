@@ -44,16 +44,27 @@
     },
     {
       "name": "copy_email",
-      "description": "Copy a complete email body from Markdown to the macOS clipboard as high-fidelity Gmail-ready rich text. Use this whenever the user asks you to write or draft an email and put it on their clipboard. A normal Command-V paste preserves intentional paragraph spacing, bold, italic, links, lists, inline code, and Mimestream-style fenced code blocks. HTML, RTF, and plain-text fallbacks are provided for compatibility. This tool only copies content; it never addresses or sends email.",
+      "description": "Copy an email to the macOS clipboard as high-fidelity Gmail-ready rich text. Prefer the structured salutation, body_markdown, and signoff fields so spacing and line breaks are explicit and language-independent. The legacy markdown field accepts a complete Markdown body. A normal Command-V paste preserves intentional paragraph spacing, bold, italic, links, lists, inline code, and Mimestream-style fenced code blocks. HTML, RTF, and plain-text fallbacks are provided for compatibility. This tool only copies content; it never addresses or sends email.",
       "parameters": {
         "type": "object",
         "properties": {
           "markdown": {
             "type": "string",
-            "description": "The complete email body in Markdown. Use blank lines between paragraphs and fenced Markdown blocks for multiline code."
+            "description": "Complete email body in Markdown (legacy compatibility form). Do not combine with the structured fields."
+          },
+          "salutation": {
+            "type": "string",
+            "description": "Opening salutation, kept tight against the body"
+          },
+          "body_markdown": {
+            "type": "string",
+            "description": "Email body in Markdown; use with salutation and signoff for explicit structure"
+          },
+          "signoff": {
+            "type": "string",
+            "description": "Closing and signature; newlines are preserved"
           }
-        },
-        "required": ["markdown"]
+        }
       }
     },
     {

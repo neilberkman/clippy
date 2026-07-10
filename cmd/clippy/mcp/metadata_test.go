@@ -53,12 +53,14 @@ func TestDefaultServerMetadataLoads(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected copy_email tool")
 	}
-	markdownParam, ok := findToolParam(copyEmailTool, "markdown")
-	if !ok {
-		t.Fatalf("expected copy_email markdown param")
+	for _, name := range []string{"markdown", "salutation", "body_markdown", "signoff"} {
+		if _, ok := findToolParam(copyEmailTool, name); !ok {
+			t.Fatalf("expected copy_email %s param", name)
+		}
 	}
-	if !markdownParam.Required {
-		t.Fatalf("expected copy_email markdown param to be required")
+	markdownParam, _ := findToolParam(copyEmailTool, "markdown")
+	if markdownParam.Required {
+		t.Fatalf("expected copy_email markdown param to be optional for structured email input")
 	}
 }
 

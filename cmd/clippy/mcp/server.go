@@ -25,7 +25,10 @@ type CopyArgs struct {
 
 // CopyEmailArgs defines arguments for the Gmail-ready rich email tool.
 type CopyEmailArgs struct {
-	Markdown string `json:"markdown" jsonschema:"description=Complete email body written in Markdown"`
+	Markdown     string `json:"markdown,omitempty" jsonschema:"description=Complete email body written in Markdown (legacy compatibility form)"`
+	Salutation   string `json:"salutation,omitempty" jsonschema:"description=Opening salutation, kept tight against the body"`
+	BodyMarkdown string `json:"body_markdown,omitempty" jsonschema:"description=Email body written in Markdown"`
+	Signoff      string `json:"signoff,omitempty" jsonschema:"description=Closing and signature, using newlines where line breaks should remain"`
 }
 
 // PasteArgs defines arguments for the paste tool
@@ -312,10 +315,6 @@ func StartServerWithOptions(opts ServerOptions) error {
 		}, nil
 	})
 
-	copyEmailMarkdownDesc, err := toolParamDescription(copyEmailSpec, "markdown")
-	if err != nil {
-		return err
-	}
 	copyEmailTool := mcp.NewTool(
 		"copy_email",
 		mcp.WithDescription(copyEmailSpec.Description),
@@ -324,7 +323,10 @@ func StartServerWithOptions(opts ServerOptions) error {
 		mcp.WithDestructiveHintAnnotation(false),
 		mcp.WithIdempotentHintAnnotation(true),
 		mcp.WithOpenWorldHintAnnotation(false),
-		mcp.WithString("markdown", mcp.Description(copyEmailMarkdownDesc), mcp.Required()),
+		mcp.WithString("markdown", mcp.Description("Complete email body in Markdown (legacy compatibility form)")),
+		mcp.WithString("salutation", mcp.Description("Opening salutation, kept tight against the body")),
+		mcp.WithString("body_markdown", mcp.Description("Email body in Markdown; use with salutation and signoff for explicit structure")),
+		mcp.WithString("signoff", mcp.Description("Closing and signature; newlines are preserved")),
 	)
 
 	// Add Gmail-ready email copy handler. This writes the clipboard only; it
@@ -335,16 +337,34 @@ func StartServerWithOptions(opts ServerOptions) error {
 		if err := json.Unmarshal(argsBytes, &args); err != nil {
 			return nil, fmt.Errorf("invalid arguments: %w", err)
 		}
-		if strings.TrimSpace(args.Markdown) == "" {
-			return nil, fmt.Errorf("markdown email body is required")
+		structured := strings.TrimSpace(args.Salutation) != "" || strings.TrimSpace(args.BodyMarkdown) != "" || strings.TrimSpace(args.Signoff) != ""
+		if structured && strings.TrimSpace(args.Markdown) != "" {
+			return nil, fmt.Errorf("use either markdown or the structured salutation/body_markdown/signoff fields, not both")
+		}
+		if structured && strings.TrimSpace(args.BodyMarkdown) == "" {
+			return nil, fmt.Errorf("body_markdown is required when using structured email fields")
+		}
+		if !structured && strings.TrimSpace(args.Markdown) == "" {
+			return nil, fmt.Errorf("markdown or structured email fields are required")
+		}
+
+		copyOperation := func() error {
+			if structured {
+				return clippy.CopyEmail(args.Salutation, args.BodyMarkdown, args.Signoff)
+			}
+			return clippy.CopyMarkdown(args.Markdown)
+		}
+		characterCount := utf8.RuneCountInString(args.Markdown)
+		if structured {
+			characterCount = utf8.RuneCountInString(args.Salutation + args.BodyMarkdown + args.Signoff)
 		}
 
 		result := CopyResult{
 			Success: true,
 			Type:    "rich_email",
-			Message: fmt.Sprintf("Copied %d characters as Gmail-ready rich email content; paste with Command-V", utf8.RuneCountInString(args.Markdown)),
+			Message: fmt.Sprintf("Copied %d characters as Gmail-ready rich email content; paste with Command-V", characterCount),
 		}
-		if err := clippy.CopyMarkdown(args.Markdown); err != nil {
+		if err := copyOperation(); err != nil {
 			result = CopyResult{
 				Success: false,
 				Message: fmt.Sprintf("Failed to render and copy email: %v", err),

@@ -23,27 +23,44 @@ func TestMarkdownToRichTextInlineSemanticsAndParagraphs(t *testing.T) {
 	}
 }
 
-func TestMarkdownToRichTextKeepsGreetingTight(t *testing.T) {
+func TestMarkdownToRichTextPreservesMarkdownBlankLines(t *testing.T) {
 	rich, err := MarkdownToRichText("Hi Acme API team,\n\nI am following up on the issue.\n\nThe second paragraph has intentional spacing.")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assertContains(t, rich.HTML, `<div>Hi Acme API team,</div><div>I am following up on the issue.</div>`)
+	assertContains(t, rich.HTML, `<div>Hi Acme API team,</div><div><br></div><div>I am following up on the issue.</div>`)
 	assertContains(t, rich.HTML, `<div>The second paragraph has intentional spacing.</div>`)
-	if got, want := rich.PlainText, "Hi Acme API team,\nI am following up on the issue.\n\nThe second paragraph has intentional spacing."; got != want {
+	if got, want := rich.PlainText, "Hi Acme API team,\n\nI am following up on the issue.\n\nThe second paragraph has intentional spacing."; got != want {
 		t.Fatalf("PlainText mismatch:\n got: %q\nwant: %q", got, want)
 	}
 }
 
-func TestMarkdownToRichTextKeepsSignatureLines(t *testing.T) {
+func TestMarkdownToRichTextTreatsSoftBreaksAsSpaces(t *testing.T) {
 	rich, err := MarkdownToRichText("Thanks for taking a look.\n\nBest,\nNeil")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assertContains(t, rich.HTML, `<div>Best,<br>Neil</div>`)
-	if got, want := rich.PlainText, "Thanks for taking a look.\n\nBest,\nNeil"; got != want {
+	assertContains(t, rich.HTML, `<div>Best, Neil</div>`)
+	if got, want := rich.PlainText, "Thanks for taking a look.\n\nBest, Neil"; got != want {
+		t.Fatalf("PlainText mismatch:\n got: %q\nwant: %q", got, want)
+	}
+}
+
+func TestEmailToRichTextUsesExplicitRegions(t *testing.T) {
+	rich, err := EmailToRichText(EmailParts{
+		Salutation:   "Bonjour,",
+		BodyMarkdown: "Voici le problème.\n\n**Détails** ci-dessous.",
+		Signoff:      "Cordialement,\nNeil",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertContains(t, rich.HTML, `<div>Bonjour,</div><div>Voici le problème.`)
+	assertContains(t, rich.HTML, `<div><br></div><div>Cordialement,<br>Neil</div>`)
+	if got, want := rich.PlainText, "Bonjour,\nVoici le problème.\n\nDétails ci-dessous.\n\nCordialement,\nNeil"; got != want {
 		t.Fatalf("PlainText mismatch:\n got: %q\nwant: %q", got, want)
 	}
 }

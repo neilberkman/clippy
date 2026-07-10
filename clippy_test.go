@@ -200,6 +200,32 @@ func TestCopyMarkdownWritesRichRepresentations(t *testing.T) {
 	}
 }
 
+func TestCopyEmailUsesExplicitRegions(t *testing.T) {
+	if err := CopyEmail("Bonjour,", "Voici le problème.\n\n**Détails** ci-dessous.", "Cordialement,\nNeil"); err != nil {
+		t.Fatalf("CopyEmail() error = %v", err)
+	}
+
+	htmlData, ok := clipboard.GetClipboardDataForType("public.html")
+	if !ok {
+		t.Fatal("CopyEmail() did not write public.html")
+	}
+	html := string(htmlData)
+	if !strings.Contains(html, `<div>Bonjour,</div><div>Voici le problème.`) {
+		t.Fatalf("salutation was not kept tight: %s", html)
+	}
+	if !strings.Contains(html, `<div>Cordialement,<br>Neil</div>`) {
+		t.Fatalf("signoff line break was not preserved: %s", html)
+	}
+
+	plain, ok := clipboard.GetText()
+	if !ok {
+		t.Fatal("CopyEmail() did not write plain text")
+	}
+	if got, want := plain, "Bonjour,\nVoici le problème.\n\nDétails ci-dessous.\n\nCordialement,\nNeil"; got != want {
+		t.Fatalf("plain text mismatch:\n got: %q\nwant: %q", got, want)
+	}
+}
+
 func TestConvertImageFormat(t *testing.T) {
 	// Verify the function handles errors gracefully
 	_, err := convertImageFormat([]byte("not an image"), ".png")

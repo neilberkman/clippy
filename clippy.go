@@ -201,6 +201,25 @@ func CopyMarkdown(markdown string) error {
 	return nil
 }
 
+// CopyEmail renders explicit email regions and copies HTML, RTF, and plain
+// text to one pasteboard item without inferring language-specific greetings or
+// sign-offs.
+func CopyEmail(salutation, bodyMarkdown, signoff string) error {
+	richText, err := transform.EmailToRichText(transform.EmailParts{
+		Salutation:   salutation,
+		BodyMarkdown: bodyMarkdown,
+		Signoff:      signoff,
+	})
+	if err != nil {
+		return fmt.Errorf("could not render email: %w", err)
+	}
+
+	if err := clipboard.CopyRichText(richText.HTML, richText.RTF, richText.PlainText); err != nil {
+		return fmt.Errorf("could not copy rendered email: %w", err)
+	}
+	return nil
+}
+
 // CopyTextWithAutoDetection copies text with auto-detected type
 func CopyTextWithAutoDetection(text string) error {
 	// Try to detect the content type

@@ -160,8 +160,10 @@ Ask Claude to generate any text - code, emails, documents - and have it instantl
 No more manual selecting and copying from the chat interface.
 
 For email drafts, the dedicated **copy_email** tool is advertised to the model.
-It accepts a complete Markdown email body and puts Gmail-ready rich content on
-the clipboard. It only copies the draft; it does not address or send mail.
+Prefer its explicit `salutation`, `body_markdown`, and `signoff` fields so the
+email structure is preserved without guessing at language-specific greetings.
+The complete-body `markdown` field remains available for compatibility. The
+tool only copies the draft; it does not address or send mail.
 
 ### Setup
 
@@ -210,7 +212,7 @@ By default, override files can be partial. Add `--strict-metadata` to require fu
 #### System Clipboard Tools
 
 - **clipboard_copy** - Copy text or files to system clipboard
-- **copy_email** - Copy a Markdown email draft as Gmail-ready rich text (never sends)
+- **copy_email** - Copy a structured email draft as Gmail-ready rich text (never sends)
 - **clipboard_paste** - Paste clipboard content to files/directories
 - **get_recent_downloads** - List recently downloaded files
 

@@ -4,6 +4,10 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+### Changed
+
+- `copy_email` accepts explicit `salutation`, `body_markdown`, and `signoff` fields so email spacing is language-independent; complete `markdown` remains supported for compatibility
+
 ## [1.7.0] - 2026-07-09
 
 ### Added
