@@ -118,7 +118,7 @@ func (r *htmlRenderer) renderBlock(node ast.Node, compact bool) {
 		if size < 13 {
 			size = 13
 		}
-		fmt.Fprintf(&r.buf, `<div style="font-size: %dpx; font-weight: 600;"><b>`, size)
+		_, _ = fmt.Fprintf(&r.buf, `<div style="font-size: %dpx; font-weight: 600;"><b>`, size)
 		r.renderInlineChildren(n)
 		r.buf.WriteString(`</b></div>`)
 	case *ast.CodeBlock:
@@ -156,9 +156,9 @@ func (r *htmlRenderer) renderBlock(node ast.Node, compact bool) {
 		if _, ok := n.Parent().(*extast.TableHeader); ok {
 			tag = "th"
 		}
-		fmt.Fprintf(&r.buf, `<%s style="border: 1px solid rgb(206,206,206); padding: 2px 4px; text-align: %s;">`, tag, tableAlignment(n.Alignment))
+		_, _ = fmt.Fprintf(&r.buf, `<%s style="border: 1px solid rgb(206,206,206); padding: 2px 4px; text-align: %s;">`, tag, tableAlignment(n.Alignment))
 		r.renderInlineChildren(n)
-		fmt.Fprintf(&r.buf, `</%s>`, tag)
+		_, _ = fmt.Fprintf(&r.buf, `</%s>`, tag)
 	case *ast.LinkReferenceDefinition:
 		// Link definitions are metadata and have no visible representation.
 	default:
@@ -188,15 +188,15 @@ func (r *htmlRenderer) renderList(list *ast.List) {
 	if list.IsOrdered() {
 		tag = "ol"
 	}
-	fmt.Fprintf(&r.buf, `<%s style="%s"`, tag, listStyle)
+	_, _ = fmt.Fprintf(&r.buf, `<%s style="%s"`, tag, listStyle)
 	if list.IsOrdered() && list.Start != 1 {
-		fmt.Fprintf(&r.buf, ` start="%d"`, list.Start)
+		_, _ = fmt.Fprintf(&r.buf, ` start="%d"`, list.Start)
 	}
 	r.buf.WriteByte('>')
 	for child := list.FirstChild(); child != nil; child = child.NextSibling() {
 		r.renderBlock(child, true)
 	}
-	fmt.Fprintf(&r.buf, `</%s>`, tag)
+	_, _ = fmt.Fprintf(&r.buf, `</%s>`, tag)
 }
 
 func (r *htmlRenderer) renderListItem(item *ast.ListItem) {
@@ -265,9 +265,9 @@ func (r *htmlRenderer) renderInline(node ast.Node) {
 		if n.Level == 2 {
 			tag = "b"
 		}
-		fmt.Fprintf(&r.buf, `<%s>`, tag)
+		_, _ = fmt.Fprintf(&r.buf, `<%s>`, tag)
 		r.renderInlineChildren(n)
-		fmt.Fprintf(&r.buf, `</%s>`, tag)
+		_, _ = fmt.Fprintf(&r.buf, `</%s>`, tag)
 	case *extast.Strikethrough:
 		r.buf.WriteString(`<s>`)
 		r.renderInlineChildren(n)
