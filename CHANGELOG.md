@@ -4,6 +4,17 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-07-16
+
+### Fixed
+
+- Verbose and debug messages now print to stderr instead of stdout, so `pasty -v > file` and piped output no longer mix status text into the data stream
+- Command-line flags now take precedence over `~/.clippy.conf` — an explicit `--cleanup=true` is no longer silently overridden by `cleanup = false` in the config file
+
+### Added
+
+- Mistyped subcommands get a "Did you mean?" suggestion (e.g. `clippy md2richh` suggests `md2rich`) instead of being treated as a missing file path; existing files with similar names still copy as before
+
 ## [1.7.1] - 2026-07-10
 
 ### Changed
