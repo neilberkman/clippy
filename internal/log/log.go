@@ -27,17 +27,17 @@ func (l *Logger) Error(format string, args ...interface{}) {
 	os.Exit(1)
 }
 
-// Verbose prints a message if verbose mode is enabled
+// Verbose prints a message to stderr if verbose mode is enabled
 func (l *Logger) Verbose(format string, args ...interface{}) {
 	if l.config.Verbose {
-		fmt.Printf(format+"\n", args...)
+		fmt.Fprintf(os.Stderr, format+"\n", args...)
 	}
 }
 
-// Debug prints a message if debug mode is enabled
+// Debug prints a message to stderr if debug mode is enabled
 func (l *Logger) Debug(format string, args ...interface{}) {
 	if l.config.Debug {
-		fmt.Printf("DEBUG: "+format+"\n", args...)
+		fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
 	}
 }
 

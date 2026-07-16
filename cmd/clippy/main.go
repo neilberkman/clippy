@@ -135,10 +135,11 @@ MCP Server:
     claude mcp add --scope user clippy $(which clippy) mcp-server
 
   For more info: clippy mcp-server --help`,
-		Version: fmt.Sprintf("%s (%s) built on %s", common.Version, common.Commit, common.Date),
+		Version:                    fmt.Sprintf("%s (%s) built on %s", common.Version, common.Commit, common.Date),
+		SuggestionsMinimumDistance: 2,
 		Run: func(cmd *cobra.Command, args []string) {
 			// Load config file
-			loadConfig()
+			loadConfig(cmd)
 
 			// Initialize logger
 			logger = common.SetupLogger(verbose, debug)
@@ -146,6 +147,13 @@ MCP Server:
 			// If files are provided as arguments, handle them (takes precedence)
 			if len(args) > 0 {
 				if len(args) == 1 {
+					// An arg that matches no file but looks like a mistyped
+					// subcommand gets a suggestion instead of "file not found"
+					if _, err := os.Stat(args[0]); os.IsNotExist(err) {
+						if suggestions := cmd.SuggestionsFor(args[0]); len(suggestions) > 0 {
+							logger.Error("unknown command %q\n\nDid you mean this?\n\t%s", args[0], strings.Join(suggestions, "\n\t"))
+						}
+					}
 					handleFileMode(args[0])
 				} else {
 					handleMultipleFiles(args)
@@ -532,8 +540,9 @@ func handleFindMode(query string) {
 	}
 }
 
-// Load configuration from ~/.clippy.conf
-func loadConfig() {
+// Load configuration from ~/.clippy.conf. Flags given explicitly on the
+// command line take precedence over config file values.
+func loadConfig(cmd *cobra.Command) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return
@@ -567,11 +576,11 @@ func loadConfig() {
 
 		switch key {
 		case "verbose":
-			if value == "true" || value == "1" {
+			if (value == "true" || value == "1") && !cmd.Flags().Changed("verbose") {
 				verbose = true
 			}
 		case "cleanup":
-			if value == "false" || value == "0" {
+			if (value == "false" || value == "0") && !cmd.Flags().Changed("cleanup") {
 				cleanup = false
 			}
 		case "temp_dir":
