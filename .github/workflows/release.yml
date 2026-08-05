@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Existing release version to (re)publish to the MCP registry, e.g. 1.8.0'
+        required: true
 
 permissions:
   contents: write
@@ -11,6 +16,7 @@ permissions:
 
 jobs:
   test:
+    if: github.event_name == 'push'
     runs-on: macos-14
     steps:
       - name: Checkout
@@ -44,6 +50,7 @@ jobs:
         run: golangci-lint run --timeout=5m
 
   release:
+    if: github.event_name == 'push'
     needs: test
     runs-on: macos-14
     steps:
@@ -65,3 +72,38 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
+
+  publish-mcp-registry:
+    # Runs after a tag release, or standalone via workflow_dispatch to
+    # (re)publish an existing release to the MCP registry
+    needs: release
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.release.result == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC auth for the io.github.neilberkman namespace
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+
+      - name: Generate server.json
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          [ -z "$VERSION" ] && VERSION="${GITHUB_REF_NAME#v}"
+          URL="https://github.com/neilberkman/clippy/releases/download/v${VERSION}/clippy_${VERSION}.mcpb"
+          curl -sSLf "$URL" -o clippy.mcpb
+          SHA=$(openssl dgst -sha256 -r clippy.mcpb | cut -d' ' -f1)
+          # Overwrites the checked-out server.json (embedded app metadata)
+          # in the runner workspace only; mcp-publisher reads ./server.json
+          ./scripts/gen-server-json.sh "$VERSION" "$SHA" > server.json
+          cat server.json
+
+      - name: Login to MCP registry (OIDC)
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish to MCP registry
+        run: ./mcp-publisher publish

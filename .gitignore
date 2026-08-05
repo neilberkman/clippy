@@ -83,3 +83,4 @@ cmd/clippy/*.txt
 .mcpregistry_*
 mcp-publisher
 mcp-registry-temp/
+dist/

@@ -32,8 +32,24 @@ builds:
     ldflags:
       - -s -w -X github.com/neilberkman/clippy/cmd/internal/common.Version={{.Version}} -X github.com/neilberkman/clippy/cmd/internal/common.Commit={{.Commit}} -X github.com/neilberkman/clippy/cmd/internal/common.Date={{.Date}}
 
+# Darwin universal binary feeds the MCPB bundle; per-arch archives are kept
+# (replace: false) so existing install paths are unchanged. The post hook
+# runs after all builds complete, which is what the bundle needs.
+universal_binaries:
+  - id: clippy-universal
+    ids:
+      - clippy
+    replace: false
+    hooks:
+      post:
+        - ./scripts/build-mcpb.sh {{ .Version }} dist
+
 archives:
   - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    # Only the per-arch builds; the universal binary ships inside the .mcpb
+    ids:
+      - clippy
+      - pasty
     files:
       - README.md
 
@@ -59,6 +75,8 @@ release:
   prerelease: auto
   make_latest: true
   mode: replace
+  extra_files:
+    - glob: dist/*.mcpb
   header: |
     ## Clippy {{.Tag}}
 

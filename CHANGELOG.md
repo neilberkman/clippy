@@ -4,6 +4,13 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-08-05
+
+### Added
+
+- **Official MCP registry listing** — clippy is published to the official MCP registry (registry.modelcontextprotocol.io) as `io.github.neilberkman/clippy` on every release, so MCP clients and registry aggregators can discover it
+- **MCPB bundle** — each release now ships `clippy_<version>.mcpb`, a one-file MCP bundle with a macOS universal binary, installable directly by MCPB-capable clients (e.g. Claude Desktop)
+
 ## [1.7.2] - 2026-07-16
 
 ### Fixed
