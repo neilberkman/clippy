@@ -4,6 +4,10 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+### Removed
+
+- The `md2rtf` alias for `md2rich` — the experimental name had been kept as a hidden alias; use `md2rich`
+
 ## [1.8.0] - 2026-08-05
 
 ### Added

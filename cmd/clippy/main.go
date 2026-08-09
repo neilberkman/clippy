@@ -300,9 +300,8 @@ Add to ~/Library/Application Support/Claude/claude_desktop_config.json:
 
 func newMD2RichCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:     "md2rich",
-		Aliases: []string{"md2rtf"},
-		Short:   "Render clipboard Markdown for rich email paste",
+		Use:   "md2rich",
+		Short: "Render clipboard Markdown for rich email paste",
 		Long: `Render Markdown currently on the clipboard and replace it with a rich
 pasteboard item containing HTML, RTF, and plain-text representations.
 

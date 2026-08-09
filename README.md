@@ -124,9 +124,6 @@ Mimestream, Mail, or another rich composer:
 ```bash
 # Copy a Markdown draft first, then render the clipboard in place
 clippy md2rich
-
-# The former experimental name remains an alias
-clippy md2rtf
 ```
 
 The clipboard carries HTML, RTF, and plain-text representations together. Rich
