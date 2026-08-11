@@ -1,5 +1,7 @@
 # Clippy 📎
 
+[![MCP Toplist](https://mcptoplist.com/badge/glama%2Fneilberkman%2Fclippy.svg)](https://mcptoplist.com/server/glama%2Fneilberkman%2Fclippy)
+
 [![Homebrew](https://img.shields.io/homebrew/v/clippy?color=FBB040)](https://formulae.brew.sh/formula/clippy)
 [![Release](https://img.shields.io/github/v/release/neilberkman/clippy)](https://github.com/neilberkman/clippy/releases)
 [![CI](https://github.com/neilberkman/clippy/actions/workflows/release.yml/badge.svg)](https://github.com/neilberkman/clippy/actions/workflows/release.yml)
