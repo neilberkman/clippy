@@ -107,6 +107,18 @@ func TestSlackHeadingUsesHeaderLevel(t *testing.T) {
 	}
 }
 
+// Slack drops the header attribute, so heading text must also be bold or it
+// pastes as ordinary body text with no emphasis at all.
+func TestSlackHeadingTextIsBold(t *testing.T) {
+	ops := renderSlack(t, "# One\n\n## Two")
+
+	for _, text := range []string{"One", "Two"} {
+		if got := attrOf(t, ops, text, "bold"); got != true {
+			t.Errorf("heading %q bold = %v, want true", text, got)
+		}
+	}
+}
+
 func TestSlackNestedListIndent(t *testing.T) {
 	ops := renderSlack(t, "- top\n  - nested\n")
 

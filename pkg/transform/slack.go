@@ -111,8 +111,11 @@ func (r *slackRenderer) renderBlock(node ast.Node, blockAttrs map[string]any, li
 		r.pushNewline(blockAttrs)
 
 	case *ast.Heading:
-		// Slack renders Quill's header attribute natively.
-		r.renderInlineChildren(n, nil, blockAttrs, listDepth)
+		// Slack's composer has no heading construct and drops Quill's header
+		// attribute silently, so heading text is emitted bold to survive the
+		// paste. The header attribute is kept alongside it: it costs nothing
+		// here and carries the real structure to any editor that honours it.
+		r.renderInlineChildren(n, withAttr(nil, "bold", true), blockAttrs, listDepth)
 		r.pushNewline(withAttr(blockAttrs, "header", n.Level))
 
 	case *ast.CodeBlock:
