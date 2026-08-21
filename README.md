@@ -122,8 +122,9 @@ Copy Markdown, render it as rich email content, then paste normally into Gmail,
 Mimestream, Mail, or another rich composer:
 
 ```bash
-# Copy a Markdown draft first, then render the clipboard in place
-clippy md2rich
+clippy md2rich draft.md        # from a file
+cat draft.md | clippy md2rich  # from a pipe
+clippy md2rich                 # render the clipboard in place
 ```
 
 The clipboard carries HTML, RTF, and plain-text representations together. Rich
@@ -131,7 +132,28 @@ composers preserve intentional paragraph spacing, emphasis, links, lists,
 inline code, and Mimestream-style fenced code blocks; plain-text targets still
 receive a readable fallback.
 
-### 9. Helpful Flags
+### 9. Native Slack Messages
+
+Write Markdown, then paste into any Slack composer and get real formatting —
+not literal asterisks:
+
+```bash
+clippy md2slack notes.md         # from a file
+cat notes.md | clippy md2slack   # from a pipe
+clippy md2slack                  # render the clipboard in place
+```
+
+Slack's composer stores messages as a Quill Delta document and puts that same
+document on the clipboard when you copy from it. `md2slack` writes exactly that
+format, so a normal Command-V produces bold, italic, strikethrough, inline
+code, code blocks, block quotes, headings, links, and bulleted or numbered
+lists (including nesting) — as though the message had been typed in Slack.
+
+Slack has no table, image, or horizontal-rule construct, so tables become
+aligned text rows, images become links, and rules become a divider line.
+Anything that does not understand the Slack format receives plain text.
+
+### 10. Helpful Flags
 
 ```bash
 clippy -v file.txt     # Show what happened

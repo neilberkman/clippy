@@ -31,6 +31,11 @@ type CopyEmailArgs struct {
 	Signoff      string `json:"signoff,omitempty" jsonschema:"description=Closing and signature, using newlines where line breaks should remain"`
 }
 
+// CopySlackArgs defines arguments for the native Slack message tool.
+type CopySlackArgs struct {
+	Markdown string `json:"markdown" jsonschema:"description=The Slack message written in Markdown"`
+}
+
 // PasteArgs defines arguments for the paste tool
 type PasteArgs struct {
 	Destination string `json:"destination,omitempty" jsonschema:"description=Directory to paste files to (defaults to current directory)"`
@@ -125,6 +130,10 @@ func StartServerWithOptions(opts ServerOptions) error {
 		return err
 	}
 	copyEmailSpec, err := requireToolSpec(toolSpecs, "copy_email")
+	if err != nil {
+		return err
+	}
+	copySlackSpec, err := requireToolSpec(toolSpecs, "copy_slack")
 	if err != nil {
 		return err
 	}
@@ -368,6 +377,55 @@ func StartServerWithOptions(opts ServerOptions) error {
 			result = CopyResult{
 				Success: false,
 				Message: fmt.Sprintf("Failed to render and copy email: %v", err),
+			}
+		}
+
+		resultJSON, _ := json.Marshal(result)
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{mcp.TextContent{
+				Type: "text",
+				Text: string(resultJSON),
+			}},
+		}, nil
+	})
+
+	copySlackMarkdownDesc, err := toolParamDescription(copySlackSpec, "markdown")
+	if err != nil {
+		return err
+	}
+
+	copySlackTool := mcp.NewTool(
+		"copy_slack",
+		mcp.WithDescription(copySlackSpec.Description),
+		mcp.WithTitleAnnotation("Copy Slack-ready message"),
+		mcp.WithReadOnlyHintAnnotation(false),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithIdempotentHintAnnotation(true),
+		mcp.WithOpenWorldHintAnnotation(false),
+		mcp.WithString("markdown", mcp.Required(), mcp.Description(copySlackMarkdownDesc)),
+	)
+
+	// Add native Slack message handler. This writes the clipboard only; it
+	// never posts or sends a message.
+	s.AddTool(copySlackTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		var args CopySlackArgs
+		argsBytes, _ := json.Marshal(request.Params.Arguments)
+		if err := json.Unmarshal(argsBytes, &args); err != nil {
+			return nil, fmt.Errorf("invalid arguments: %w", err)
+		}
+		if strings.TrimSpace(args.Markdown) == "" {
+			return nil, fmt.Errorf("markdown is required")
+		}
+
+		result := CopyResult{
+			Success: true,
+			Type:    "slack_message",
+			Message: fmt.Sprintf("Copied %d characters as a native Slack message; paste with Command-V into any Slack composer", utf8.RuneCountInString(args.Markdown)),
+		}
+		if err := clippy.CopySlack(args.Markdown); err != nil {
+			result = CopyResult{
+				Success: false,
+				Message: fmt.Sprintf("Failed to render and copy Slack message: %v", err),
 			}
 		}
 

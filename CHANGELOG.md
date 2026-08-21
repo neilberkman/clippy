@@ -4,6 +4,11 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+### Added
+
+- **Native Slack messages** — `clippy md2slack` and the `copy_slack` MCP tool render Markdown into Slack's own message format, so a normal Command-V into any Slack composer produces real formatting rather than literal asterisks: bold, italic, strikethrough, inline code, code blocks, block quotes, headings, links, and bulleted or numbered lists including nesting. Slack stores messages as a Quill Delta document and puts that document on the clipboard under a custom type when you copy from it; clippy writes the same bytes, so pasting reconstructs the message as though it had been typed in Slack. Constructs Slack has no equivalent for degrade rather than vanish — tables become aligned text rows, images become links, horizontal rules become a divider, and task lists keep their checked state. Anything that does not understand the format receives plain text
+- **`md2rich` and `md2slack` accept a file or a pipe** — both commands read a named Markdown file or piped stdin in addition to the clipboard (`clippy md2slack notes.md`, `cat notes.md | clippy md2slack`)
+
 ### Removed
 
 - The `md2rtf` alias for `md2rich` — the experimental name had been kept as a hidden alias; use `md2rich`

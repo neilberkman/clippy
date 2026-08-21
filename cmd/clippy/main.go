@@ -256,6 +256,7 @@ The MCP server allows AI assistants like Claude to interact with your clipboard 
 Available tools:
 - clipboard_copy: Copy text or files to clipboard
 - copy_email: Copy a Markdown email draft as Gmail-ready rich text
+- copy_slack: Copy a Markdown message as a native Slack message
 - clipboard_paste: Paste clipboard content to files
 - get_recent_downloads: List recently downloaded files
 
@@ -290,6 +291,7 @@ Add to ~/Library/Application Support/Claude/claude_desktop_config.json:
 
 	rootCmd.AddCommand(mcpCmd)
 	rootCmd.AddCommand(newMD2RichCommand())
+	rootCmd.AddCommand(newMD2SlackCommand())
 
 	// Execute the command
 	if err := rootCmd.Execute(); err != nil {
@@ -298,27 +300,102 @@ Add to ~/Library/Application Support/Claude/claude_desktop_config.json:
 	}
 }
 
+// markdownInput resolves the Markdown to render: an explicit file argument, a
+// piped stdin stream, or whatever is on the clipboard. One helper keeps every
+// render command accepting the same three sources.
+func markdownInput(args []string) (string, error) {
+	if len(args) == 1 && args[0] != "-" {
+		data, err := os.ReadFile(args[0])
+		if err != nil {
+			return "", fmt.Errorf("could not read %s: %w", args[0], err)
+		}
+		if strings.TrimSpace(string(data)) == "" {
+			return "", fmt.Errorf("%s contains no Markdown", args[0])
+		}
+		return string(data), nil
+	}
+
+	stat, _ := os.Stdin.Stat()
+	piped := (stat.Mode() & os.ModeCharDevice) == 0
+	if (len(args) == 1 && args[0] == "-") || piped {
+		var buf bytes.Buffer
+		if _, err := io.Copy(&buf, os.Stdin); err != nil {
+			return "", fmt.Errorf("could not read from stdin: %w", err)
+		}
+		if strings.TrimSpace(buf.String()) == "" {
+			return "", fmt.Errorf("stdin contained no Markdown")
+		}
+		return buf.String(), nil
+	}
+
+	markdown, ok := clippy.GetText()
+	if !ok || strings.TrimSpace(markdown) == "" {
+		return "", fmt.Errorf("clipboard is empty or contains no text")
+	}
+	return markdown, nil
+}
+
 func newMD2RichCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "md2rich",
-		Short: "Render clipboard Markdown for rich email paste",
-		Long: `Render Markdown currently on the clipboard and replace it with a rich
-pasteboard item containing HTML, RTF, and plain-text representations.
+		Use:   "md2rich [file.md]",
+		Short: "Render Markdown for rich email paste",
+		Long: `Render Markdown and place it on the clipboard as a rich pasteboard item
+containing HTML, RTF, and plain-text representations.
+
+Reads the named file, piped stdin, or the current clipboard contents.
 
 The HTML follows Gmail-style tight line spacing and includes Mimestream-like
 inline and fenced code formatting. RTF and plain text remain available as
 fallbacks for applications that do not accept HTML.`,
-		Args: cobra.NoArgs,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			markdown, ok := clippy.GetText()
-			if !ok || markdown == "" {
-				return fmt.Errorf("clipboard is empty or contains no text")
+			markdown, err := markdownInput(args)
+			if err != nil {
+				return err
 			}
 			if err := clippy.CopyMarkdown(markdown); err != nil {
 				return err
 			}
 			if verbose {
-				fmt.Fprintln(os.Stderr, "✅ Rendered clipboard Markdown as rich text")
+				fmt.Fprintln(os.Stderr, "✅ Rendered Markdown as rich text")
+			}
+			return nil
+		},
+	}
+}
+
+func newMD2SlackCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "md2slack [file.md]",
+		Short: "Render Markdown for native Slack paste",
+		Long: `Render Markdown and place it on the clipboard in Slack's own message format.
+
+Reads the named file, piped stdin, or the current clipboard contents.
+
+Pasting into a Slack composer produces native formatting — bold, italic,
+strikethrough, inline code, code blocks, bulleted and numbered lists, block
+quotes, and links — exactly as if the message had been composed in Slack,
+because the clipboard carries the same editor state Slack itself writes.
+
+Slack has no table, image, or horizontal-rule construct: tables become aligned
+text rows, images become links, and rules become a divider line. Applications
+that do not understand the Slack format receive plain text.
+
+Examples:
+  clippy md2slack notes.md
+  cat release-notes.md | clippy md2slack
+  clippy md2slack            # renders Markdown already on the clipboard`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			markdown, err := markdownInput(args)
+			if err != nil {
+				return err
+			}
+			if err := clippy.CopySlack(markdown); err != nil {
+				return err
+			}
+			if verbose {
+				fmt.Fprintln(os.Stderr, "✅ Rendered Markdown as a Slack message")
 			}
 			return nil
 		},

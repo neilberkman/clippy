@@ -179,6 +179,52 @@ int copyRichText(const void *htmlBytes, size_t htmlLength,
     }
 }
 
+// Copy an opaque custom-typed blob plus a plain-text fallback as one
+// pasteboard item. Electron editors read their own rich formats out of a blob
+// like this, so a native tool can hand such an editor exactly the bytes it
+// would have produced itself. The type identifier is supplied by the caller.
+int copyCustomDataWithText(const char *typeIdentifier,
+                           const void *customBytes, size_t customLength,
+                           const void *plainTextBytes, size_t plainTextLength) {
+    @autoreleasepool {
+        [NSApplication sharedApplication]; // Initialize the app context
+
+        NSString *type = [NSString stringWithUTF8String:typeIdentifier];
+        if (type == nil) {
+            return -1;
+        }
+
+        NSData *customData = customLength == 0
+            ? [NSData data]
+            : [NSData dataWithBytes:customBytes length:customLength];
+        NSData *plainTextData = plainTextLength == 0
+            ? [NSData data]
+            : [NSData dataWithBytes:plainTextBytes length:plainTextLength];
+
+        NSPasteboardItem *item = [[NSPasteboardItem alloc] init];
+        BOOL success = [item setData:plainTextData forType:NSPasteboardTypeString];
+        success = success && [item setData:customData forType:type];
+
+        if (!success) {
+            return -1; // Failed to prepare a representation
+        }
+
+        NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+        NSInteger initialChangeCount = [pasteboard changeCount];
+
+        [pasteboard clearContents];
+        if (![pasteboard writeObjects:@[item]]) {
+            return -1; // Write operation failed to start
+        }
+
+        if (waitForPasteboardChange(pasteboard, initialChangeCount) != 0) {
+            return -2; // Timed out
+        }
+
+        return 0; // Success
+    }
+}
+
 // Function to copy text with a specific UTI/type to the clipboard
 int copyTextWithType(const char *text, const char *typeIdentifier) {
     @autoreleasepool {
@@ -587,6 +633,52 @@ func CopyRichText(htmlContent string, rtfContent []byte, plainText string) error
 		C.size_t(len(htmlBytes)),
 		cRTF,
 		C.size_t(len(rtfContent)),
+		cPlainText,
+		C.size_t(len(plainTextBytes)),
+	)
+
+	switch result {
+	case 0:
+		return nil
+	case -1:
+		return fmt.Errorf("failed to write to clipboard")
+	case -2:
+		return fmt.Errorf("clipboard operation timed out")
+	default:
+		return fmt.Errorf("unknown clipboard error: %d", result)
+	}
+}
+
+// CopySlackMessage copies a Quill Delta document as Slack's own clipboard
+// format alongside a plain-text fallback. Pasting into Slack reconstructs
+// native formatting — bold, lists, quotes, code blocks — because the composer
+// receives the same editor state it writes when copying from itself. Targets
+// that do not understand the custom type fall back to the plain text.
+func CopySlackMessage(delta string, plainText string) error {
+	customData := EncodeWebCustomData([][2]string{
+		// Slack writes the plain-text entry alongside the delta; matching that
+		// keeps the blob identical in shape to the app's own output.
+		{"public.utf8-plain-text", plainText},
+		{SlackDeltaMIME, delta},
+	})
+	plainTextBytes := []byte(plainText)
+
+	cType := C.CString(ChromiumWebCustomDataType)
+	defer C.free(unsafe.Pointer(cType))
+
+	cCustom := cBytes(customData)
+	if cCustom != nil {
+		defer C.free(cCustom)
+	}
+	cPlainText := cBytes(plainTextBytes)
+	if cPlainText != nil {
+		defer C.free(cPlainText)
+	}
+
+	result := C.copyCustomDataWithText(
+		cType,
+		cCustom,
+		C.size_t(len(customData)),
 		cPlainText,
 		C.size_t(len(plainTextBytes)),
 	)

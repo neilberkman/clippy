@@ -68,6 +68,20 @@
       }
     },
     {
+      "name": "copy_slack",
+      "description": "Copy a Slack message to the macOS clipboard in Slack's own native message format. A normal Command-V paste into any Slack composer produces real formatting - bold, italic, strikethrough, inline code, code blocks, bulleted and numbered lists (including nesting), block quotes, headings, and links - exactly as if the message had been typed in Slack, because the clipboard carries the same editor state Slack writes when copying from itself. Write the message in Markdown. Slack has no table, image, or horizontal-rule construct, so tables become aligned text rows, images become links, and rules become a divider line. Prefer this over clipboard_copy whenever the destination is Slack. This tool only copies content; it never posts or sends a message.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "markdown": {
+            "type": "string",
+            "description": "The Slack message written in Markdown"
+          }
+        },
+        "required": ["markdown"]
+      }
+    },
+    {
       "name": "clipboard_paste",
       "description": "Paste clipboard content to file or directory. Intelligently handles both text content and file references from clipboard.",
       "parameters": {

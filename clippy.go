@@ -201,6 +201,21 @@ func CopyMarkdown(markdown string) error {
 	return nil
 }
 
+// CopySlack renders Markdown as a Slack message and copies it in Slack's own
+// clipboard format plus plain text. Pasting into Slack's composer produces
+// native formatting, as though the message had been written there directly.
+func CopySlack(markdown string) error {
+	message, err := transform.MarkdownToSlack(markdown)
+	if err != nil {
+		return fmt.Errorf("could not render markdown for Slack: %w", err)
+	}
+
+	if err := clipboard.CopySlackMessage(message.Delta, message.PlainText); err != nil {
+		return fmt.Errorf("could not copy Slack message: %w", err)
+	}
+	return nil
+}
+
 // CopyEmail renders explicit email regions and copies HTML, RTF, and plain
 // text to one pasteboard item without inferring language-specific greetings or
 // sign-offs.

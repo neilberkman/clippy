@@ -123,7 +123,7 @@ func TestMD2RichCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("md2rich failed: %v\nOutput: %s", err, output)
 	}
-	if !strings.Contains(string(output), "Rendered clipboard Markdown as rich text") {
+	if !strings.Contains(string(output), "Rendered Markdown as rich text") {
 		t.Fatalf("unexpected md2rich output: %s", output)
 	}
 
@@ -131,6 +131,43 @@ func TestMD2RichCommand(t *testing.T) {
 		if _, ok := clipboard.GetClipboardDataForType(typeName); !ok {
 			t.Errorf("md2rich clipboard is missing %s", typeName)
 		}
+	}
+}
+
+func TestMD2SlackCommand(t *testing.T) {
+	// Seed the clipboard with something unrelated so a passing assertion can
+	// only come from the command having written the Slack payload itself.
+	if err := clipboard.CopyText("placeholder"); err != nil {
+		t.Fatalf("seed clipboard: %v", err)
+	}
+
+	markdownFile := filepath.Join(t.TempDir(), "message.md")
+	if err := os.WriteFile(markdownFile, []byte("Ship **it**.\n\n- one\n- two\n"), 0o600); err != nil {
+		t.Fatalf("write markdown file: %v", err)
+	}
+
+	cmd := exec.Command("./clippy_test", "--verbose", "md2slack", markdownFile)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("md2slack failed: %v\nOutput: %s", err, output)
+	}
+	if !strings.Contains(string(output), "Rendered Markdown as a Slack message") {
+		t.Fatalf("unexpected md2slack output: %s", output)
+	}
+
+	for _, typeName := range []string{clipboard.ChromiumWebCustomDataType, "public.utf8-plain-text"} {
+		if _, ok := clipboard.GetClipboardDataForType(typeName); !ok {
+			t.Errorf("md2slack clipboard is missing %s", typeName)
+		}
+	}
+
+	// The custom blob must carry the Slack delta, not just any bytes.
+	data, ok := clipboard.GetClipboardDataForType(clipboard.ChromiumWebCustomDataType)
+	if !ok {
+		t.Fatal("no web custom data on clipboard")
+	}
+	if !strings.Contains(string(data), "s\x00l\x00a\x00c\x00k\x00") {
+		t.Error("web custom data does not contain the slack MIME type (UTF-16)")
 	}
 }
 
