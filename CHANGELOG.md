@@ -4,6 +4,19 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-09-04
+
+### Fixed
+
+- Slack tool guidance now explains CommonMark/GFM fences, preservation of column padding, and the unaligned text fallback for Markdown pipe tables. Plain-text clipboard reads do not verify Slack formatting; the MCP tool and CLI use the same renderer
+- Slack copy results distinguish generated formatting from a verified paste, and validation failures return an MCP tool error before changing the clipboard
+
+### Added
+
+- `copy_slack` returns code-block, code-line, inline-code, and table counts, with warnings for flattened tables and multiline inline code
+- Optional `expected_code_blocks` validates the intended block count before copying; `preview: true` reports counts and warnings without changing the clipboard
+- `clippy --verbose md2slack` reports formatting counts, and the CLI prints formatting warnings
+
 ## [1.9.0] - 2026-08-21
 
 ### Added
