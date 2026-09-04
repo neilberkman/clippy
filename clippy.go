@@ -205,15 +205,51 @@ func CopyMarkdown(markdown string) error {
 // clipboard format plus plain text. Pasting into Slack's composer produces
 // native formatting, as though the message had been written there directly.
 func CopySlack(markdown string) error {
+	_, err := CopySlackWithOptions(markdown, SlackCopyOptions{})
+	return err
+}
+
+// SlackCopyOptions controls validation and whether to write the clipboard.
+type SlackCopyOptions struct {
+	Preview            bool
+	ExpectedCodeBlocks *int
+}
+
+// SlackCopyResult reports what was generated and whether it was copied.
+// Formatting describes the generated document; it cannot verify a Slack paste.
+type SlackCopyResult struct {
+	Copied     bool                      `json:"copied"`
+	Formatting transform.SlackFormatting `json:"formatting"`
+	Warnings   []transform.SlackWarning  `json:"warnings,omitempty"`
+}
+
+// CopySlackWithOptions renders once, checks the expected formatting before any
+// clipboard write, and returns diagnostics even when that check fails.
+func CopySlackWithOptions(markdown string, opts SlackCopyOptions) (*SlackCopyResult, error) {
+	return copySlackWithOptions(markdown, opts, clipboard.CopySlackMessage)
+}
+
+func copySlackWithOptions(markdown string, opts SlackCopyOptions, copyMessage func(string, string) error) (*SlackCopyResult, error) {
+	if opts.ExpectedCodeBlocks != nil && *opts.ExpectedCodeBlocks < 0 {
+		return nil, fmt.Errorf("expected_code_blocks must be a non-negative integer")
+	}
 	message, err := transform.MarkdownToSlack(markdown)
 	if err != nil {
-		return fmt.Errorf("could not render markdown for Slack: %w", err)
+		return nil, fmt.Errorf("could not render markdown for Slack: %w", err)
+	}
+	result := &SlackCopyResult{Formatting: message.Formatting, Warnings: message.Warnings}
+	if opts.ExpectedCodeBlocks != nil && message.Formatting.CodeBlocks != *opts.ExpectedCodeBlocks {
+		return result, fmt.Errorf("expected %d code blocks, rendered %d; clipboard unchanged. Put three-backtick fences on their own lines around each non-empty code block, with real newlines; Markdown pipe tables and inline backticks do not create code blocks", *opts.ExpectedCodeBlocks, message.Formatting.CodeBlocks)
+	}
+	if opts.Preview {
+		return result, nil
 	}
 
-	if err := clipboard.CopySlackMessage(message.Delta, message.PlainText); err != nil {
-		return fmt.Errorf("could not copy Slack message: %w", err)
+	if err := copyMessage(message.Delta, message.PlainText); err != nil {
+		return result, fmt.Errorf("could not copy Slack message: %w", err)
 	}
-	return nil
+	result.Copied = true
+	return result, nil
 }
 
 // CopyEmail renders explicit email regions and copies HTML, RTF, and plain

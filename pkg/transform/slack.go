@@ -16,8 +16,24 @@ import (
 // rather than round-tripping through HTML. PlainText is the fallback every
 // other target receives.
 type SlackMessage struct {
-	Delta     string
-	PlainText string
+	Delta      string
+	PlainText  string
+	Formatting SlackFormatting
+	Warnings   []SlackWarning
+}
+
+// SlackFormatting describes the generated document, not the result of a paste.
+type SlackFormatting struct {
+	CodeBlocks      int `json:"code_blocks"`
+	CodeLines       int `json:"code_lines"`
+	InlineCodeSpans int `json:"inline_code_spans"`
+	Tables          int `json:"tables"`
+}
+
+// SlackWarning identifies Markdown that may lose the author's intended layout.
+type SlackWarning struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }
 
 // slackOp is one Quill Delta operation. Attributes precedes Insert so the
@@ -54,13 +70,26 @@ func MarkdownToSlack(source string) (*SlackMessage, error) {
 		Delta: string(delta),
 		// Soft breaks are preserved: chat messages are line-oriented, so an
 		// authored line break should survive into the fallback text.
-		PlainText: renderPlainSegment(source, true),
+		PlainText:  renderPlainSegment(source, true),
+		Formatting: renderer.formatting,
+		Warnings:   renderer.warnings,
 	}, nil
 }
 
 type slackRenderer struct {
-	source []byte
-	ops    []slackOp
+	source     []byte
+	ops        []slackOp
+	formatting SlackFormatting
+	warnings   []SlackWarning
+}
+
+func (r *slackRenderer) warn(code, message string) {
+	for _, warning := range r.warnings {
+		if warning.Code == code {
+			return
+		}
+	}
+	r.warnings = append(r.warnings, SlackWarning{Code: code, Message: message})
 }
 
 func (r *slackRenderer) pushInsert(value string, attrs map[string]any) {
@@ -159,8 +188,16 @@ func (r *slackRenderer) renderBlock(node ast.Node, blockAttrs map[string]any, li
 // renderCodeLines emits one Quill line per source line, each terminated by a
 // code-block newline — Quill marks code blocks line by line.
 func (r *slackRenderer) renderCodeLines(value []byte, blockAttrs map[string]any) {
+	lines := splitLines(string(value))
+	if len(lines) == 0 {
+		return
+	}
+	if len(r.ops) == 0 || r.ops[len(r.ops)-1].Attributes["code-block"] != true {
+		r.formatting.CodeBlocks++
+	}
+	r.formatting.CodeLines += len(lines)
 	codeAttrs := withAttr(blockAttrs, "code-block", true)
-	for _, line := range splitLines(string(value)) {
+	for _, line := range lines {
 		r.pushInsert(line, nil)
 		r.pushNewline(codeAttrs)
 	}
@@ -196,6 +233,8 @@ func (r *slackRenderer) renderList(list *ast.List, blockAttrs map[string]any, li
 // renderTable flattens a GFM table: Slack has no table construct, so each row
 // becomes a line of cells joined by a separator, header cells kept bold.
 func (r *slackRenderer) renderTable(table *extast.Table, blockAttrs map[string]any, listDepth int) {
+	r.formatting.Tables++
+	r.warn("table_flattened", "Markdown tables become proportional-font rows separated by pipes; columns are not padded or aligned. For aligned columns, use space-padded text inside a fenced code block.")
 	for row := table.FirstChild(); row != nil; row = row.NextSibling() {
 		_, isHeader := row.(*extast.TableHeader)
 		first := true
@@ -234,6 +273,13 @@ func (r *slackRenderer) renderInline(node ast.Node, inlineAttrs, blockAttrs map[
 		r.pushInsert(string(n.Value), inlineAttrs)
 
 	case *ast.CodeSpan:
+		r.formatting.InlineCodeSpans++
+		for child := n.FirstChild(); child != nil; child = child.NextSibling() {
+			if t, ok := child.(*ast.Text); ok && strings.ContainsAny(string(t.Segment.Value(r.source)), "\r\n") {
+				r.warn("multiline_inline_code", "A code span crosses source lines but renders as inline code, not a code block. For a table or multiline code, put an opening fence of three backticks and a closing fence on their own lines, with real newlines between them.")
+				break
+			}
+		}
 		r.pushInsert(r.inlineText(n), withAttr(inlineAttrs, "code", true))
 
 	case *ast.Emphasis:

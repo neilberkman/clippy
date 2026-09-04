@@ -252,3 +252,89 @@ func TestSlackEmptyInputProducesValidDocument(t *testing.T) {
 		t.Errorf("empty document ops = %+v, want one newline", ops)
 	}
 }
+
+func TestSlackFormattingDiagnostics(t *testing.T) {
+	cases := []struct {
+		name     string
+		markdown string
+		want     SlackFormatting
+		warning  string
+	}{
+		{"plain fence", "Before\n\n```\na  b\nc  d\n```\n\nAfter", SlackFormatting{CodeBlocks: 1, CodeLines: 2}, ""},
+		{"indented rows", "Before\n\n```\n  a  b\n  c  d\n```\n\nAfter", SlackFormatting{CodeBlocks: 1, CodeLines: 2}, ""},
+		{"four-backtick fence with literal fences", "````md\n```\n| a | b |\n```\n````", SlackFormatting{CodeBlocks: 1, CodeLines: 3}, ""},
+		{"tilde fence", "~~~go\ncode\n~~~", SlackFormatting{CodeBlocks: 1, CodeLines: 1}, ""},
+		{"indented code", "Before\n\n    code\n", SlackFormatting{CodeBlocks: 1, CodeLines: 1}, ""},
+		{"blank code line", "```\nfirst\n\nlast\n```", SlackFormatting{CodeBlocks: 1, CodeLines: 3}, ""},
+		{"separate blocks", "```\none\n```\n\n```\ntwo\n```", SlackFormatting{CodeBlocks: 2, CodeLines: 2}, ""},
+		{"adjacent fences", "```\none\n```\n```\ntwo\n```", SlackFormatting{CodeBlocks: 2, CodeLines: 2}, ""},
+		{"empty fence emits no code lines", "```\n```", SlackFormatting{}, ""},
+		{"inline code", "Use `one` and ``a ` b``.", SlackFormatting{InlineCodeSpans: 2}, ""},
+		{"two backticks across lines", "``\na  b\nc  d\n``", SlackFormatting{InlineCodeSpans: 1}, "multiline_inline_code"},
+		{"fence inside paragraph", "Before ```a  b\nc  d``` after", SlackFormatting{InlineCodeSpans: 1}, "multiline_inline_code"},
+		{"pipe table", "| label | value |\n|---|---|\n| long label | x |", SlackFormatting{Tables: 1}, "table_flattened"},
+		{"prose pipes are not a table", "Use a | b.", SlackFormatting{}, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			message, err := MarkdownToSlack(tc.markdown)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if message.Formatting != tc.want {
+				t.Errorf("formatting = %+v, want %+v", message.Formatting, tc.want)
+			}
+			if tc.warning == "" {
+				if len(message.Warnings) != 0 {
+					t.Errorf("unexpected warnings: %+v", message.Warnings)
+				}
+			} else if len(message.Warnings) != 1 || message.Warnings[0].Code != tc.warning {
+				t.Errorf("warnings = %+v, want %s", message.Warnings, tc.warning)
+			}
+
+			// Diagnostics must agree with the actual attributes sent to Slack.
+			var codeLines, codeBlocks int
+			var previousCodeLine bool
+			for _, op := range decodeOps(t, message.Delta) {
+				for range strings.Count(op.Insert, "\n") {
+					isCode := op.Attributes["code-block"] == true
+					if isCode {
+						codeLines++
+						if !previousCodeLine {
+							codeBlocks++
+						}
+					}
+					previousCodeLine = isCode
+				}
+			}
+			if codeLines != message.Formatting.CodeLines || codeBlocks != message.Formatting.CodeBlocks {
+				t.Errorf("delta has %d code blocks / %d lines, report claims %+v", codeBlocks, codeLines, message.Formatting)
+			}
+		})
+	}
+}
+
+// Both variants used in the September 2-3 incident must preserve padding and
+// format every table row. Neither requires changing the fence or copy tool.
+func TestSlackFencedTablePreservesPadding(t *testing.T) {
+	for _, indent := range []string{"", "  "} {
+		rows := indent + "name   value\n" + indent + "alpha  10\n" + indent + "beta   20\n"
+		message, err := MarkdownToSlack("Before\n\n```\n" + rows + "```\n\nAfter")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var text strings.Builder
+		for _, op := range decodeOps(t, message.Delta) {
+			text.WriteString(op.Insert)
+		}
+		if !strings.Contains(text.String(), rows) {
+			t.Errorf("padding lost for indent %q: %q", indent, text.String())
+		}
+		if message.Formatting.CodeBlocks != 1 || message.Formatting.CodeLines != 3 {
+			t.Errorf("unexpected formatting: %+v", message.Formatting)
+		}
+		if strings.Contains(message.PlainText, "```") {
+			t.Error("plain text unexpectedly contains fence markers")
+		}
+	}
+}

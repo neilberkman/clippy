@@ -377,9 +377,13 @@ strikethrough, inline code, code blocks, bulleted and numbered lists, block
 quotes, and links — exactly as if the message had been composed in Slack,
 because the clipboard carries the same editor state Slack itself writes.
 
-Slack has no table, image, or horizontal-rule construct: tables become aligned
+Slack has no table, image, or horizontal-rule construct: tables become unaligned
 text rows, images become links, and rules become a divider line. Applications
 that do not understand the Slack format receive plain text.
+
+For aligned columns, use space-padded text inside a fenced code block, with
+each fence on its own line. Content indentation is preserved, not required.
+Use CommonMark/GFM syntax, including **bold** and ~~strikethrough~~.
 
 Examples:
   clippy md2slack notes.md
@@ -391,11 +395,16 @@ Examples:
 			if err != nil {
 				return err
 			}
-			if err := clippy.CopySlack(markdown); err != nil {
+			report, err := clippy.CopySlackWithOptions(markdown, clippy.SlackCopyOptions{})
+			if err != nil {
 				return err
+			}
+			for _, warning := range report.Warnings {
+				cmd.PrintErrf("Warning [%s]: %s\n", warning.Code, warning.Message)
 			}
 			if verbose {
 				fmt.Fprintln(os.Stderr, "✅ Rendered Markdown as a Slack message")
+				cmd.PrintErrf("Generated %d code blocks (%d lines), %d inline code spans, %d flattened tables; Slack paste not verified\n", report.Formatting.CodeBlocks, report.Formatting.CodeLines, report.Formatting.InlineCodeSpans, report.Formatting.Tables)
 			}
 			return nil
 		},

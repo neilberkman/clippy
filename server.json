@@ -69,13 +69,21 @@
     },
     {
       "name": "copy_slack",
-      "description": "Copy a Slack message to the macOS clipboard in Slack's own native message format. A normal Command-V paste into any Slack composer produces real formatting - bold, italic, strikethrough, inline code, code blocks, bulleted and numbered lists (including nesting), block quotes, headings, and links - exactly as if the message had been typed in Slack, because the clipboard carries the same editor state Slack writes when copying from itself. Write the message in Markdown. Slack has no table, image, or horizontal-rule construct, so tables become aligned text rows, images become links, and rules become a divider line. Prefer this over clipboard_copy whenever the destination is Slack. This tool only copies content; it never posts or sends a message.",
+      "description": "Copy CommonMark/GFM Markdown to the macOS clipboard as a native Slack message, preserving bold, italic, strike, inline code, code blocks, lists, quotes, and links. Prefer this over clipboard_copy for Slack; it never sends or posts. Input is Markdown, not Slack mrkdwn: use **bold** and ~~strike~~. For multiline code or aligned columns, put triple-backtick fences on their own lines with real newlines, and pad columns with spaces inside the fence. Content indentation is preserved but is not required for a code block. Markdown pipe tables become unaligned text rows, not monospaced tables. Set expected_code_blocks when intending code blocks (e.g. 1 for one fenced table); a mismatch fails before copying. Use preview=true to inspect formatting counts and warnings without changing the clipboard. Success confirms copying, not Slack's rendering. Paste with normal Command-V. Plain-text clipboard reads omit formatting and fence markers; they cannot verify Slack formatting. If reported code blocks are correct but the paste is wrong, investigate the clipboard/paste path instead of removing fences or switching to plain-text copy. The md2slack CLI uses the same renderer.",
       "parameters": {
         "type": "object",
         "properties": {
           "markdown": {
             "type": "string",
-            "description": "The Slack message written in Markdown"
+            "description": "Message in CommonMark/GFM Markdown. Code block example (newlines between each line): Before\n\n```\n  name   value\n  alpha  10\n```\n\nAfter. Fence only the code/table, not the entire message. Preserve existing padding when editing."
+          },
+          "preview": {
+            "type": "boolean",
+            "description": "Render and report formatting counts and warnings without changing the clipboard (default false). This is not a visual preview of a Slack paste."
+          },
+          "expected_code_blocks": {
+            "type": "integer",
+            "description": "Expected number of rendered code blocks (non-negative integer). Set this when intending code blocks, such as 1 for one fenced table. A mismatch returns an error and leaves the clipboard unchanged; omitted means no count check."
           }
         },
         "required": ["markdown"]

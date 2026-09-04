@@ -150,8 +150,37 @@ code, code blocks, block quotes, headings, links, and bulleted or numbered
 lists (including nesting) — as though the message had been typed in Slack.
 
 Slack has no table, image, or horizontal-rule construct, so tables become
-aligned text rows, images become links, and rules become a divider line.
+unaligned text rows, images become links, and rules become a divider line.
 Anything that does not understand the Slack format receives plain text.
+
+For aligned columns, use space-padded text inside a fenced code block. Put
+both fences on their own lines, with real line breaks between the rows:
+
+````markdown
+Current values:
+
+```
+  name   value
+  alpha  10
+  beta   20
+```
+````
+
+Indentation inside a fence is preserved; it is not required to create a code
+block. Keep existing column padding when editing. Input uses CommonMark/GFM
+syntax (`**bold**`, `~~strikethrough~~`), not Slack's mrkdwn syntax.
+
+The `copy_slack` MCP tool returns `formatting` counts and `warnings`. Set
+`expected_code_blocks: 1` for a message with one fenced table: a mismatch
+returns an error before changing the clipboard. `preview: true` reports the
+same counts and warnings without copying. `clippy --verbose md2slack` reports
+counts too, and the CLI always prints formatting warnings.
+
+These counts describe generated formatting, not a verified Slack paste. Use
+normal Command-V. Plain-text clipboard reads omit formatting and fence markers,
+so they cannot verify code blocks. If the counts are correct but the paste
+is wrong, inspect the clipboard/paste path before changing the Markdown.
+The MCP tool and CLI use the same renderer.
 
 ### 10. Helpful Flags
 
