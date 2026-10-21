@@ -68,6 +68,20 @@
       }
     },
     {
+      "name": "copy_teams",
+      "description": "Copy CommonMark/GFM Markdown to the macOS clipboard as Teams-ready rich text. Reuses md2rich formatting inside a complete UTF-8 HTML document. Teams renders a rich paste only with a complete HTML document and no plain text; when plain text is offered, it falls back to it and shows raw text. Clippy therefore writes only HTML and RTF, with no plain text. Plain-text-only apps (Terminal, editors) paste nothing, and plain-text clipboard reads return nothing by design. Paste with normal Command-V into Microsoft Teams. This tool only copies content; it never sends or posts a message. Success confirms copying, not Teams rendering. The md2teams CLI uses the same renderer.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "markdown": {
+            "type": "string",
+            "description": "Message in CommonMark/GFM Markdown, including **bold**, *italic*, ~~strike~~, links, lists, inline code, fenced code blocks, and tables. Supply the original Markdown source, not a plain-text readback of a rich paste."
+          }
+        },
+        "required": ["markdown"]
+      }
+    },
+    {
       "name": "copy_slack",
       "description": "Copy CommonMark/GFM Markdown to the macOS clipboard as a native Slack message, preserving bold, italic, strike, inline code, code blocks, lists, quotes, and links. Prefer this over clipboard_copy for Slack; it never sends or posts. Input is Markdown, not Slack mrkdwn: use **bold** and ~~strike~~. For multiline code or aligned columns, put triple-backtick fences on their own lines with real newlines, and pad columns with spaces inside the fence. Content indentation is preserved but is not required for a code block. Markdown pipe tables become unaligned text rows, not monospaced tables. Set expected_code_blocks when intending code blocks (e.g. 1 for one fenced table); a mismatch fails before copying. Use preview=true to inspect formatting counts and warnings without changing the clipboard. Success confirms copying, not Slack's rendering. Paste with normal Command-V. Plain-text clipboard reads omit formatting and fence markers; they cannot verify Slack formatting. If reported code blocks are correct but the paste is wrong, investigate the clipboard/paste path instead of removing fences or switching to plain-text copy. The md2slack CLI uses the same renderer.",
       "parameters": {

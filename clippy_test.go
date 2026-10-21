@@ -1,12 +1,14 @@
 package clippy
 
 import (
+	"bytes"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/neilberkman/clippy/pkg/clipboard"
+	"github.com/neilberkman/clippy/pkg/transform"
 )
 
 func TestIsTextualMimeType(t *testing.T) {
@@ -197,6 +199,53 @@ func TestCopyMarkdownWritesRichRepresentations(t *testing.T) {
 	plain, ok := clipboard.GetText()
 	if !ok || !strings.Contains(plain, "fmt.Println") {
 		t.Errorf("CopyMarkdown() plain fallback = %q, present=%v", plain, ok)
+	}
+}
+
+func TestCopyTeamsWritesDocumentAndRTF(t *testing.T) {
+	markdown := "**naïve café — 世界 👋**"
+	rich, err := transform.MarkdownToRichText(markdown)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := clipboard.CopyText("stale text"); err != nil {
+		t.Fatal(err)
+	}
+	if err := CopyTeams(markdown); err != nil {
+		t.Fatal(err)
+	}
+	wantHTML := `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>` + rich.HTML + `</body></html>`
+	for _, tc := range []struct {
+		typeName string
+		want     []byte
+	}{
+		{"public.html", []byte(wantHTML)},
+		{"public.rtf", rich.RTF},
+	} {
+		got, ok := clipboard.GetClipboardDataForType(tc.typeName)
+		if !ok || !bytes.Equal(got, tc.want) {
+			t.Errorf("%s = %q (present=%v), want %q", tc.typeName, got, ok, tc.want)
+		}
+	}
+	if text, ok := clipboard.GetText(); ok && strings.TrimSpace(text) != "naïve café — 世界 👋" {
+		t.Errorf("plain text = %q; want only RTF-derived text, not Markdown or HTML source", text)
+	}
+}
+
+func TestCopyTeamsRejectsEmptyMarkdownWithoutChangingClipboard(t *testing.T) {
+	for _, markdown := range []string{"", " \t\r\n", "\u2003"} {
+		if err := clipboard.CopyText("keep this"); err != nil {
+			t.Fatal(err)
+		}
+		if err := CopyTeams(markdown); err == nil {
+			t.Errorf("CopyTeams(%q) should fail", markdown)
+		}
+		if text, ok := clipboard.GetText(); !ok || text != "keep this" {
+			t.Errorf("CopyTeams(%q) changed clipboard: %q, %v", markdown, text, ok)
+		}
+		if _, ok := clipboard.GetClipboardDataForType("public.html"); ok {
+			t.Error("empty input added HTML to clipboard")
+		}
 	}
 }
 

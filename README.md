@@ -182,7 +182,30 @@ so they cannot verify code blocks. If the counts are correct but the paste
 is wrong, inspect the clipboard/paste path before changing the Markdown.
 The MCP tool and CLI use the same renderer.
 
-### 10. Helpful Flags
+### 10. Teams-Ready Markdown
+
+Render a message, then paste with Command-V into Microsoft Teams on macOS:
+
+```bash
+clippy md2teams notes.md        # from a file
+cat notes.md | clippy md2teams  # from a pipe
+clippy md2teams                 # read Markdown from the clipboard
+```
+
+`md2teams` uses the same formatting as `md2rich`, wrapped in a complete UTF-8
+HTML document. Teams on macOS renders a rich paste only when the HTML is a
+complete document and no plain text is offered. When plain text is offered,
+Teams falls back to it and shows raw text. Clippy therefore writes only HTML
+and RTF — no plain text. Successful copying does not verify how Teams renders
+the paste.
+
+Plain-text-only apps (Terminal, editors) therefore paste nothing.
+The clipboard no longer contains the Markdown source, so re-running `md2teams`
+on its own output finds no Markdown on the clipboard.
+Keep the source file for subsequent edits. The `copy_teams` MCP tool accepts
+the same CommonMark/GFM Markdown and only copies; it never sends or posts.
+
+### 11. Helpful Flags
 
 ```bash
 clippy -v file.txt     # Show what happened
@@ -261,6 +284,7 @@ By default, override files can be partial. Add `--strict-metadata` to require fu
 
 - **clipboard_copy** - Copy text or files to system clipboard
 - **copy_email** - Copy a structured email draft as Gmail-ready rich text (never sends)
+- **copy_teams** - Copy Markdown as Teams-ready HTML and RTF (never sends or posts)
 - **clipboard_paste** - Paste clipboard content to files/directories
 - **get_recent_downloads** - List recently downloaded files
 

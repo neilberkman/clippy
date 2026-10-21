@@ -64,6 +64,32 @@ func TestDefaultServerMetadataLoads(t *testing.T) {
 	}
 }
 
+func TestCopyTeamsMetadata(t *testing.T) {
+	metadata, err := DefaultServerMetadata()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tool, ok := metadata.ToolMap()["copy_teams"]
+	if !ok {
+		t.Fatal("expected copy_teams tool")
+	}
+	param, ok := findToolParam(tool, "markdown")
+	if !ok || !param.Required || param.Type != "string" || len(tool.Params) != 1 {
+		t.Fatalf("expected one required markdown string, got %+v", tool.Params)
+	}
+
+	path := writeTempJSON(t, `[{"name":"copy_teams","description":"Teams override","parameters":{"properties":{"markdown":{"description":"Markdown override"}}}}]`)
+	metadata, err = LoadServerMetadata(ServerOptions{ToolsPath: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tool = metadata.ToolMap()["copy_teams"]
+	param, ok = findToolParam(tool, "markdown")
+	if !ok || tool.Description != "Teams override" || param.Description != "Markdown override" || !param.Required {
+		t.Fatalf("Teams overrides lost metadata: %+v", tool)
+	}
+}
+
 func TestLoadServerMetadataPartialToolOverride(t *testing.T) {
 	override := `[
   {
