@@ -12,7 +12,7 @@ min_version = "2026.10.19"
 node = "24.21.0"
 go = "1.25.3"
 # Upstream-compatible linter for lint:go and the golangci-lint Check (wins over the package pin).
-"aqua:golangci/golangci-lint" = "2.5.0"
+"aqua:golangci/golangci-lint" = "2.15.0"
 
 [tasks.setup]
 description = "Install the standards package, its tools and the git hooks, then every setup:* task"
