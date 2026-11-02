@@ -55,6 +55,7 @@ jobs:
     if: github.event_name != 'schedule' && needs.files.outputs.image == 'true'
     permissions:
       contents: read
+      id-token: write
       packages: write
     uses: Rubio-Enterprises/.github/.github/workflows/repository-image.yml@main
 
