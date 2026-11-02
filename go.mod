@@ -11,7 +11,7 @@ require (
 	github.com/neilberkman/mimedescription v1.0.0
 	github.com/olebedev/when v1.1.0
 	github.com/spf13/cobra v1.10.2
-	github.com/yuin/goldmark v1.8.2
+	github.com/yuin/goldmark v1.8.6
 	golang.org/x/image v0.32.0
 )
 
