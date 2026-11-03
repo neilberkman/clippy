@@ -1,6 +1,6 @@
 # Push, schedule and manual jobs (from @rubio-enterprises/standards; this repository owns it). Each
-# job runs only where the file that embodies it exists. GitHub does not allow hashFiles() in a
-# job-level `if`, so the `files` job reports which of those files exist.
+# file-backed job runs only where the file that embodies it exists. GitHub does not allow
+# hashFiles() in a job-level `if`, so the `files` job reports which of those files exist.
 name: standards
 
 "on":
@@ -67,6 +67,15 @@ jobs:
       pages: write
       id-token: write
     uses: Rubio-Enterprises/.github/.github/workflows/codewiki-pages.yml@main
+
+  # The weekly caches the injected `standards` check restores in pull requests (their own caches
+  # are scoped to each pull request). After the week's first push it only looks them up.
+  standards-cache:
+    if: github.event_name != 'schedule'
+    permissions:
+      contents: read
+      packages: read
+    uses: Rubio-Enterprises/.github/.github/workflows/standards-cache.yml@main
 
   trufflehog:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
