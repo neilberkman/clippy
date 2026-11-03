@@ -1,17 +1,9 @@
 {
-  "env": {
-    "CLAUDE_CODE_PLUGIN_PREFER_HTTPS": "1"
-  },
   "hooks": {
     "SessionStart": [
       {
         "matcher": "startup|resume",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "mise run setup"
-          }
-        ]
+        "hooks": [{ "type": "command", "command": "mise run setup" }]
       }
     ]
   }

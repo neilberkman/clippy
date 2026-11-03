@@ -24,9 +24,16 @@ run = ['test -z "$(mise ls --missing)" || mise install', "mise exec -- lefthook 
 # tasks; none is fine.
 depends_post = [{ task = "setup:*", optional = true }]
 
+# npm reads the token from NODE_AUTH_TOKEN itself, so it never appears in a command line. A shell
+# that never read the profile (an agent's, an IDE task's) falls back to the GitHub CLI's token.
 [tasks."standards:install"]
 description = "Install the latest Standards Release (or the STANDARDS_VERSION Release Pin) into .standards/"
-run = '''npm install --prefix .standards --no-save --prefer-online --fetch-retries=0 --no-audit --no-fund --ignore-scripts --loglevel=error "--@rubio-enterprises:registry=${STANDARDS_REGISTRY:-https://npm.pkg.github.com}" '--//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' "@rubio-enterprises/standards@${STANDARDS_VERSION:-latest}"'''
+run = '''
+if [ -z "${NODE_AUTH_TOKEN:-}" ] && command -v gh >/dev/null 2>&1; then
+  NODE_AUTH_TOKEN=$(gh auth token 2>/dev/null) && export NODE_AUTH_TOKEN
+fi
+npm install --prefix .standards --no-save --prefer-online --fetch-retries=0 --no-audit --no-fund --ignore-scripts --loglevel=error "--@rubio-enterprises:registry=${STANDARDS_REGISTRY:-https://npm.pkg.github.com}" '--//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' "@rubio-enterprises/standards@${STANDARDS_VERSION:-latest}"
+'''
 
 # Lifecycle Tasks (test, typecheck, build, e2e) are this repository's own. `test` and `e2e` write
 # reports/test/junit.xml; the Test Gate runs each one that exists.

@@ -19,49 +19,99 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # A public repository's pull request may not add a dependency with a known high or critical
+  # vulnerability (GitHub's dependency review; a private repository would need Code Security). Its
+  # own check, outside the required `test-gate`.
+  dependency-review:
+    if: github.event_name == 'pull_request' && github.event.repository.visibility == 'public'
+    runs-on: ${{ fromJSON(vars.RUNNERS || '{}').small || fromJSON('["ubuntu-slim"]') }}
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+
+  route:
+    permissions:
+      contents: read
+    uses: Rubio-Enterprises/.github/.github/workflows/project-route.yml@main
+    with:
+      enable-hosted-image: true
   test-gate:
     name: test-gate
-    # macos: clippy and pasty use macOS APIs through cgo.
-    runs-on: ${{ fromJSON(vars.RUNNERS || '{}').macos || fromJSON('["macos-26"]') }}
+    needs: route
+    if: always()
+    runs-on: >-
+      ${{ needs.route.result == 'success' && fromJSON(needs.route.outputs.runner)
+      || (fromJSON(vars.RUNNERS || '{}').small || fromJSON('["ubuntu-slim"]')) }}
     timeout-minutes: 30
     steps:
+      - name: Require successful project routing
+        if: needs.route.result != 'success'
+        run: |
+          echo '::error::project runner routing did not succeed'
+          exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Prepare the hosted Repository Image
+        if: needs.route.outputs.hosted-image == 'true'
+        uses: Rubio-Enterprises/.github/actions/project-command@main
+        with:
+          operation: prepare
+          hosted-image: "true"
+          token: ${{ github.token }}
       - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
+        if: needs.route.outputs.ci-image != 'true' && needs.route.outputs.hosted-image != 'true'
         with:
           install: false
+      - name: Trust the checked-out repository in the image
+        if: needs.route.outputs.ci-image == 'true' || needs.route.outputs.hosted-image == 'true'
+        uses: Rubio-Enterprises/.github/actions/project-command@main
+        with:
+          hosted-image: ${{ needs.route.outputs.hosted-image || 'false' }}
+          run: mise trust "$GITHUB_WORKSPACE"
       - name: Install the standards package, the tools and the dependencies
-        run: mise run setup
+        uses: Rubio-Enterprises/.github/actions/project-command@main
+        with:
+          hosted-image: ${{ needs.route.outputs.hosted-image || 'false' }}
+          run: mise run setup
+          forward-env: NODE_AUTH_TOKEN MISE_GITHUB_TOKEN
         env:
           NODE_AUTH_TOKEN: ${{ github.token }}
+          MISE_GITHUB_TOKEN: ${{ github.token }}
       - name: Ensure tmux is available (the TUI snapshot test)
         run: command -v tmux >/dev/null 2>&1 || brew install tmux
       - name: Run the Lifecycle Tasks this repository defines
-        run: |
-          if [ "$(mise exec -- printenv STANDARDS_TEST_GATE || true)" = off ]; then
-            echo "::notice::Test Gate Opt-out: STANDARDS_TEST_GATE = off in mise.toml"
-            exit 0
-          fi
-          for task in typecheck build test e2e; do
-            if ! mise tasks info "$task" >/dev/null 2>&1; then echo "no $task task"; continue; fi
-            rm -rf reports/test
-            echo "::group::mise run $task"
-            mise run "$task"
-            echo "::endgroup::"
-            case $task in test | e2e)
-              # reports/test/junit.xml, or one report per package in a monorepo.
-              if [ -z "$(find reports/test -name '*.xml' 2>/dev/null)" ]; then
-                echo "::error::$task wrote no JUnit report under reports/test/"
-                exit 1
-              fi
-              junit() { find reports/test -name '*.xml' -exec cat {} + | { grep -oE "$1" || true; } | wc -l; }
-              cases=$(junit '<testcase[ >]')
-              failed=$(junit '<(failure|error)[ >/]')
-              echo "$task: $cases test cases, $failed failures or errors"
-              if [ "$cases" -eq 0 ] || [ "$failed" -ne 0 ]; then
-                echo "::error::$task: the JUnit proof needs at least one test case and no failures"
-                exit 1
-              fi
-            esac
-          done
+        uses: Rubio-Enterprises/.github/actions/project-command@main
+        with:
+          hosted-image: ${{ needs.route.outputs.hosted-image || 'false' }}
+          run: |
+            if [ "$(mise exec -- printenv STANDARDS_TEST_GATE || true)" = off ]; then
+              echo "::notice::Test Gate Opt-out: STANDARDS_TEST_GATE = off in mise.toml"
+              exit 0
+            fi
+            for task in typecheck build test e2e; do
+              if ! mise tasks info "$task" >/dev/null 2>&1; then echo "no $task task"; continue; fi
+              rm -rf reports/test
+              echo "::group::mise run $task"
+              mise run "$task"
+              echo "::endgroup::"
+              case $task in test | e2e)
+                # reports/test/junit.xml, or one report per package in a monorepo.
+                if [ -z "$(find reports/test -name '*.xml' 2>/dev/null)" ]; then
+                  echo "::error::$task wrote no JUnit report under reports/test/"
+                  exit 1
+                fi
+                junit() { find reports/test -name '*.xml' -exec cat {} + | { grep -oE "$1" || true; } | wc -l; }
+                cases=$(junit '<testcase[ >]')
+                failed=$(junit '<(failure|error)[ >/]')
+                echo "$task: $cases test cases, $failed failures or errors"
+                if [ "$cases" -eq 0 ] || [ "$failed" -ne 0 ]; then
+                  echo "::error::$task: the JUnit proof needs at least one test case and no failures"
+                  exit 1
+                fi
+              esac
+            done
