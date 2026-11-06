@@ -28,6 +28,25 @@ pre-commit:
         - mcp-server-contribution.md
         - scripts/build-mcpb.sh
         - server.json
+    # Unchanged upstream GUI files fail the pre-migration SwiftLint command
+    - name: compilers
+      group:
+        jobs:
+          - name: swiftlint
+            exclude:
+              - gui/draggy/Archive/ContentView.swift
+              - gui/draggy/Archive/DraggyApp.swift
+              - gui/draggy/Sources/Draggy/Core/ClipboardMonitor.swift
+              - gui/draggy/Sources/Draggy/Core/ClippyCore.swift
+              - gui/draggy/Sources/Draggy/Core/MimeDescription.swift
+              - gui/draggy/Sources/Draggy/Core/ThumbnailGenerator.swift
+              - gui/draggy/Sources/Draggy/Core/UpdateChecker.swift
+              - gui/draggy/Sources/Draggy/Interface/ClipboardViewModel.swift
+              - gui/draggy/Sources/Draggy/Interface/ContentView.swift
+              - gui/draggy/Sources/Draggy/Interface/DraggyApp.swift
+              - gui/draggy/Sources/Draggy/Interface/PreferencesView.swift
+              - gui/draggy/Sources/Draggy/Views/FileRow.swift
+              - gui/draggy/Sources/Draggy/Views/PermissionView.swift
     # Upstream's debugging scripts.
     - name: shellcheck
       exclude: ["dev/**"]

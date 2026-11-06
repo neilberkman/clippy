@@ -20,22 +20,12 @@ build:
     docker compose build --pull dev
 
 # Build the dev image, sync dependencies into volumes, and install git hooks
-setup: build
-    bin/setup.sh
-    @cid="$(docker create ghcr.io/rubio-enterprises/base:main)"; trap 'docker rm "$cid" >/dev/null' EXIT; mkdir -p .standards; docker cp "$cid:/opt/standards/." .standards/
-    @HOOKS_DIR="$(git rev-parse --git-path hooks)"; \
-    mkdir -p "$HOOKS_DIR"; \
-    rm -f "$HOOKS_DIR/post-checkout" "$HOOKS_DIR/post-merge" "$HOOKS_DIR/post-rewrite"; \
-    for hook in pre-commit commit-msg pre-push; do \
-        printf '#!/bin/sh\nset -eu\nREPO_DIR="$(git rev-parse --show-toplevel)"\nexport REPO_DIR\nexport GIT_COMMON_DIR="$(git -C "$REPO_DIR" rev-parse --path-format=absolute --git-common-dir)"\nexport COMPOSE_PROJECT_NAME="repo-$(printf %%s "$REPO_DIR" | shasum -a 256 | cut -d " " -f 1)"\ncd "$REPO_DIR" && exec docker compose run --rm -T dev lefthook run --no-auto-install %s "$@" </dev/null\n' "$hook" > "$HOOKS_DIR/$hook"; \
-        chmod +x "$HOOKS_DIR/$hook"; \
-    done
+setup: build setup-native
 
 # Run standards checks inside the container
 check:
     docker compose run --rm -T dev standards check </dev/null
-    if git ls-files '*.swift' | grep -q .; then REPO_DIR="$REPO_DIR" sh -c '. ./bin/native-env.sh; git ls-files -z -- "*.swift" | xargs -0 swiftlint lint --strict --config .standards/config/swiftlint.yml'; fi
-    if test -d Formula || test -d Casks; then brew style; fi
+    @just check-native
 
 # Run formatters and fixers inside the container
 fmt:
@@ -61,3 +51,38 @@ package *args:
 
 lint-go *args:
     docker compose run --rm -T dev bin/lint-go.sh "$@" </dev/null
+
+setup-native:
+    bin/setup.sh
+    @base="$(awk '/^FROM ghcr.io\/rubio-enterprises\/base:/ { print $2; exit }' Dockerfile)"; \
+    test -n "$base"; mkdir -p .standards; \
+    if test -n "${STANDARDS_NATIVE_CONFIG:-}"; then \
+        source="$(dirname "$STANDARDS_NATIVE_CONFIG")"; \
+        test -f "$source/config/swiftlint.yml"; test -f "$source/mise/scope.sh"; test -f "$source/lefthook/standards.yml"; \
+        for dir in config mise lefthook; do rm -rf ".standards/$dir"; cp -R "$source/$dir" ".standards/$dir"; done; \
+    elif command -v docker >/dev/null 2>&1; then \
+        cid="$(docker create "$base")"; trap 'docker rm "$cid" >/dev/null' EXIT; \
+        docker cp "$cid:/opt/standards/." .standards/; \
+    else \
+        version="${base##*:}"; case "$version" in main) version=latest ;; v*) version="${version#v}" ;; esac; \
+        tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT; \
+        NODE_AUTH_TOKEN="${NODE_AUTH_TOKEN:-${GH_TOKEN:-${GITHUB_TOKEN:-}}}" env \
+            'npm_config_@rubio-enterprises:registry=https://npm.pkg.github.com' \
+            'npm_config_//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' \
+            npm pack "@rubio-enterprises/standards@$version" --ignore-scripts --pack-destination "$tmp" >/dev/null; \
+        tar -xzf "$tmp/"*.tgz -C "$tmp" --strip-components=1 package/config package/mise package/lefthook; \
+        test -f "$tmp/config/swiftlint.yml"; test -f "$tmp/mise/scope.sh"; test -f "$tmp/lefthook/standards.yml"; \
+        for dir in config mise lefthook; do rm -rf ".standards/$dir"; mv "$tmp/$dir" ".standards/$dir"; done; \
+    fi
+    @if ! command -v docker >/dev/null 2>&1; then exit 0; fi; \
+    HOOKS_DIR="$(git rev-parse --git-path hooks)"; \
+    mkdir -p "$HOOKS_DIR"; \
+    rm -f "$HOOKS_DIR/post-checkout" "$HOOKS_DIR/post-merge" "$HOOKS_DIR/post-rewrite"; \
+    for hook in pre-commit commit-msg pre-push; do \
+        printf '#!/bin/sh\nset -eu\nREPO_DIR="$(git rev-parse --show-toplevel)"\nexport REPO_DIR\nexport GIT_COMMON_DIR="$(git -C "$REPO_DIR" rev-parse --path-format=absolute --git-common-dir)"\nexport COMPOSE_PROJECT_NAME="repo-$(printf %%s "$REPO_DIR" | shasum -a 256 | cut -d " " -f 1)"\ncd "$REPO_DIR" && exec docker compose run --rm -T dev lefthook run --no-auto-install %s "$@" </dev/null\n' "$hook" > "$HOOKS_DIR/$hook"; \
+        chmod +x "$HOOKS_DIR/$hook"; \
+    done
+
+check-native:
+    if test -f bin/native-env.sh; then . ./bin/native-env.sh; fi; if git ls-files '*.swift' | grep . >/dev/null; then if test -x bin/check-swift.sh; then bin/check-swift.sh; else swiftlint lint --strict --config .standards/config/swiftlint.yml; fi; fi
+    if test -d Formula || test -d Casks; then brew style; fi

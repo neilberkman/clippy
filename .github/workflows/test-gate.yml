@@ -93,8 +93,8 @@ jobs:
           echo "$sha  $dir/just.tar.gz" | shasum -a 256 -c -
           tar -xzf "$dir/just.tar.gz" -C "$dir" just
           echo "$dir" >> "$GITHUB_PATH"
-      - name: Log in for the internal base image (hosted Linux or native macOS)
-        if: steps.opt-out.outputs.opted_out != 'true' && needs.route.outputs.ci-image != 'true'
+      - name: Log in for the internal base image (hosted Linux)
+        if: steps.opt-out.outputs.opted_out != 'true' && needs.route.outputs.ci-image != 'true' && runner.os == 'Linux'
         env:
           GH_TOKEN: ${{ github.token }}
         run: printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
@@ -105,8 +105,11 @@ jobs:
         if: steps.opt-out.outputs.opted_out != 'true'
         env:
           CI_IMAGE: ${{ needs.route.outputs.ci-image }}
+          NODE_AUTH_TOKEN: ${{ github.token }}
         run: |
-          if [ "$CI_IMAGE" = true ]; then
+          if [ "$RUNNER_OS" = macOS ]; then
+            just setup-native
+          elif [ "$CI_IMAGE" = true ]; then
             bin/setup.sh
           else
             just build
@@ -118,6 +121,7 @@ jobs:
           CI_IMAGE: ${{ needs.route.outputs.ci-image }}
         run: |
           for step in test typecheck e2e package; do
+            if [ "$RUNNER_OS" = macOS ] && [ "$step" != test ]; then continue; fi
             script="bin/$step.sh"
             [ -f "$script" ] || continue
             test -x "$script"
