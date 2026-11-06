@@ -34,12 +34,12 @@ below remains applicable except where this fork's policy explicitly differs.
 - The Go floor applies; the Swift floor does not apply to upstream-owned Draggy
   and debug tools. `is_mcp_server` is a JS/TS-only template answer and is absent
   for this Go MCP server, not a claim that MCP support is absent.
-- The code uses AppKit through cgo, so Go lint, build and tests need macOS. `mise.toml` pins
-  upstream-compatible Go 1.25.3 and golangci-lint 2.5.0; `mise run lint:go` checks the fork
-  delta against `LINT_BASE_REF` (default `main`) rather than gating inherited upstream lint debt.
-  The injected `standards` check runs on Linux unless the repository's `ci-platform` property is
-  `macos`. `lefthook.override.yml` keeps upstream-only release/Draggy assets out of the Fixers.
-- `mise run test` runs uncached tests with `-p 1` (JUnit in `reports/test/`), then the
+- AppKit/cgo requires native macOS for Go lint, builds and tests. `image/mise.toml` and its
+  lock own the tool pins. `just setup-native` installs them under repository-local `.mise/`.
+  `just lint-go` checks the delta against `LINT_BASE_REF` (default `main`). The injected check
+  splits Linux Checks from native SwiftLint; `pr-test.yml` retains Darwin/cgo Go lint and builds.
+  SwiftLint uses the standards fork scope and `origin/upstream`, not a blanket GUI exclusion.
+- `just test` runs uncached tests with `-p 1` (JUnit in `reports/test/`), then the
   picker snapshot. On a shared development
   host, wrap clipboard operations in the local `/tmp/clippy-pasteboard.lock`
   mkdir lock; keep this host-specific coordination outside the test script.
@@ -189,10 +189,10 @@ Clippy is a macOS clipboard tool that bridges the gap between terminal file oper
 
 ### Testing
 
-- After cloning or creating a worktree, run `mise trust && mise run setup` before any mise task or
-  hook: it installs `@rubio-enterprises/standards` into `.standards/`, the tools and the git hooks
-  (it needs a `NODE_AUTH_TOKEN` with `read:packages`). `mise run check` runs every Check.
-- Run tests with `mise run test` (sequential packages; acquire the local lock on shared hosts)
+- Start with `just build`, then `just setup`. On Docker-free macOS CI use `just setup-native`.
+  `just check` combines Linux Checks with `just check-native`.
+- `just test` runs sequential packages and the picker snapshot. Run clipboard tests on an isolated
+  macOS runner or VM, not the homelab's real desktop.
 - Check specific test framework by examining existing tests
 - Always verify implementation with tests before considering complete
 
@@ -207,16 +207,10 @@ Clippy is a macOS clipboard tool that bridges the gap between terminal file oper
 ### Commands
 
 ```bash
-# Build
-go build -o clippy ./cmd/clippy
-go build -o pasty ./cmd/pasty
-
-# Test (acquire the host pasteboard lock first; includes the TUI snapshot)
-mise run test
-
-# Install
-go install github.com/neilberkman/clippy/cmd/clippy@latest
-go install github.com/neilberkman/clippy/cmd/pasty@latest
+just package
+just lint-go
+# Isolated macOS runner or VM only
+just test
 ```
 
 ### Version Management
