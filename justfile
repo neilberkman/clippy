@@ -50,7 +50,7 @@ package *args:
     bin/package.sh "$@"
 
 lint-go *args:
-    docker compose run --rm -T dev bin/lint-go.sh "$@" </dev/null
+    bin/lint-go.sh "$@"
 
 setup-native:
     bin/setup.sh
