@@ -2,5 +2,5 @@
 // own below. A key set here wins over the shared one.
 {
   "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
-  "extends": ["./.standards/node_modules/@rubio-enterprises/standards/config/biome.jsonc"]
+  "extends": ["/opt/standards/config/biome.jsonc"]
 }

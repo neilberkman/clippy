@@ -1,8 +1,7 @@
-# Git hooks, run by lefthook; `mise run setup` installs them. The Checks come from
-# @rubio-enterprises/standards, installed into .standards/. Later files win: this file, then the
-# shared Checks, then lefthook.override.yml (patches and Exclusions).
+# Git hooks, run by lefthook; installed by `just setup`.
+# Checks come from the org base image (/opt/standards).
 extends:
-  - .standards/node_modules/@rubio-enterprises/standards/lefthook/standards.yml
+  - /opt/standards/lefthook/standards.yml
   - lefthook.override.yml
 
 pre-commit:
@@ -11,29 +10,12 @@ pre-commit:
     # lefthook skips a missing extends file without a word, so check that the package is there.
     - name: standards installed
       tags: [standards]
-      run: test -f .standards/node_modules/@rubio-enterprises/standards/lefthook/standards.yml
-      fail_text: "@rubio-enterprises/standards is not installed: run mise run setup"
+      run: test -f /opt/standards/lefthook/standards.yml
+      fail_text: "run this inside the dev image: just check"
 
 commit-msg:
   jobs:
     - name: standards installed
       tags: [standards]
-      run: test -f .standards/node_modules/@rubio-enterprises/standards/lefthook/standards.yml
-      fail_text: "@rubio-enterprises/standards is not installed: run mise run setup"
-
-# Keep .standards/ on the latest Standards Release (or the Release Pin) after anything that can
-# move the checkout. Never fails the git command: an untrusted or offline checkout says what to run.
-post-checkout:
-  jobs:
-    - name: standards install
-      run: &install >-
-        mise run --quiet standards:install
-        || echo "standards: could not refresh .standards/ (mise trust? network?); run mise run setup" >&2
-post-merge:
-  jobs:
-    - name: standards install
-      run: *install
-post-rewrite:
-  jobs:
-    - name: standards install
-      run: *install
+      run: test -f /opt/standards/lefthook/standards.yml
+      fail_text: "run this inside the dev image: just check"

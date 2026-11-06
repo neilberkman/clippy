@@ -1,6 +1,6 @@
 # yamllint settings: the shared floor from @rubio-enterprises/standards plus this repository's
 # ignores (.yamllint-ignore). The shared ignore file comes first: an ignore list here replaces it.
-extends: .standards/node_modules/@rubio-enterprises/standards/config/yamllint.yml
+extends: /opt/standards/config/yamllint.yml
 ignore-from-file:
-  - .standards/node_modules/@rubio-enterprises/standards/config/yamllint-ignore
+  - /opt/standards/config/yamllint-ignore
   - .yamllint-ignore

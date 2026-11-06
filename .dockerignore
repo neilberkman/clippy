@@ -1,0 +1,13 @@
+.git
+.venv
+node_modules
+reports
+__pycache__
+*.pyc
+**/.env
+**/.env.*
+!**/.env.example
+!image/
+!image/**
+!bin/
+!bin/**

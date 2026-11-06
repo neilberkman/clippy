@@ -1,9 +1,9 @@
-# Test Gate (from @rubio-enterprises/standards; this repository owns it). The `test-gate` job is a
-# required status check. It runs each Lifecycle Task this repository defines (typecheck, build,
-# test, e2e) and, for test and e2e, requires JUnit reports under reports/test/ (junit.xml, or one
-# per package) with at least one test case and no failures, so a suite that runs nothing cannot
-# pass. Change runs-on, add services or setup steps as the repository needs; keep the job name.
-# An Opt-out (STANDARDS_TEST_GATE = "off" in mise.toml) passes it with a notice.
+# Test Gate (from @rubio-enterprises/standards; this repository owns it).
+# The `test-gate` job is a required status check. It runs Lifecycle Scripts in bin/
+# (setup.sh, test.sh, typecheck.sh, e2e.sh, package.sh) and requires JUnit reports
+# under reports/test/ and reports/e2e/ respectively.
+#
+# To opt out, add: # STANDARDS_TEST_GATE: off  # <reason>
 name: test-gate
 
 "on":
@@ -37,14 +37,17 @@ jobs:
     permissions:
       contents: read
     uses: Rubio-Enterprises/.github/.github/workflows/project-route.yml@main
-    with:
-      enable-hosted-image: true
+
   test-gate:
     name: test-gate
     needs: route
     if: always()
     runs-on: >-
-      ${{ needs.route.result == 'success' && fromJSON(needs.route.outputs.runner)
+      ${{ needs.route.result == 'success' &&
+      (needs.route.outputs.ci-image == 'true' && fromJSON(needs.route.outputs.runner)
+      || contains(needs.route.outputs.runner, 'macos') && fromJSON(needs.route.outputs.runner)
+      || github.event.repository.visibility == 'public' && fromJSON('["ubuntu-latest"]')
+      || (fromJSON(vars.RUNNERS || '{}').docker || fromJSON('["ubuntu-latest"]')))
       || (fromJSON(vars.RUNNERS || '{}').small || fromJSON('["ubuntu-slim"]')) }}
     timeout-minutes: 30
     steps:
@@ -56,62 +59,85 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Prepare the hosted Repository Image
-        if: needs.route.outputs.hosted-image == 'true'
-        uses: Rubio-Enterprises/.github/actions/project-command@main
-        with:
-          operation: prepare
-          hosted-image: "true"
-          token: ${{ github.token }}
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
-        if: needs.route.outputs.ci-image != 'true' && needs.route.outputs.hosted-image != 'true'
-        with:
-          install: false
-      - name: Trust the checked-out repository in the image
-        if: needs.route.outputs.ci-image == 'true' || needs.route.outputs.hosted-image == 'true'
-        uses: Rubio-Enterprises/.github/actions/project-command@main
-        with:
-          hosted-image: ${{ needs.route.outputs.hosted-image || 'false' }}
-          run: mise trust "$GITHUB_WORKSPACE"
-      - name: Install the standards package, the tools and the dependencies
-        uses: Rubio-Enterprises/.github/actions/project-command@main
-        with:
-          hosted-image: ${{ needs.route.outputs.hosted-image || 'false' }}
-          run: mise run setup
-          forward-env: NODE_AUTH_TOKEN MISE_GITHUB_TOKEN
+      - name: Check Test Gate Opt-out
+        id: opt-out
+        run: |
+          pattern='^[[:space:]]*#[[:space:]]*STANDARDS_TEST_GATE:[[:space:]]*off[[:space:]]+#[[:space:]]*[^[:space:]]'
+          if grep -qE "$pattern" .github/workflows/test-gate.yml; then
+            echo "::notice::Test Gate opted out in test-gate.yml"
+            echo "opted_out=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install pinned just release (hosted or native macOS)
+        if: steps.opt-out.outputs.opted_out != 'true' && needs.route.outputs.ci-image != 'true'
+        shell: bash
+        run: |
+          case "$(uname -s)-$(uname -m)" in
+            Linux-x86_64)
+              target=x86_64-unknown-linux-musl
+              sha=4a5cc2f53e6f0f8c59092a6cc38291eb729d46a7dd95d3ae582008881b84931d ;;
+            Linux-aarch64)
+              target=aarch64-unknown-linux-musl
+              sha=748237128c4c40cbdabc65e841d05ceba13cc23a91eaba395495894c1d9764df ;;
+            Darwin-arm64)
+              target=aarch64-apple-darwin
+              sha=50ae3e996c974a0bf32ea7d10f495070df33f1b43e0616b2769e3d4821ed8f48 ;;
+            Darwin-x86_64)
+              target=x86_64-apple-darwin
+              sha=9a09cfef66aaa79da58203970103a0684307716caaabd3e9844cacc4dc0f4023 ;;
+            *) echo 'unsupported just release platform' >&2; exit 1 ;;
+          esac
+          dir="$RUNNER_TEMP/just-bin"
+          mkdir -p "$dir"
+          url="https://github.com/casey/just/releases/download/1.58.0/just-1.58.0-$target.tar.gz"
+          curl --fail --location --silent --show-error "$url" -o "$dir/just.tar.gz"
+          echo "$sha  $dir/just.tar.gz" | shasum -a 256 -c -
+          tar -xzf "$dir/just.tar.gz" -C "$dir" just
+          echo "$dir" >> "$GITHUB_PATH"
+      - name: Log in for the internal base image (hosted Linux or native macOS)
+        if: steps.opt-out.outputs.opted_out != 'true' && needs.route.outputs.ci-image != 'true'
         env:
-          NODE_AUTH_TOKEN: ${{ github.token }}
-          MISE_GITHUB_TOKEN: ${{ github.token }}
-      - name: Ensure tmux is available (the TUI snapshot test)
-        run: command -v tmux >/dev/null 2>&1 || brew install tmux
-      - name: Run the Lifecycle Tasks this repository defines
-        uses: Rubio-Enterprises/.github/actions/project-command@main
-        with:
-          hosted-image: ${{ needs.route.outputs.hosted-image || 'false' }}
-          run: |
-            if [ "$(mise exec -- printenv STANDARDS_TEST_GATE || true)" = off ]; then
-              echo "::notice::Test Gate Opt-out: STANDARDS_TEST_GATE = off in mise.toml"
-              exit 0
-            fi
-            for task in typecheck build test e2e; do
-              if ! mise tasks info "$task" >/dev/null 2>&1; then echo "no $task task"; continue; fi
-              rm -rf reports/test
-              echo "::group::mise run $task"
-              mise run "$task"
-              echo "::endgroup::"
-              case $task in test | e2e)
-                # reports/test/junit.xml, or one report per package in a monorepo.
-                if [ -z "$(find reports/test -name '*.xml' 2>/dev/null)" ]; then
-                  echo "::error::$task wrote no JUnit report under reports/test/"
-                  exit 1
-                fi
-                junit() { find reports/test -name '*.xml' -exec cat {} + | { grep -oE "$1" || true; } | wc -l; }
-                cases=$(junit '<testcase[ >]')
-                failed=$(junit '<(failure|error)[ >/]')
-                echo "$task: $cases test cases, $failed failures or errors"
-                if [ "$cases" -eq 0 ] || [ "$failed" -ne 0 ]; then
-                  echo "::error::$task: the JUnit proof needs at least one test case and no failures"
-                  exit 1
-                fi
-              esac
-            done
+          GH_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Prepare container-writable hosted checkout
+        if: steps.opt-out.outputs.opted_out != 'true' && runner.environment == 'github-hosted' && runner.os == 'Linux'
+        run: chmod -R a+rwX "$GITHUB_WORKSPACE"
+      - name: Set up dependencies
+        if: steps.opt-out.outputs.opted_out != 'true'
+        env:
+          CI_IMAGE: ${{ needs.route.outputs.ci-image }}
+        run: |
+          if [ "$CI_IMAGE" = true ]; then
+            bin/setup.sh
+          else
+            just build
+            just setup
+          fi
+      - name: Run Lifecycle Scripts and require JUnit evidence
+        if: steps.opt-out.outputs.opted_out != 'true'
+        env:
+          CI_IMAGE: ${{ needs.route.outputs.ci-image }}
+        run: |
+          for step in test typecheck e2e package; do
+            script="bin/$step.sh"
+            [ -f "$script" ] || continue
+            test -x "$script"
+            case "$step" in test|e2e) rm -rf "reports/$step" ;; esac
+            echo "::group::$script"
+            if [ "$CI_IMAGE" = true ]; then "$script"; else just "$step"; fi
+            echo "::endgroup::"
+            case "$step" in test|e2e)
+              report_dir="reports/$step"
+              if [ ! -d "$report_dir" ] || [ -z "$(find "$report_dir" -name '*.xml')" ]; then
+                echo "::error::$script wrote no JUnit report under $report_dir/"
+                exit 1
+              fi
+              junit() { find "$report_dir" -name '*.xml' -exec cat {} + | { grep -oE "$1" || true; } | wc -l; }
+              cases=$(junit '<testcase[[:space:]/>]')
+              failed=$(junit '<(failure|error)[[:space:]/>]')
+              echo "$step: $cases test cases, $failed failures or errors"
+              if [ "$cases" -eq 0 ] || [ "$failed" -ne 0 ]; then
+                echo "::error::$step: the JUnit proof needs at least one test case and no failures"
+                exit 1
+              fi
+            esac
+          done

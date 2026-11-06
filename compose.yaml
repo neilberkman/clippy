@@ -1,0 +1,54 @@
+services:
+  dev:
+    build:
+      context: .
+      target: dev
+    pull_policy: missing
+    working_dir: ${REPO_DIR}
+    init: true
+    command: sleep infinity
+    environment:
+      - GH_TOKEN
+      - LEFTHOOK
+      - RUBIO_VOLUME_DIRS=${REPO_DIR}/.venv:${REPO_DIR}/node_modules:/home/vscode/.cache/uv:/home/vscode/.cache/npm:/home/vscode/.cache/gomod:/home/vscode/.cache/cargo/registry:/home/vscode/.cache/coursier
+    volumes:
+      - type: bind
+        source: ${REPO_DIR}
+        target: ${REPO_DIR}
+      - type: bind
+        source: ${GIT_COMMON_DIR}
+        target: ${GIT_COMMON_DIR}
+      - type: volume
+        source: venv
+        target: ${REPO_DIR}/.venv
+      - type: volume
+        source: node_modules
+        target: ${REPO_DIR}/node_modules
+      - type: volume
+        source: rubio-uv-cache
+        target: /home/vscode/.cache/uv
+      - type: volume
+        source: rubio-npm-cache
+        target: /home/vscode/.cache/npm
+      - type: volume
+        source: rubio-gomod-cache
+        target: /home/vscode/.cache/gomod
+      - type: volume
+        source: rubio-cargo-registry
+        target: /home/vscode/.cache/cargo/registry
+      - type: volume
+        source: rubio-coursier-cache
+        target: /home/vscode/.cache/coursier
+volumes:
+  venv: null
+  node_modules: null
+  rubio-uv-cache:
+    external: true
+  rubio-npm-cache:
+    external: true
+  rubio-gomod-cache:
+    external: true
+  rubio-cargo-registry:
+    external: true
+  rubio-coursier-cache:
+    external: true

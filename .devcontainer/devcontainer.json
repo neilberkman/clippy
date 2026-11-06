@@ -1,8 +1,8 @@
 {
-  "name": "Rubio Dev Container",
-  "image": "ghcr.io/rubio-enterprises/clippy/devcontainer:main",
-  "onCreateCommand": "mise run setup",
-  "remoteEnv": {
-    "NODE_AUTH_TOKEN": "${localEnv:NODE_AUTH_TOKEN}"
-  }
+  "name": "clippy",
+  "dockerComposeFile": ["../compose.yaml"],
+  "service": "dev",
+  "workspaceFolder": "${localWorkspaceFolder}",
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": false
 }

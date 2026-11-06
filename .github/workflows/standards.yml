@@ -31,13 +31,13 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             release-please-config.json
-            .github/.devcontainer/devcontainer.json
+            Dockerfile
             docs/codewiki/metadata.json
           sparse-checkout-cone-mode: false
       - id: files
         run: |
           for pair in release-please=release-please-config.json \
-            image=.github/.devcontainer/devcontainer.json codewiki=docs/codewiki/metadata.json; do
+            image=Dockerfile codewiki=docs/codewiki/metadata.json; do
             if [ -f "${pair#*=}" ]; then echo "${pair%%=*}=true" >>"$GITHUB_OUTPUT"; fi
           done
 
@@ -47,6 +47,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      packages: read
     uses: Rubio-Enterprises/.github/.github/workflows/release-please.yml@main
     secrets: inherit
 
@@ -59,6 +60,13 @@ jobs:
       packages: write
     uses: Rubio-Enterprises/.github/.github/workflows/repository-image.yml@main
 
+  standards-cache:
+    if: github.event_name != 'schedule'
+    permissions:
+      contents: read
+      packages: read
+    uses: Rubio-Enterprises/.github/.github/workflows/standards-cache.yml@main
+
   codewiki-pages:
     needs: files
     if: github.event_name == 'push' && needs.files.outputs.codewiki == 'true'
@@ -67,15 +75,6 @@ jobs:
       pages: write
       id-token: write
     uses: Rubio-Enterprises/.github/.github/workflows/codewiki-pages.yml@main
-
-  # The weekly caches the injected `standards` check restores in pull requests (their own caches
-  # are scoped to each pull request). After the week's first push it only looks them up.
-  standards-cache:
-    if: github.event_name != 'schedule'
-    permissions:
-      contents: read
-      packages: read
-    uses: Rubio-Enterprises/.github/.github/workflows/standards-cache.yml@main
 
   trufflehog:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

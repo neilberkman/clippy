@@ -1,0 +1,11 @@
+# Repository toolchain pins only, installed by Dockerfile
+# Check tools are supplied by base at /opt/standards
+[tools]
+# This repository's language runtimes. Node runs the standards install and the npm: check tools.
+node = "24.21.0"
+go = "1.25.3"
+# Upstream-compatible linter for lint:go and the golangci-lint Check (wins over the package pin).
+"aqua:golangci/golangci-lint" = "2.15.0"
+"aqua:jdx/mise" = { version = "2026.11.1", os = ["macos"] }
+"aqua:realm/SwiftLint" = { version = "0.65.1", os = ["macos"] }
+"aqua:cpisciotta/xcbeautify" = { version = "3.2.1", os = ["macos"] }

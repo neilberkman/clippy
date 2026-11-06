@@ -108,3 +108,5 @@ vendor/
 *.out
 .standards/
 lefthook-local.yml
+.venv/
+/.mise/

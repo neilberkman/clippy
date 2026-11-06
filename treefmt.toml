@@ -8,8 +8,8 @@ command = "sh"
 options = [
   "-c",
   '''
-test -f .standards/node_modules/@rubio-enterprises/standards/lefthook/standards.yml || { echo "treefmt: @rubio-enterprises/standards is not installed: run mise run setup" >&2; exit 1; }
-printf '%s\0' "$@" | mise exec -- lefthook run pre-commit --tag fixer --no-stage-fixed --no-fail-on-changes --no-auto-install --files-from-stdin
+test -f /opt/standards/lefthook/standards.yml || { echo "treefmt: run this inside the dev image: just check" >&2; exit 1; }
+printf '%s\0' "$@" | lefthook run pre-commit --tag fixer --no-stage-fixed --no-fail-on-changes --no-auto-install --files-from-stdin
 ''',
   "--",
 ]

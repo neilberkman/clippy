@@ -1,6 +1,6 @@
 # SwiftLint settings. The shared floor is the parent; keep this repository's paths here (SwiftLint
 # resolves `included`/`excluded` from the file that declares them).
-parent_config: .standards/node_modules/@rubio-enterprises/standards/config/swiftlint.yml
+parent_config: /opt/standards/config/swiftlint.yml
 excluded:
   - .build
   - .standards

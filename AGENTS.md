@@ -284,3 +284,23 @@ When you need to copy code that you're iteratively editing:
 ```
 
 This pattern is especially useful when helping users debug code in production environments where they need to paste updated scripts repeatedly.
+
+## Commands
+
+First command in a fresh checkout: `just build`.
+Never install toolchains on the host — use the dev image through `just`, except for the native macOS toolchain.
+
+```bash
+just build
+just setup
+just check
+just fmt
+just check-pr
+just test
+just package
+just lint-go
+just shell
+just exec <cmd...>
+```
+
+Single test: `just exec uv run pytest path::test` (Python); otherwise prefix the underlying runner with `just exec`.
