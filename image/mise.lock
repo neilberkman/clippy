@@ -199,6 +199,23 @@ checksum_source = "mise-versions"
 url = "https://github.com/realm/SwiftLint/releases/download/0.65.1/portable_swiftlint.zip"
 url_api = "https://api.github.com/repos/realm/SwiftLint/releases/assets/524187565"
 
+[[tools."aqua:tmux/tmux-builds"]]
+version = "3.7c"
+backend = "aqua:tmux/tmux-builds"
+specifiers = ["3.7c"]
+
+[tools."aqua:tmux/tmux-builds"."platforms.macos-arm64"]
+checksum = "sha256:0a763dd0380aa980d239509654da1bc7455843706a3c050f6709c8cd2e13d12d"
+checksum_source = "mise-versions"
+url = "https://github.com/tmux/tmux-builds/releases/download/v3.7c/tmux-3.7c-macos-arm64.tar.gz"
+url_api = "https://api.github.com/repos/tmux/tmux-builds/releases/assets/528734861"
+
+[tools."aqua:tmux/tmux-builds"."platforms.macos-x64"]
+checksum = "sha256:1c21f9ade964e4a539be05ffe3a4e95854ab76a0a9c4c05d0ffbe7fc6c4d783f"
+checksum_source = "mise-versions"
+url = "https://github.com/tmux/tmux-builds/releases/download/v3.7c/tmux-3.7c-macos-x86_64.tar.gz"
+url_api = "https://api.github.com/repos/tmux/tmux-builds/releases/assets/528734867"
+
 [[tools.go]]
 version = "1.25.3"
 backend = "core:go"
