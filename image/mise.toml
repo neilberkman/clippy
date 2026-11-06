@@ -1,6 +1,7 @@
 # Repository toolchain pins only, installed by Dockerfile
 # Check tools are supplied by base at /opt/standards
 [tools]
+"aqua:gotestyourself/gotestsum" = { version = "1.13.0", os = ["macos"] }
 # This repository's language runtimes. Node runs the standards install and the npm: check tools.
 node = "24.21.0"
 go = "1.25.3"
