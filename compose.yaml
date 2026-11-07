@@ -3,6 +3,8 @@ services:
     build:
       context: .
       target: dev
+      secrets:
+        - GITHUB_TOKEN
     pull_policy: missing
     working_dir: ${REPO_DIR}
     init: true
@@ -52,3 +54,7 @@ volumes:
     external: true
   rubio-coursier-cache:
     external: true
+
+secrets:
+  GITHUB_TOKEN:
+    environment: RUBIO_BUILD_GITHUB_TOKEN

@@ -2,6 +2,7 @@
 set positional-arguments
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
+export RUBIO_BUILD_GITHUB_TOKEN := env('GH_TOKEN', env('GITHUB_TOKEN', ''))
 export REPO_DIR := justfile_directory()
 export COMPOSE_PROJECT_NAME := "repo-" + sha256(justfile_directory())
 export GIT_COMMON_DIR := `git rev-parse --path-format=absolute --git-common-dir`
@@ -74,14 +75,7 @@ setup-native:
         test -f "$tmp/config/swiftlint.yml"; test -f "$tmp/mise/scope.sh"; test -f "$tmp/lefthook/standards.yml"; \
         for dir in config mise lefthook; do rm -rf ".standards/$dir"; mv "$tmp/$dir" ".standards/$dir"; done; \
     fi
-    @if ! command -v docker >/dev/null 2>&1; then exit 0; fi; \
-    HOOKS_DIR="$(git rev-parse --git-path hooks)"; \
-    mkdir -p "$HOOKS_DIR"; \
-    rm -f "$HOOKS_DIR/post-checkout" "$HOOKS_DIR/post-merge" "$HOOKS_DIR/post-rewrite"; \
-    for hook in pre-commit commit-msg pre-push; do \
-        printf '#!/bin/sh\nset -eu\nREPO_DIR="$(git rev-parse --show-toplevel)"\nexport REPO_DIR\nexport GIT_COMMON_DIR="$(git -C "$REPO_DIR" rev-parse --path-format=absolute --git-common-dir)"\nexport COMPOSE_PROJECT_NAME="repo-$(printf %%s "$REPO_DIR" | shasum -a 256 | cut -d " " -f 1)"\ncd "$REPO_DIR" && exec docker compose run --rm -T dev lefthook run --no-auto-install %s "$@" </dev/null\n' "$hook" > "$HOOKS_DIR/$hook"; \
-        chmod +x "$HOOKS_DIR/$hook"; \
-    done
+    @if command -v docker >/dev/null 2>&1; then docker compose run --rm -T dev /opt/standards/bin/install-hooks </dev/null; fi
 
 check-native:
     if test -f bin/native-env.sh; then . ./bin/native-env.sh; fi; if git ls-files '*.swift' | grep . >/dev/null; then if test -x bin/check-swift.sh; then bin/check-swift.sh; else swiftlint lint --strict --config .standards/config/swiftlint.yml; fi; fi
