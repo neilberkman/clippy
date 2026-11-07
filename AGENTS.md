@@ -24,7 +24,7 @@ below remains applicable except where this fork's policy explicitly differs.
 - Hold upstream workflow paths with fork content during syncs: `release.yml`
   accepts only `v*-strubio.*`; `release-draggy.yml` stays inert; `pr-test.yml`
   runs macOS changed-code lint and builds. Canonical tests, including the tmux
-  picker regression, live in `test-gate.yml` without duplicate PR test execution.
+  picker regression, live in org-injected Test Gate without duplicate PR test execution.
 - This is a merge-mode Sync Target (the `upstream-url` repository property).
   `upstream` is the controller-owned, pure mirror of upstream `main`, never a
   working branch or PR target. Review `central/upstream-sync` Sync PRs into
