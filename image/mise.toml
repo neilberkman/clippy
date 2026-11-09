@@ -4,7 +4,7 @@
 "aqua:gotestyourself/gotestsum" = { version = "1.13.0", os = ["macos"] }
 "aqua:tmux/tmux-builds" = { version = "3.7c", os = ["macos"] }
 # This repository's language runtimes. Node runs the standards install and the npm: check tools.
-node = "24.21.0"
+node = "24.22.2"
 go = "1.25.3"
 # Upstream-compatible linter for lint:go and the golangci-lint Check (wins over the package pin).
 "aqua:golangci/golangci-lint" = "2.15.0"
