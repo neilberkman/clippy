@@ -12,4 +12,4 @@ go = "1.25.3"
 "aqua:realm/SwiftLint" = { version = "0.65.1", os = ["macos"] }
 "aqua:cpisciotta/xcbeautify" = { version = "3.2.1", os = ["macos"] }
 "aqua:evilmartians/lefthook" = { version = "2.2.2", os = ["macos", "linux"] }
-"aqua:mikefarah/yq" = { version = "4.53.6", os = ["macos", "linux"] }
+"aqua:mikefarah/yq" = { version = "4.54.1", os = ["macos", "linux"] }
