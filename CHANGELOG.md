@@ -4,6 +4,10 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+### Fixed
+
+- The recent-downloads picker keeps refreshing after a download writes or renames a file, a watch error, or a failed refresh. Before, any of these stopped auto-refresh for the rest of the session
+
 ## [1.9.1] - 2026-09-04
 
 ### Fixed
