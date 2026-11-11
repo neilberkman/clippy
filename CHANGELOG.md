@@ -4,13 +4,22 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-11
+
 ### Added
 
-- **Teams-ready Markdown** — `clippy md2teams` and the `copy_teams` MCP tool reuse `md2rich` formatting in a complete HTML document. Teams on macOS renders a paste only when the HTML is a complete document and no plain text is offered. When plain text is offered, Teams falls back to it and shows raw text. Clippy writes only HTML and RTF — no plain text — so plain-text-only apps (Terminal, editors) paste nothing
+- **Teams-ready Markdown** — `clippy md2teams` and the `copy_teams` MCP tool reuse `md2rich` formatting in a complete HTML document. Teams on macOS renders a paste only when the HTML is a complete document and no plain text is offered. When plain text is offered, Teams falls back to it and shows raw text. Clippy writes only HTML and RTF — no plain text — so plain-text-only apps (Terminal, editors) paste nothing. Contributed by [strubio-ray](https://github.com/strubio-ray) in [Rubio-Enterprises/clippy#2](https://github.com/Rubio-Enterprises/clippy/pull/2) ([#40](https://github.com/neilberkman/clippy/pull/40))
 
 ### Fixed
 
-- The recent-downloads picker keeps refreshing after a download writes or renames a file, a watch error, or a failed refresh. Before, any of these stopped auto-refresh for the rest of the session
+- The recent-downloads picker keeps refreshing after a download writes or renames a file, a watch error, or a failed refresh. Before, any of these stopped auto-refresh for the rest of the session ([#39](https://github.com/neilberkman/clippy/pull/39))
+- The MCP server reports clippy's version: `serverInfo.version` in the `initialize` response was always `1.0.0`; it is now the release version, or `dev` for a source build
+
+### Changed
+
+- **mcp-go v1.5.0**, upgraded from v0.41.1, with goldmark v1.8.7, mimetype v1.4.16, fsnotify v1.10.1 and golang.org/x/image v0.48.0 ([#39](https://github.com/neilberkman/clippy/pull/39)). Building from source requires Go 1.26 or later
+- CI and releases run on macOS 15 runners; GitHub no longer runs jobs on macOS 14. Draggy builds with the Swift in the runner's Xcode
+- GitHub release notes come from this changelog instead of commit subjects. A release whose version has no entry here fails before anything is published
 
 ## [1.9.1] - 2026-09-04
 

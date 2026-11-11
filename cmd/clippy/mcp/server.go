@@ -12,6 +12,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/neilberkman/clippy"
+	"github.com/neilberkman/clippy/cmd/internal/common"
 	"github.com/neilberkman/clippy/pkg/recent"
 )
 
@@ -185,7 +186,7 @@ func StartServerWithOptions(opts ServerOptions) error {
 	// Create MCP server
 	s := server.NewMCPServer(
 		"Clippy MCP Server",
-		"1.0.0",
+		common.Version,
 	)
 
 	// Create agent clipboard buffer (persists for the session)

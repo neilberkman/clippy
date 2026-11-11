@@ -66,12 +66,18 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # The release body is this version's CHANGELOG.md section between the
+      # header and footer in .goreleaser.yml. A missing entry fails here,
+      # before anything is published.
+      - name: Extract release notes
+        run: ./scripts/release-notes.sh "$GITHUB_REF_NAME" > "$RUNNER_TEMP/release-notes.md"
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
-          version: latest
-          args: release --clean
+          version: v2.20.1
+          args: release --clean --release-notes=${{ runner.temp }}/release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
 
