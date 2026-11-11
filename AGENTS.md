@@ -43,6 +43,11 @@ below remains applicable except where this fork's policy explicitly differs.
   picker snapshot. On a shared development
   host, wrap clipboard operations in the local `/tmp/clippy-pasteboard.lock`
   mkdir lock; keep this host-specific coordination outside the test script.
+- **Architecture decisions**: an ADR records why a rule exists. Before changing a decision, check
+  `docs/adr/` for an accepted ADR; reversing one needs a superseding ADR. Write one only if a
+  person approved it: in the session, or in an approved plan or `delegate-to-agent` issue that
+  names the ADR. Otherwise the PR description is the record. Follow
+  [the format](docs/adr/0001-record-architecture-decisions.md), which states the ADR test.
 - Commits use lowercase, imperative Conventional Commits without attribution.
 
 ## CRITICAL: Never Credit Yourself
