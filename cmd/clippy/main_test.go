@@ -134,6 +134,59 @@ func TestMD2RichCommand(t *testing.T) {
 	}
 }
 
+func TestMD2TeamsCommand(t *testing.T) {
+	markdown := "Hello **team** — 世界 👋."
+	markdownFile := filepath.Join(t.TempDir(), "message.md")
+	if err := os.WriteFile(markdownFile, []byte(markdown), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, source := range []string{"file", "stdin", "explicit stdin", "clipboard"} {
+		t.Run(source, func(t *testing.T) {
+			if err := clipboard.CopyText(markdown); err != nil {
+				t.Fatal(err)
+			}
+			args := []string{"--verbose", "md2teams"}
+			switch source {
+			case "file":
+				args = append(args, markdownFile)
+			case "explicit stdin":
+				args = append(args, "-")
+			}
+			cmd := exec.Command("./clippy_test", args...)
+			switch source {
+			case "stdin", "explicit stdin":
+				cmd.Stdin = strings.NewReader(markdown)
+			case "clipboard":
+				stdin, err := os.Open("/dev/null")
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer func() { _ = stdin.Close() }()
+				cmd.Stdin = stdin
+			}
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout, cmd.Stderr = &stdout, &stderr
+			if err := cmd.Run(); err != nil {
+				t.Fatalf("md2teams failed: %v\n%s", err, &stderr)
+			}
+			if stdout.Len() != 0 || !strings.Contains(stderr.String(), "✅ Rendered Markdown as Teams-ready rich text") {
+				t.Errorf("unexpected output: stdout=%q stderr=%q", &stdout, &stderr)
+			}
+			html, ok := clipboard.GetClipboardDataForType("public.html")
+			if !ok || !strings.HasPrefix(string(html), `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>`) || !strings.Contains(string(html), "<b>team</b> — 世界 👋.") || !strings.HasSuffix(string(html), "</body></html>") {
+				t.Errorf("missing Teams document: %s", html)
+			}
+			rtf, ok := clipboard.GetClipboardDataForType("public.rtf")
+			if !ok || !bytes.HasPrefix(rtf, []byte("{\\rtf")) {
+				t.Errorf("missing RTF: %q", rtf)
+			}
+			if text, ok := clipboard.GetText(); ok && strings.TrimSpace(text) != "Hello team — 世界 👋." {
+				t.Errorf("plain text = %q; want only RTF-derived text", text)
+			}
+		})
+	}
+}
+
 func TestMD2SlackCommand(t *testing.T) {
 	// Seed the clipboard with something unrelated so a passing assertion can
 	// only come from the command having written the Slack payload itself.

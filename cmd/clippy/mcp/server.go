@@ -31,6 +31,11 @@ type CopyEmailArgs struct {
 	Signoff      string `json:"signoff,omitempty" jsonschema:"description=Closing and signature, using newlines where line breaks should remain"`
 }
 
+// CopyTeamsArgs defines arguments for the Teams-ready rich message tool.
+type CopyTeamsArgs struct {
+	Markdown string `json:"markdown"`
+}
+
 // CopySlackArgs defines arguments for the native Slack message tool.
 type CopySlackArgs struct {
 	Markdown           string `json:"markdown"`
@@ -132,6 +137,10 @@ func StartServerWithOptions(opts ServerOptions) error {
 		return err
 	}
 	copyEmailSpec, err := requireToolSpec(toolSpecs, "copy_email")
+	if err != nil {
+		return err
+	}
+	copyTeamsSpec, err := requireToolSpec(toolSpecs, "copy_teams")
 	if err != nil {
 		return err
 	}
@@ -389,6 +398,48 @@ func StartServerWithOptions(opts ServerOptions) error {
 				Text: string(resultJSON),
 			}},
 		}, nil
+	})
+
+	copyTeamsMarkdownDesc, err := toolParamDescription(copyTeamsSpec, "markdown")
+	if err != nil {
+		return err
+	}
+	copyTeamsTool := mcp.NewTool(
+		"copy_teams",
+		mcp.WithDescription(copyTeamsSpec.Description),
+		mcp.WithTitleAnnotation("Copy Teams-ready message"),
+		mcp.WithReadOnlyHintAnnotation(false),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithIdempotentHintAnnotation(true),
+		mcp.WithOpenWorldHintAnnotation(false),
+		mcp.WithString("markdown", mcp.Required(), mcp.Description(copyTeamsMarkdownDesc)),
+	)
+	s.AddTool(copyTeamsTool, func(_ context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		var args CopyTeamsArgs
+		argsBytes, err := json.Marshal(request.Params.Arguments)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Invalid arguments: %v", err)), nil
+		}
+		if err := json.Unmarshal(argsBytes, &args); err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Invalid arguments: %v", err)), nil
+		}
+		if strings.TrimSpace(args.Markdown) == "" {
+			return mcp.NewToolResultError("markdown is required"), nil
+		}
+
+		copyErr := clippy.CopyTeams(args.Markdown)
+		result := CopyResult{
+			Success: copyErr == nil,
+			Type:    "rich_teams",
+			Message: fmt.Sprintf("Copied %d characters as Teams-ready rich text; paste with Command-V (Teams rendering not verified)", utf8.RuneCountInString(args.Markdown)),
+		}
+		if copyErr != nil {
+			result.Message = fmt.Sprintf("Failed to render and copy Teams message: %v", copyErr)
+		}
+		resultJSON, _ := json.Marshal(result)
+		toolResult := mcp.NewToolResultText(string(resultJSON))
+		toolResult.IsError = copyErr != nil
+		return toolResult, nil
 	})
 
 	copySlackMarkdownDesc, err := toolParamDescription(copySlackSpec, "markdown")

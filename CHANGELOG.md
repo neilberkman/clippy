@@ -4,6 +4,10 @@ Notable changes to clippy.
 
 ## [Unreleased]
 
+### Added
+
+- **Teams-ready Markdown** — `clippy md2teams` and the `copy_teams` MCP tool reuse `md2rich` formatting in a complete HTML document. Teams on macOS renders a paste only when the HTML is a complete document and no plain text is offered. When plain text is offered, Teams falls back to it and shows raw text. Clippy writes only HTML and RTF — no plain text — so plain-text-only apps (Terminal, editors) paste nothing
+
 ### Fixed
 
 - The recent-downloads picker keeps refreshing after a download writes or renames a file, a watch error, or a failed refresh. Before, any of these stopped auto-refresh for the rest of the session

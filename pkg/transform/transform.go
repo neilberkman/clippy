@@ -23,7 +23,7 @@ const (
 )
 
 // RichText contains equivalent representations of a Markdown document.
-// HTML is an email-safe fragment rather than a complete HTML document.
+// HTML is an email-safe fragment, or a complete document for Teams.
 type RichText struct {
 	HTML      string
 	RTF       []byte
@@ -78,6 +78,18 @@ func EmailToRichText(parts EmailParts) (*RichText, error) {
 	}
 
 	return &RichText{HTML: htmlFragment, RTF: rtf, PlainText: plainText}, nil
+}
+
+// MarkdownToTeamsRichText converts CommonMark/GFM source to a complete UTF-8
+// HTML document for Teams, retaining MarkdownToRichText's RTF and plain text.
+// Teams requires the complete document rather than an HTML fragment.
+func MarkdownToTeamsRichText(source string) (*RichText, error) {
+	richText, err := MarkdownToRichText(source)
+	if err != nil {
+		return nil, err
+	}
+	richText.HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>` + richText.HTML + `</body></html>`
+	return richText, nil
 }
 
 func renderEmailHTML(parts EmailParts) string {

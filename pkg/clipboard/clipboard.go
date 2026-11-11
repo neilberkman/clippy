@@ -179,6 +179,44 @@ int copyRichText(const void *htmlBytes, size_t htmlLength,
     }
 }
 
+int copyTeamsRichText(const void *htmlBytes, size_t htmlLength,
+                      const void *rtfBytes, size_t rtfLength) {
+    @autoreleasepool {
+        [NSApplication sharedApplication];
+
+        NSData *rtfData = rtfLength == 0
+            ? [NSData data]
+            : [NSData dataWithBytes:rtfBytes length:rtfLength];
+        NSData *htmlData = htmlLength == 0
+            ? [NSData data]
+            : [NSData dataWithBytes:htmlBytes length:htmlLength];
+
+        NSPasteboardItem *item = [[NSPasteboardItem alloc] init];
+        BOOL success = [item setData:rtfData forType:NSPasteboardTypeRTF];
+        success = success && [item setData:htmlData forType:NSPasteboardTypeHTML];
+
+        if (!success) {
+            return -1;
+        }
+
+        NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+        NSInteger initialChangeCount = [pasteboard changeCount];
+
+        [pasteboard clearContents];
+        success = [pasteboard writeObjects:@[item]];
+
+        if (!success) {
+            return -1;
+        }
+
+        if (waitForPasteboardChange(pasteboard, initialChangeCount) != 0) {
+            return -2;
+        }
+
+        return 0;
+    }
+}
+
 // Copy an opaque custom-typed blob plus a plain-text fallback as one
 // pasteboard item. Electron editors read their own rich formats out of a blob
 // like this, so a native tool can hand such an editor exactly the bytes it
@@ -635,6 +673,40 @@ func CopyRichText(htmlContent string, rtfContent []byte, plainText string) error
 		C.size_t(len(rtfContent)),
 		cPlainText,
 		C.size_t(len(plainTextBytes)),
+	)
+
+	switch result {
+	case 0:
+		return nil
+	case -1:
+		return fmt.Errorf("failed to write to clipboard")
+	case -2:
+		return fmt.Errorf("clipboard operation timed out")
+	default:
+		return fmt.Errorf("unknown clipboard error: %d", result)
+	}
+}
+
+// CopyTeamsRichText copies ordered RTF and HTML representations to a single
+// pasteboard item, with no plain text so Teams does not fall back to raw text.
+// HTML is encoded as UTF-8; callers must supply a complete HTML document.
+func CopyTeamsRichText(htmlContent string, rtfContent []byte) error {
+	htmlBytes := []byte(htmlContent)
+
+	cHTML := cBytes(htmlBytes)
+	if cHTML != nil {
+		defer C.free(cHTML)
+	}
+	cRTF := cBytes(rtfContent)
+	if cRTF != nil {
+		defer C.free(cRTF)
+	}
+
+	result := C.copyTeamsRichText(
+		cHTML,
+		C.size_t(len(htmlBytes)),
+		cRTF,
+		C.size_t(len(rtfContent)),
 	)
 
 	switch result {
