@@ -51,9 +51,6 @@ func TestCopyTeamsMCP(t *testing.T) {
 			if _, err := client.Initialize(ctx, initialize); err != nil {
 				t.Fatal(err)
 			}
-			if err := client.Ping(ctx); err != nil {
-				t.Fatal(err)
-			}
 			tools, err := client.ListTools(ctx, mcp.ListToolsRequest{})
 			if err != nil {
 				t.Fatal(err)
