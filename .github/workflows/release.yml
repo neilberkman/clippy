@@ -17,7 +17,7 @@ permissions:
 jobs:
   test:
     if: github.event_name == 'push'
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -54,7 +54,7 @@ jobs:
   release:
     if: github.event_name == 'push'
     needs: test
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Checkout
         uses: actions/checkout@v7

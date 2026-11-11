@@ -10,15 +10,12 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-14  # Xcode 15.x, compatible with Swift 5.10
+    # Builds with the Swift in the runner's Xcode; Package.swift declares
+    # swift-tools-version 5.9, which Swift 6 builds in Swift 5 mode.
+    runs-on: macos-15
 
     steps:
     - uses: actions/checkout@v7
-
-    - name: Setup Swift
-      uses: swift-actions/setup-swift@v2
-      with:
-        swift-version: '5.10'
 
     - name: Setup Go
       uses: actions/setup-go@v7
