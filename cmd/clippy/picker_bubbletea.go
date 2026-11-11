@@ -45,30 +45,37 @@ type pickerItem struct {
 	focused  bool
 }
 
-// waitForFSEvent returns a command that waits for file system events
+// waitForFSEvent blocks until a new file appears in a watched directory and
+// returns the refreshed file list. Update re-arms the watch only after a
+// refreshMsg, so every other event, watch error, or failed refresh is skipped
+// here rather than returned; returning nil would end auto-refresh for the rest
+// of the session. It returns nil once the watcher is closed.
 func (m pickerModel) waitForFSEvent() tea.Msg {
-	if m.watcher == nil {
+	if m.watcher == nil || m.refreshFunc == nil {
 		return nil
 	}
 
-	select {
-	case event, ok := <-m.watcher.Events:
-		if !ok {
-			return nil
-		}
-		// Only refresh on Create events (new files)
-		if event.Op&fsnotify.Create == fsnotify.Create {
-			if m.refreshFunc != nil {
-				files, err := m.refreshFunc()
-				if err == nil {
-					return refreshMsg{files: files}
-				}
+	for {
+		select {
+		case event, ok := <-m.watcher.Events:
+			if !ok {
+				return nil
 			}
+			if !event.Has(fsnotify.Create) {
+				continue
+			}
+			files, err := m.refreshFunc()
+			if err != nil {
+				continue
+			}
+			return refreshMsg{files: files}
+		case _, ok := <-m.watcher.Errors:
+			if !ok {
+				return nil
+			}
+			// Watch errors such as event overflow are not fatal.
 		}
-	case <-m.watcher.Errors:
-		// Ignore errors, just keep watching
 	}
-	return nil
 }
 
 // Initialize the model
