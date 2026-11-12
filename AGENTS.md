@@ -37,7 +37,9 @@ below remains applicable except where this fork's policy explicitly differs.
 - AppKit/cgo requires native macOS for Go lint, builds and tests. `image/mise.toml` and its
   lock own the tool pins. `just setup-native` installs them under repository-local `.mise/`.
   `just lint-go` checks the delta against `LINT_BASE_REF` (default `main`). The injected check
-  splits Linux Checks from native SwiftLint; `pr-test.yml` retains Darwin/cgo Go lint and builds.
+  runs Go lint on Linux and through `just check-native` on macOS, where AppKit/cgo files are
+  included. Both use the shared golangci-lint Check and the repository's `.golangci.yml`.
+  `pr-test.yml` retains duplicate lint and the package build until the central gate runs package.
   SwiftLint uses the standards fork scope and `origin/upstream`, not a blanket GUI exclusion.
 - `just test` runs uncached tests with `-p 1` (JUnit in `reports/test/`), then the
   picker snapshot. On a shared development
