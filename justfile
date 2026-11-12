@@ -78,5 +78,6 @@ setup-native:
     @if command -v docker >/dev/null 2>&1; then docker compose run --rm -T dev /opt/standards/bin/install-hooks </dev/null; fi
 
 check-native:
+    bin/check-go.sh
     if test -f bin/native-env.sh; then . ./bin/native-env.sh; fi; if git ls-files '*.swift' | grep . >/dev/null; then if test -x bin/check-swift.sh; then bin/check-swift.sh; else swiftlint lint --strict --config .standards/config/swiftlint.yml; fi; fi
     if test -d Formula || test -d Casks; then brew style; fi
