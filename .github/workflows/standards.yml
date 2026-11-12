@@ -55,6 +55,7 @@ jobs:
     needs: files
     if: github.event_name != 'schedule' && needs.files.outputs.image == 'true'
     permissions:
+      actions: read
       contents: read
       id-token: write
       packages: write
@@ -63,6 +64,7 @@ jobs:
   standards-cache:
     if: github.event_name != 'schedule'
     permissions:
+      actions: read
       contents: read
       packages: read
     uses: Rubio-Enterprises/.github/.github/workflows/standards-cache.yml@main
