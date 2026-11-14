@@ -4,7 +4,8 @@ set -eu
 . ./bin/macos-env.sh
 mkdir -p "$MISE_CONFIG_DIR"
 touch "$MISE_GLOBAL_CONFIG_FILE"
-MISE_LOCKED=0 MISE_LOCKFILE=0 mise install aqua:jdx/mise@2026.11.1
+mise_version="$(MISE_LOCKED=0 MISE_LOCKFILE=0 mise config get 'tools."aqua:jdx/mise".version')"
+MISE_LOCKED=0 MISE_LOCKFILE=0 mise install "aqua:jdx/mise@$mise_version"
 native_mise="$(MISE_LOCKED=0 MISE_LOCKFILE=0 mise which mise)"
 "$native_mise" install --locked go aqua:golangci/golangci-lint aqua:gotestyourself/gotestsum aqua:tmux/tmux-builds aqua:jdx/mise aqua:realm/SwiftLint aqua:cpisciotta/xcbeautify aqua:evilmartians/lefthook aqua:mikefarah/yq
 "$native_mise" reshim
