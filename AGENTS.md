@@ -8,6 +8,8 @@ In a fresh checkout, run `just build`, then `just setup`. Use `just --list` to d
 
 Run clipboard tests only on an isolated macOS runner or VM, not the homelab desktop. `just test` runs the full suite and picker snapshot.
 
+For a single test in a portable package, use `just exec go test -count=1 -run '^TestName$' ./pkg/<portable>/`. For AppKit/cgo packages, run `. ./bin/macos-env.sh && go test -count=1 -run '^TestName$' ./pkg/clipboard/` on an isolated macOS runner or VM.
+
 <!-- agnix-disable CC-MEM-014 -- upstream's long guidance plus the fork's notes; splitting into .claude/rules/ is a follow-up -->
 
 `AGENTS.md` is canonical; `CLAUDE.md` is a symlink to it. The upstream guidance
