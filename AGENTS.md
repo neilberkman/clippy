@@ -1,4 +1,14 @@
-# Clippy agent context
+# Agent context
+
+## Commands
+
+Run project commands through `just`. Image Checks run in the dev image; macOS builds, tests and Checks use isolated repository-local tools.
+
+In a fresh checkout, run `just build`, then `just setup`. Use `just --list` to discover recipes.
+
+Run clipboard tests only on an isolated macOS runner or VM, not the homelab desktop. `just test` runs the full suite and picker snapshot.
+
+For a single test in a portable package, use `just exec go test -count=1 -run '^TestName$' ./pkg/<portable>/`. For AppKit/cgo packages, run `. ./bin/macos-env.sh && go test -count=1 -run '^TestName$' ./pkg/clipboard/` on an isolated macOS runner or VM.
 
 <!-- agnix-disable CC-MEM-014 -- upstream's long guidance plus the fork's notes; splitting into .claude/rules/ is a follow-up -->
 
@@ -22,9 +32,8 @@ below remains applicable except where this fork's policy explicitly differs.
   artifacts, or Draggy releases. The inherited `.goreleaser.yml` and packaging
   scripts are upstream reference material, not the fork's release path.
 - Hold upstream workflow paths with fork content during syncs: `release.yml`
-  accepts only `v*-strubio.*`; `release-draggy.yml` stays inert; `pr-test.yml`
-  runs macOS changed-code lint and builds. Canonical tests, including the tmux
-  picker regression, live in org-injected Test Gate without duplicate PR test execution.
+  accepts only `v*-strubio.*`; `release-draggy.yml` stays inert. Canonical tests,
+  including the tmux picker regression, live in the org-injected Test Gate.
 - This is a merge-mode Sync Target (the `upstream-url` repository property).
   `upstream` is the controller-owned, pure mirror of upstream `main`, never a
   working branch or PR target. Review `central/upstream-sync` Sync PRs into
@@ -35,11 +44,10 @@ below remains applicable except where this fork's policy explicitly differs.
   and debug tools. `is_mcp_server` is a JS/TS-only template answer and is absent
   for this Go MCP server, not a claim that MCP support is absent.
 - AppKit/cgo requires native macOS for Go lint, builds and tests. `image/mise.toml` and its
-  lock own the tool pins. `just setup-native` installs them under repository-local `.mise/`.
-  `just lint-go` checks the delta against `LINT_BASE_REF` (default `main`). The injected check
-  runs Go lint on Linux and through `just check-native` on macOS, where AppKit/cgo files are
-  included. Both use the shared golangci-lint Check and the repository's `.golangci.yml`.
-  `pr-test.yml` retains duplicate lint and the package build until the central gate runs package.
+  lock own the tool pins. `just setup-macos` installs them under repository-local `.mise/`.
+  `just lint-go` checks the delta against `LINT_BASE_REF` (default `main`, or the GitHub event base).
+  The injected check runs Go lint on Linux and through `just check-macos` on macOS, where
+  AppKit/cgo files are included. Both use the shared golangci-lint Check and `.golangci.yml`.
   SwiftLint uses the standards fork scope and `origin/upstream`, not a blanket GUI exclusion.
 - `just test` runs uncached tests with `-p 1` (JUnit in `reports/test/`), then the
   picker snapshot. On a shared development
@@ -196,8 +204,7 @@ Clippy is a macOS clipboard tool that bridges the gap between terminal file oper
 
 ### Testing
 
-- Start with `just build`, then `just setup`. On Docker-free macOS CI use `just setup-native`.
-  `just check` combines Linux Checks with `just check-native`.
+- On Docker-free macOS CI use `just setup-macos`. `just check` combines Linux Checks with `just check-macos`.
 - `just test` runs sequential packages and the picker snapshot. Run clipboard tests on an isolated
   macOS runner or VM, not the homelab's real desktop.
 - Check specific test framework by examining existing tests
@@ -285,23 +292,3 @@ When you need to copy code that you're iteratively editing:
 ```
 
 This pattern is especially useful when helping users debug code in production environments where they need to paste updated scripts repeatedly.
-
-## Commands
-
-First command in a fresh checkout: `just build`.
-Never install toolchains on the host — use the dev image through `just`, except for the native macOS toolchain.
-
-```bash
-just build
-just setup
-just check
-just fmt
-just check-pr
-just test
-just package
-just lint-go
-just shell
-just exec <cmd...>
-```
-
-Single test: `just exec uv run pytest path::test` (Python); otherwise prefix the underlying runner with `just exec`.

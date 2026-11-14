@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 # shellcheck source=/dev/null
-. ./bin/native-env.sh
+. ./bin/macos-env.sh
 mkdir -p "$MISE_CONFIG_DIR"
 touch "$MISE_GLOBAL_CONFIG_FILE"
 MISE_LOCKED=0 MISE_LOCKFILE=0 mise install aqua:jdx/mise@2026.11.1

@@ -1,0 +1,5 @@
+[workflows."release-draggy.yml"]
+reason = "Keep the upstream Draggy release disabled in this fork"
+
+[workflows."release.yml"]
+reason = "Update the Homebrew formula for fork release tags"

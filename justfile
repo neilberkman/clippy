@@ -1,11 +1,15 @@
-# host-first: native-macos
+# host-first: macos
 set positional-arguments
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 export RUBIO_BUILD_GITHUB_TOKEN := env('GH_TOKEN', env('GITHUB_TOKEN', ''))
 export REPO_DIR := justfile_directory()
 export COMPOSE_PROJECT_NAME := "repo-" + sha256(justfile_directory())
-export GIT_COMMON_DIR := `git rev-parse --path-format=absolute --git-common-dir`
+unexport GIT_COMMON_DIR
+export RUBIO_GIT_COMMON_DIR := `env -u GIT_COMMON_DIR git rev-parse --path-format=absolute --git-common-dir`
+
+_run := if path_exists('/opt/standards') == 'true' { '' } else { 'docker compose run --rm -T dev' }
+interactive := if path_exists('/opt/standards') == 'true' { '' } else { 'docker compose run --rm dev' }
 
 # Show available recipes
 _default:
@@ -13,52 +17,21 @@ _default:
 
 # Build dev container image
 build:
-    @docker volume create rubio-uv-cache >/dev/null
-    @docker volume create rubio-npm-cache >/dev/null
-    @docker volume create rubio-gomod-cache >/dev/null
-    @docker volume create rubio-cargo-registry >/dev/null
-    @docker volume create rubio-coursier-cache >/dev/null
-    docker compose build --pull dev
+    @if [ ! -d /opt/standards ]; then bin/build.sh; fi
 
 # Build the dev image, sync dependencies into volumes, and install git hooks
-setup: build setup-native
+[macos]
+setup: build setup-macos
 
-# Run standards checks inside the container
-check:
-    docker compose run --rm -T dev standards check </dev/null
-    @just check-native
-
-# Run formatters and fixers inside the container
-fmt:
-    docker compose run --rm -T dev standards fmt </dev/null
-
-# Run pull-request conventions check inside the container
-check-pr:
-    docker compose run --rm -T dev standards check-pr </dev/null
-
-# Open interactive shell inside the dev container
-shell:
-    docker compose run --rm dev bash
-
-# Execute arbitrary command inside the dev container
-exec *args:
-    docker compose run --rm -T dev "$@" </dev/null
-
-test *args:
-    bin/test.sh "$@"
-
-package *args:
-    bin/package.sh "$@"
-
-lint-go *args:
-    bin/lint-go.sh "$@"
-
-setup-native:
+# Set up the macOS toolchain and shared config without requiring Docker
+[macos]
+setup-macos:
     bin/setup.sh
     @base="$(awk '/^FROM ghcr.io\/rubio-enterprises\/base:/ { print $2; exit }' Dockerfile)"; \
     test -n "$base"; mkdir -p .standards; \
-    if test -n "${STANDARDS_NATIVE_CONFIG:-}"; then \
-        source="$(dirname "$STANDARDS_NATIVE_CONFIG")"; \
+    config="${STANDARDS_MACOS_CONFIG:-}"; \
+    if test -n "$config"; then \
+        source="$(dirname "$config")"; \
         test -f "$source/config/swiftlint.yml"; test -f "$source/mise/scope.sh"; test -f "$source/lefthook/standards.yml"; \
         for dir in config mise lefthook; do rm -rf ".standards/$dir"; cp -R "$source/$dir" ".standards/$dir"; done; \
     elif command -v docker >/dev/null 2>&1; then \
@@ -77,7 +50,42 @@ setup-native:
     fi
     @if command -v docker >/dev/null 2>&1; then docker compose run --rm -T dev /opt/standards/bin/install-hooks </dev/null; fi
 
-check-native:
+# Run image Checks and macOS Checks on a local Mac
+check:
+    {{_run}} standards check </dev/null
+    @if [ ! -d /opt/standards ]; then just check-macos; fi
+
+# Run only macOS Checks; swept repositories keep their scoped local helper
+[macos]
+check-macos:
     bin/check-go.sh
-    if test -f bin/native-env.sh; then . ./bin/native-env.sh; fi; if git ls-files '*.swift' | grep . >/dev/null; then if test -x bin/check-swift.sh; then bin/check-swift.sh; else swiftlint lint --strict --config .standards/config/swiftlint.yml; fi; fi
+    if test -f bin/macos-env.sh; then . ./bin/macos-env.sh; fi; if git ls-files '*.swift' | grep -q .; then if test -x bin/check-swift.sh; then bin/check-swift.sh; else swiftlint lint --strict --config .standards/config/swiftlint.yml; fi; fi
     if test -d Formula || test -d Casks; then brew style; fi
+
+[macos]
+test *args:
+    bin/test.sh "$@"
+
+[macos]
+package *args:
+    bin/package.sh "$@"
+
+[macos]
+lint-go *args:
+    bin/lint-go.sh "$@"
+
+# Run formatters and fixers inside the container
+fmt:
+    {{_run}} standards fmt </dev/null
+
+# Run pull-request conventions check inside the container
+check-pr:
+    {{_run}} standards check-pr </dev/null
+
+# Open interactive shell inside the dev container
+shell:
+    {{interactive}} bash
+
+# Execute arbitrary command inside the dev container
+exec *args:
+    {{_run}} "$@" </dev/null
