@@ -1,4 +1,4 @@
 #!/bin/sh
 set -eu
-. ./bin/native-env.sh
+. ./bin/macos-env.sh
 go build ./cmd/clippy ./cmd/pasty "$@"

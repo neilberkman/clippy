@@ -44,12 +44,12 @@ jobs:
           tar -xzf "$work/mise.tar.gz" -C "$RUNNER_TEMP" mise/bin/mise
           printf '%s\n' "$RUNNER_TEMP/mise/bin" >> "$GITHUB_PATH"
       - name: Set up native tools and Checks
-        run: just setup-native
+        run: just setup-macos
         env:
           GH_TOKEN: ${{ github.token }}
           NODE_AUTH_TOKEN: ${{ github.token }}
       - name: Check fork-owned Swift
-        run: just check-native
+        run: just check-macos
       - name: Lint fork changes
         env:
           LINT_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}

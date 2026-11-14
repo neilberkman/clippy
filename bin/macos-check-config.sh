@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 export NATIVE_CHECK="${2:-swiftlint}"
-if [ "${1:-}" = --native ] || [ ! -f /opt/standards/lefthook/standards.yml ]; then
+if [ "${1:-}" = --macos ] || [ ! -f /opt/standards/lefthook/standards.yml ]; then
   export REPO_DIR="${REPO_DIR:-$(git rev-parse --show-toplevel)}"
   export MISE_DATA_DIR="${MISE_DATA_DIR:-$REPO_DIR/.mise}"
   mkdir -p "$MISE_DATA_DIR"

@@ -2,6 +2,7 @@
   "name": "clippy",
   "dockerComposeFile": ["../compose.yaml"],
   "service": "dev",
+  "initializeCommand": ["sh", "bin/dev-environment.sh"],
   "workspaceFolder": "${localWorkspaceFolder}",
   "remoteUser": "vscode",
   "updateRemoteUserUID": false
